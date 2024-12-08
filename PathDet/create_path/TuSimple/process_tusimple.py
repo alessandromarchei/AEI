@@ -6,6 +6,12 @@ import os
 from PIL import Image, ImageDraw
 import warnings
 
+# Custom warning format cuz the default one is wayyyyyy too verbose
+def custom_warning_format(message, category, filename, lineno, line=None):
+    return f"{message}\n"
+
+warnings.formatwarning = custom_warning_format
+
 # ============================== Dataset structure ============================== #
 
 root_dir = "TUSimple"
@@ -58,13 +64,11 @@ def getEgoIndexes(anchors):
     return "NO LANES on the RIGHT side of frame. Something's sussy out there!"
 
 
-def getDrivablePath(left_ego, right_ego, verbose = False):
+def getDrivablePath(left_ego, right_ego):
     i, j = 0, 0
     drivable_path = []
     while (i < len(left_ego) - 1 and j < len(right_ego) - 1):
         if (left_ego[i][1] == right_ego[j][1]):
-            if (verbose):
-                print(f"Appending ({left_ego[i][0] + right_ego[j][0] / 2}, {left_ego[i][1]})")
             drivable_path.append((
                 (left_ego[i][0] + right_ego[j][0]) / 2,     # Midpoint along x axis
                 left_ego[i][1]
@@ -152,11 +156,7 @@ def parseAnnotations(anno_path):
         right_ego = lanes_decoupled[ego_indexes[1]]
 
         # Determine drivable path from 2 egos
-        if raw_file == "clips/0313-1/960/20.jpg":
-            print(f"Processing {raw_file}...")
-            drivable_path = getDrivablePath(left_ego, right_ego, verbose = True)
-        else:
-            drivable_path = getDrivablePath(left_ego, right_ego)
+        drivable_path = getDrivablePath(left_ego, right_ego)
 
         # Parse processed data, all coords normalized
         anno_data[raw_file] = {
@@ -247,7 +247,7 @@ if __name__ == "__main__":
                     os.path.join(output_dir, batch, "labeled")
                 )
             data_master[batch]["data"].update(this_data)
-            print(f"Processed {len(this_data)} {batch} entries in file {anno_file}.")
+            print(f"Processed {len(this_data)} {batch} entries in above file.\n")
         print(f"Done processing {batch} data with {len(data_master[batch]['data'])} entries in total.\n")
 
     # Save master data
