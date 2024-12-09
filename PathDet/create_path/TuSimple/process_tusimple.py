@@ -271,11 +271,11 @@ def parseAnnotations(anno_path):
         - Warnings are issued for frames with no lanes on one side, while finding ego indexes.
 
     """
-    # Read em raw
+    # Read each line of GT text file as JSON
     with open(anno_path, "r") as f:
         read_data = [json.loads(line) for line in f.readlines()]
 
-    # Parse em through
+    # Parse data from those JSON lines
     anno_data = {}
     for item in read_data:
         lanes = item["lanes"]
@@ -283,6 +283,7 @@ def parseAnnotations(anno_path):
         raw_file = item["raw_file"]
 
         # Decouple from {lanes: [xi1, xi2, ...], h_samples: [y1, y2, ...]} to [(xi1, y1), (xi2, y2), ...]
+        # `lane_decoupled` is a list of sublists representing lanes, each lane is a list of (x, y) tuples.
         lanes_decoupled = [
             [(x, y) for x, y in zip(lane, h_samples) if x != -2]
             for lane in lanes if sum(1 for x in lane if x != -2) >= 2     # Filter out lanes < 2 points (there's actually a bunch of em)
