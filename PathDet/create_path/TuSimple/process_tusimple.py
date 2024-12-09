@@ -233,8 +233,10 @@ def annotateGT(
             draw.line(lane, fill = lane_colors["outer_red"], width = lane_w)
     # Drivable path, in yellow
     if (normalized):
-        anno_entry["drivable_path"] = [(x * img_width, y * img_height) for x, y in anno_entry["drivable_path"]]
-    draw.line(anno_entry["drivable_path"], fill = lane_colors["drive_path_yellow"], width = lane_w)
+        drivable_renormed = [(x * img_width, y * img_height) for x, y in anno_entry["drivable_path"]]
+    else:
+        drivable_renormed = anno_entry["drivable_path"]
+    draw.line(drivable_renormed, fill = lane_colors["drive_path_yellow"], width = lane_w)
 
     # Save labeled img, same format with raw, just different dir
     raw_img.save(os.path.join(labeled_dir, save_name))
@@ -308,6 +310,7 @@ def parseAnnotations(anno_path):
             "drivable_path": normalizeCoords(drivable_path, img_width, img_height),
             "img_size": (img_width, img_height),
         }
+        print(anno_data[raw_file]["drivable_path"])
 
     return anno_data
 
@@ -341,7 +344,7 @@ if __name__ == "__main__":
 
     Example:
     --------
-        python process_tusimple.py --dataset_dir /path/to/TuSimple --output_dir /path/to/output
+        `python process_tusimple.py --dataset_dir /path/to/TuSimple --output_dir /path/to/output`
 
     """
 
