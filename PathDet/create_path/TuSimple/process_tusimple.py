@@ -6,6 +6,7 @@ import os
 import pathlib
 from PIL import Image, ImageDraw
 import warnings
+from datetime import datetime
 
 # Custom warning format cuz the default one is wayyyyyy too verbose
 def custom_warning_format(message, category, filename, lineno, line=None):
@@ -168,12 +169,15 @@ def getDrivablePath(left_ego, right_ego):
 
 def annotateGT(
         anno_entry, anno_raw_file, 
-        raw_dir, labeled_dir, 
+        raw_dir, visualization_dir, mask_dir,
+        img_width, img_height,
         normalized = True
 ):
     """
-    Annotates and saves an image with lane and drivable path overlays for GT generation.
-    There are both raw and labeled images saved on 2 separated dirs.
+    Annotates and saves an image with:
+        - Raw image, in "output_dir/image".
+        - Annotated image with all lanes, in "output_dir/visualization".
+        - Binary segmentation mask of drivable path, in "output_dir/segmentation".
 
     Parameters
     ----------
@@ -187,19 +191,23 @@ def annotateGT(
             - file path of raw input image to annotate.
         raw_dir (str):
             - directory to save raw (unlabeled) image copy.
-        labeled_dir (str):
+        visualization_dir (str):
             - directory to save annotated (labeled) image.
+        mask_dir (str):
+            - directory to save binary segmentation mask.
         normalized (bool, optional):
             - defaults to `True`.
             - If `True`, all coords are scaled/normalized to (0, 1). Otherwise, absolute.
 
-        In labeled image, lanes have different colors:
+    No returns
+    ----------
+
+    Notes
+    -----
+        In visualization image, lanes have different colors:
             - Outer lanes: red.
             - Ego lanes: green.
             - Drivable path: yellow.
-
-    No returns
-    ----------
 
     """
 
@@ -207,8 +215,8 @@ def annotateGT(
     raw_img = Image.open(anno_raw_file).convert("RGB")
 
     # Define save name
-    # Keep original pathname (back to 4 levels) for traceability, but replace "/" with "-"
-    save_name = "_".join(anno_raw_file.split("/")[-4 : ])
+    # Keep original pathname (back to 5 levels) for traceability, but replace "/" with "-"
+    save_name = "_".join(anno_raw_file.split("/")[-5 : ])
 
     # Copy raw img and put it in raw dir.
     raw_img.save(os.path.join(raw_dir, save_name))
@@ -238,8 +246,13 @@ def annotateGT(
         drivable_renormed = anno_entry["drivable_path"]
     draw.line(drivable_renormed, fill = lane_colors["drive_path_yellow"], width = lane_w)
 
-    # Save labeled img, same format with raw, just different dir
-    raw_img.save(os.path.join(labeled_dir, save_name))
+    # Save visualization img, same format with raw, just different dir
+    raw_img.save(os.path.join(visualization_dir, save_name))
+
+    # Working on binary mask. Here I reuse raw_img for robustness.
+    draw.rectangle([0, 0, img_width, img_height], fill = 0)
+    draw.line(drivable_renormed, fill = 255, width = lane_w)
+    raw_img.save(os.path.join(mask_dir, save_name))
 
 
 def parseAnnotations(anno_path):
@@ -262,7 +275,8 @@ def parseAnnotations(anno_path):
                 + `lanes` (list of list of tuples): normalized lane points for each lane.
                 + `ego_indexes` (tuple): indexes of 2 left and right ego lanes.
                 + `drivable_path` (list of tuples): normalized points of the drivable path.
-                + `img_size` (tuple): dimensions of images (width, height). TuSimple is 1280 x 720.
+                + `img_width` (float): image width. TuSimple is 1280.
+                + `img_height` (float): image height. TuSimple is 720.
 
     Notes
     -----
@@ -306,12 +320,12 @@ def parseAnnotations(anno_path):
 
         # Parse processed data, all coords normalized
         anno_data[raw_file] = {
-            "lanes": [normalizeCoords(lane, img_width, img_height) for lane in lanes_decoupled],
-            "ego_indexes": ego_indexes,
-            "drivable_path": normalizeCoords(drivable_path, img_width, img_height),
-            "img_size": (img_width, img_height),
+            "lanes" : [normalizeCoords(lane, img_width, img_height) for lane in lanes_decoupled],
+            "ego_indexes" : ego_indexes,
+            "drivable_path" : normalizeCoords(drivable_path, img_width, img_height),
+            "img_width" : img_width,
+            "img_height" : img_height,
         }
-        print(anno_data[raw_file]["drivable_path"])
 
     return anno_data
 
@@ -336,12 +350,11 @@ if __name__ == "__main__":
     
     Structure of `output dir`:
     ------------------------
-        --train
-            |----raw
-            |----labeled
-        --test
-            |----raw
-            |----labeled
+        --output_dir
+            |----image
+            |----segmentation
+            |----visualization
+            |----drivable_path.json
 
     Example:
     --------
@@ -368,22 +381,19 @@ if __name__ == "__main__":
 
     # Generate output structure
     """
-    --train
-        |----raw
-        |----labeled
-    --test
-        |----raw
-        |----labeled
+    --output_dir
+        |----image
+        |----segmentation
+        |----visualization
+        |----drivable_path.json
     """
     dataset_dir = args.dataset_dir
     output_dir = args.output_dir
-    list_batches = ["train", "test"]
-    list_subbatches = ["raw", "labeled"]
-    for batch in list_batches:
-        for subbatch in list_subbatches:
-            sub_dir = os.path.join(output_dir, batch, subbatch)
-            if (not os.path.exists(sub_dir)):
-                os.makedirs(sub_dir, exist_ok = True)
+    list_subdirs = ["image", "segmentation", "visualization"]
+    for subdir in list_subdirs:
+        subdir_path = os.path.join(output_dir, subdir)
+        if (not os.path.exists(subdir_path)):
+            os.makedirs(subdir_path, exist_ok = True)
 
     # ============================== Parsing annotations ============================== #
 
@@ -398,35 +408,39 @@ if __name__ == "__main__":
     the actual label file is in `TuSimple/test_label.json`.
     """
     test_label_files = [os.path.join(dataset_dir, root_dir, test_file)]
+    label_files = train_label_files + test_label_files
 
     # Parse data by batch
     data_master = {
-        "train": {
-            "files": train_label_files,
-            "data": {}
-        },
-        "test": {
-            "files": test_label_files,
-            "data": {}
-        },
+        "files": label_files,
+        "data": {}
     }
-    for batch in list_batches:
-        print(f"\n================================== Processing {batch} data ==================================\n")
-        for anno_file in data_master[batch]["files"]:
-            print(f"Processing {batch} file {anno_file}...")
-            this_data = parseAnnotations(anno_file)
-            for raw_file, anno_entry in this_data.items():
-                # Annotate raw images
-                annotateGT(
-                    anno_entry,
-                    os.path.join(dataset_dir, root_dir, f"{batch}_set", raw_file), 
-                    os.path.join(output_dir, batch, "raw"),
-                    os.path.join(output_dir, batch, "labeled")
-                )
-            data_master[batch]["data"].update(this_data)
-            print(f"Processed {len(this_data)} {batch} entries in above file.\n")
-        print(f"Done processing {batch} data with {len(data_master[batch]['data'])} entries in total.\n")
+
+    for anno_file in data_master["files"]:
+        print(f"\n==================== Processing data in label file {anno_file} ====================\n")
+        this_data = parseAnnotations(anno_file)
+        for raw_file, anno_entry in this_data.items():
+            set_dir = "/".join(anno_file.split("/")[ : -1]) # Slap "train_set" or "test_set" to the end
+            set_dir = os.path.join(set_dir, test_dir) if test_file in anno_file else set_dir    # Tricky test dir
+            # Annotate raw images
+            annotateGT(
+                anno_entry,
+                anno_raw_file = os.path.join(set_dir, raw_file), 
+                raw_dir = os.path.join(output_dir, "image"),
+                visualization_dir = os.path.join(output_dir, "visualization"),
+                mask_dir = os.path.join(output_dir, "segmentation"),
+                img_height = anno_entry["img_height"],
+                img_width = anno_entry["img_width"]
+            )
+            # Pop redundant keys
+            del anno_entry["lanes"]
+            del anno_entry["ego_indexes"]     
+
+        data_master["data"].update(this_data)
+        print(f"Processed {len(this_data)} entries in above file.\n")
+
+    print(f"Done processing data with {len(data_master['data'])} entries in total.\n")
 
     # Save master data
-    with open(os.path.join(output_dir, "data_master.json"), "w") as f:
+    with open(os.path.join(output_dir, "drivable_path.json"), "w") as f:
         json.dump(data_master, f, indent = 4)
