@@ -92,6 +92,29 @@ def getDrivablePath(left_ego, right_ego):
         else:
             j += 1
 
+    # Extend drivable path to bottom edge of the frame
+    if (len(drivable_path) >= 2):
+        x1, y1 = drivable_path[-2]
+        x2, y2 = drivable_path[-1]
+        if (x2 == x1):
+            x_bottom = x2
+        else:
+            a = (y2 - y1) / (x2 - x1)
+            x_bottom = x2 + (img_height - y2) / a
+        drivable_path.append((x_bottom, img_height))
+
+    # Extend drivable path to be on par with longest ego lane
+    y_top = min(left_ego[0][1], right_ego[0][1])
+    if len(drivable_path) >= 2:
+        x1, y1 = drivable_path[0]
+        x2, y2 = drivable_path[1]
+        if (x2 == x1):
+            x_top = x1
+        else:
+            a = (y2 - y1) / (x2 - x1)
+            x_top = x1 + (y_top - y1) / a
+        drivable_path.insert(0, (x_top, y_top))
+
     return drivable_path
 
 
@@ -114,7 +137,8 @@ def annotateGT(
 
     # Define save name
     # Keep original pathname (back to 5 levels) for traceability, but replace "/" with "-"
-    save_name = "_".join(anno_raw_file.split("/")[-5 : ])
+    # Also save in PNG (EXTREMELY SLOW compared to jpg, for lossless quality)
+    save_name = "_".join(anno_raw_file.split("/")[-5 : ]).replace(".jpg", ".png")
 
     # Copy raw img and put it in raw dir.
     raw_img.save(os.path.join(raw_dir, save_name))
@@ -156,7 +180,7 @@ def annotateGT(
 def parseAnnotations(anno_path):
     """
     Parses lane annotations from raw dataset file, then extracts normalized GT data.
-    
+
     """
     # Read each line of GT text file as JSON
     with open(anno_path, "r") as f:
