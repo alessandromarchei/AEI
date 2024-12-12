@@ -3,6 +3,7 @@
 import pathlib
 import numpy as np
 from PIL import Image
+import matplotlib.pyplot as plt
 import json
 import sys
 sys.path.append('../../../')
@@ -103,7 +104,7 @@ def main():
     
     # Filepaths for data loading and saving
     root_data_path = '/mnt/media/Argoverse/'
-    root_save_path = '/mnt/media/SuperDepth/Argoverse/'
+    root_save_path = '/mnt/media/SuperDepth/Argoverse'
 
     # Paths to read ground truth depth and input images from training data
     depth_filepath = root_data_path + 'disparity_maps_v1.1/'
@@ -207,6 +208,10 @@ def main():
             boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
             boundary_mask = Image.fromarray(depth_boundaries)
             boundary_mask.save(boundary_save_path, "PNG")
+
+            # Height map plot for data auditing purposes
+            height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
+            plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
             
             counter += 1
 

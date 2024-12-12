@@ -3,6 +3,7 @@
 import pathlib
 import numpy as np
 from PIL import Image
+import matplotlib.pyplot as plt
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
@@ -175,6 +176,10 @@ def main():
             boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
             boundary_mask = Image.fromarray(depth_boundaries)
             boundary_mask.save(boundary_save_path, "PNG")
+
+            # Height map plot for data auditing purposes
+            height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
+            plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
 
             counter += 1
 

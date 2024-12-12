@@ -52,8 +52,7 @@ Existing highway pilot systems can reliably detect the driving corridor through 
 To solve the driving corridor perception challenge, we will develop a universal driving path detection system called **Pathfinder**, using three independent driving corridor perception technologies:
 
 - **LaneDet** - lane line detection
-- **PathDet** - direct prediction of driving corridors
-- **DiversionDet** - direct prediction of driving corridors during roadworks
+- **PathDet** - direct prediction of driving corridors on roads with and without lanes and also during road works
 
 By using an ensemble approach, **Pathfinder** will be able to robustly tackle edge case driving scnearios and ensure autonomous vehicle safety.
 
