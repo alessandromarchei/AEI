@@ -14,18 +14,6 @@ def custom_warning_format(message, category, filename, lineno, line=None):
 
 warnings.formatwarning = custom_warning_format
 
-# ============================== Dataset structure ============================== #
-
-root_dir = "TUSimple"
-train_dir = "train_set"
-test_dir = "test_set"
-
-train_clip_codes = ["0313", "0531", "0601"] # Train labels are split into 3 dirs
-test_file = "test_label.json"               # Test file name
-
-img_width = 1280
-img_height = 720
-
 # ============================== Helper functions ============================== #
 
 def normalizeCoords(lane, width, height):
@@ -104,16 +92,35 @@ def getDrivablePath(left_ego, right_ego):
         drivable_path.append((x_bottom, img_height))
 
     # Extend drivable path to be on par with longest ego lane
+    # By making it parallel with longer ego lane
     y_top = min(left_ego[0][1], right_ego[0][1])
-    if len(drivable_path) >= 2:
-        x1, y1 = drivable_path[0]
-        x2, y2 = drivable_path[1]
-        if (x2 == x1):
-            x_top = x1
-        else:
-            a = (y2 - y1) / (x2 - x1)
-            x_top = x1 + (y_top - y1) / a
-        drivable_path.insert(0, (x_top, y_top))
+    sign_left_ego = left_ego[0][0] - left_ego[1][0]
+    sign_right_ego = right_ego[0][0] - right_ego[1][0]
+    sign_val = sign_left_ego * sign_right_ego
+    if (sign_val > 0):  # 2 egos going the same direction
+        longer_ego = left_ego if left_ego[0][1] < right_ego[0][1] else right_ego
+        if len(longer_ego) >= 2 and len(drivable_path) >= 2:
+            x1, y1 = longer_ego[0]
+            x2, y2 = longer_ego[1]
+            if (x2 == x1):
+                x_top = drivable_path[0][0]
+            else:
+                a = (y2 - y1) / (x2 - x1)
+                x_top = drivable_path[0][0] + (y_top - drivable_path[0][1]) / a
+
+            drivable_path.insert(0, (x_top, y_top))
+    else:
+        # Extend drivable path to be on par with longest ego lane
+        if len(drivable_path) >= 2:
+            x1, y1 = drivable_path[0]
+            x2, y2 = drivable_path[1]
+            if (x2 == x1):
+                x_top = x1
+            else:
+                a = (y2 - y1) / (x2 - x1)
+                x_top = x1 + (y_top - y1) / a
+
+            drivable_path.insert(0, (x_top, y_top))
 
     return drivable_path
 
@@ -138,7 +145,7 @@ def annotateGT(
     # Define save name
     # Keep original pathname (back to 5 levels) for traceability, but replace "/" with "-"
     # Also save in PNG (EXTREMELY SLOW compared to jpg, for lossless quality)
-    save_name = "_".join(anno_raw_file.split("/")[-5 : ]).replace(".jpg", ".png")
+    save_name = str(img_id_counter).zfill(5) + ".png"
 
     # Copy raw img and put it in raw dir.
     raw_img.save(os.path.join(raw_dir, save_name))
@@ -171,11 +178,11 @@ def annotateGT(
     # Save visualization img, same format with raw, just different dir
     raw_img.save(os.path.join(visualization_dir, save_name))
 
-    # Working on binary mask. Here I reuse raw_img for robustness.
-    draw.rectangle([0, 0, img_width, img_height], fill = 0)
-    draw.line(drivable_renormed, fill = 255, width = lane_w)
-    raw_img.save(os.path.join(mask_dir, save_name))
-
+    # Working on binary mask
+    mask = Image.new("L", (img_width, img_height), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
+    mask.save(os.path.join(mask_dir, save_name))
 
 def parseAnnotations(anno_path):
     """
@@ -228,6 +235,18 @@ def parseAnnotations(anno_path):
 
             
 if __name__ == "__main__":
+
+    # ============================== Dataset structure ============================== #
+
+    root_dir = "TUSimple"
+    train_dir = "train_set"
+    test_dir = "test_set"
+
+    train_clip_codes = ["0313", "0531", "0601"] # Train labels are split into 3 dirs
+    test_file = "test_label.json"               # Test file name
+
+    img_width = 1280
+    img_height = 720
 
     # ============================== Parsing args ============================== #
 
@@ -283,13 +302,22 @@ if __name__ == "__main__":
         "data": {}
     }
 
+    img_id_counter = -1
+
     for anno_file in data_master["files"]:
         print(f"\n==================== Processing data in label file {anno_file} ====================\n")
         this_data = parseAnnotations(anno_file)
-        for raw_file, anno_entry in this_data.items():
+        
+        list_raw_files = list(this_data.keys())
+        for raw_file in list_raw_files:
+
+            # Conduct index increment
+            img_id_counter += 1
             set_dir = "/".join(anno_file.split("/")[ : -1]) # Slap "train_set" or "test_set" to the end
             set_dir = os.path.join(set_dir, test_dir) if test_file in anno_file else set_dir    # Tricky test dir
+
             # Annotate raw images
+            anno_entry = this_data[raw_file]
             annotateGT(
                 anno_entry,
                 anno_raw_file = os.path.join(set_dir, raw_file), 
@@ -297,11 +325,15 @@ if __name__ == "__main__":
                 visualization_dir = os.path.join(output_dir, "visualization"),
                 mask_dir = os.path.join(output_dir, "segmentation"),
                 img_height = anno_entry["img_height"],
-                img_width = anno_entry["img_width"]
+                img_width = anno_entry["img_width"],
             )
+
             # Pop redundant keys
             del anno_entry["lanes"]
-            del anno_entry["ego_indexes"]     
+            del anno_entry["ego_indexes"]
+            # Change `raw_file` to 5-digit incremental index
+            this_data[str(img_id_counter).zfill(5)] = anno_entry
+            this_data.pop(raw_file)
 
         data_master["data"].update(this_data)
         print(f"Processed {len(this_data)} entries in above file.\n")
