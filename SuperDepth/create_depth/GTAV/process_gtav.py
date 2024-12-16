@@ -2,7 +2,9 @@
 #%%
 import pathlib
 import cv2
+import math
 from PIL import Image
+import matplotlib.pyplot as plt
 import numpy as np
 import sys
 sys.path.append('../../../')
@@ -32,6 +34,23 @@ def removeExtraSamples(depth_maps, images):
 
     return filtered_images
 
+def ndc_to_depth(ndc, map_xy):
+    nc_z = 0.01
+    fc_z = 600.0
+    lower = ndc + (nc_z / (2 * fc_z)) * map_xy
+    return map_xy / lower
+
+def create_nc_xy_map(rows, cols, nc_z, fov_v):
+    nc_h = 2 * nc_z * math.tan((fov_v * math.pi) / 360.0)
+    nc_w = (cols / rows) * nc_h
+    nc_xy_map = np.zeros((rows, cols))
+    for j in range(rows):
+        for i in range(cols):
+            nc_x = abs(((2 * i) / (cols - 1.0)) - 1) * nc_w / 2.0
+            nc_y = abs(((2 * j) / (rows - 1.0)) - 1) * nc_h / 2.0
+            nc_xy_map[j, i] = math.sqrt(pow(nc_x, 2) + pow(nc_y, 2) + pow(nc_z, 2))
+    return nc_xy_map
+
 def main():
 
     # Filepaths for data loading and savind
@@ -57,6 +76,49 @@ def main():
     if(check_passed):
 
         print('Beginning processing of data')
+        
+        # Focal length of camera
+        focal_length = 960
+
+        # Projection centre for Y-axis
+        cy = 540
+        
+        # Size params
+        rows = 1080
+        cols = 1920
+        resize_shape = (1920, 1080)
+
+        # Depth clip ranges
+        nc_z = 0.01
+        fc_z = 600.0
+
+        # Field of view
+        fov_v = 59
+
+        # Max depth
+        max_depth = 400
+
+        # Looping through data
+        for index in range(0, 1):
+
+            print(f'Processing image {index} of {num_images-1}')
+
+            # Open images and pre-existing masks
+            image = Image.open(str(images[index]))
+
+            with open(str(depth_maps[index]), 'rb') as fd:
+                f = np.fromfile(fd, dtype=np.float32, count=rows * cols)
+                im = f.reshape((rows, cols))
+
+            nc_xy_map = create_nc_xy_map(rows, cols, nc_z, fov_v)
+            depth_im_true = ndc_to_depth(im, nc_xy_map)
+            depth_im_true[depth_im_true > 400] = 400
+            depth_im_resized = cv2.resize(depth_im_true, resize_shape)
+
+            plt.figure()
+            plt.imshow(image)
+            plt.figure()
+            plt.imshow(depth_im_resized)
 
 if __name__ == '__main__':
     main()
