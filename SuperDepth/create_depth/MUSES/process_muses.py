@@ -165,11 +165,6 @@ def createSparseSupervision(image, height_map, max_height, min_height):
 
 def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision):
 
-    # Getting size of depth map
-    size = depth_map.shape
-    height = size[0]
-    width = size[1]
-
     # Cropping out those parts of data for which depth is unavailable
     image_left = image_left.crop((500, 300, 1300, 700))
     depth_map = depth_map[300:700, 500:1300]
