@@ -10,6 +10,7 @@ from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
 from SuperDepth.create_depth.common.stereo_sparse_supervision import StereoSparseSupervision
 from SuperDepth.create_depth.common.height_map import HeightMap
+from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
 
 def removeExtraSamples(image_folders):
     
@@ -47,31 +48,6 @@ def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervi
     sparse_supervision = sparse_supervision[:, 256 : width - 100]
 
     return image_left, depth_map, depth_boundaries, height_map, sparse_supervision
-
-def findDepthBoundaries(depth_map):
-
-    # Getting size of depth map
-    size = depth_map.shape
-    height = size[0]
-    width = size[1]
-
-    # Initializing depth boundary mask
-    depth_boundaries = np.zeros_like(depth_map, dtype=np.uint8)
-
-    # Fiding depth boundaries
-    for i in range(1, height-1):
-        for j in range(1, width-1):
-
-            # Finding derivative
-            x_grad = depth_map[i-1,j] - depth_map[i+1, j]
-            y_grad = depth_map[i,j-1] - depth_map[i, j+1]
-            grad = abs(x_grad) + abs(y_grad)
-            
-            # Derivative threshold accounting for gap in depth map
-            if(grad > 7 and depth_map[i-1, j] != 0):
-                depth_boundaries[i,j] = 255
-
-    return depth_boundaries
 
 
 def main():
@@ -134,12 +110,14 @@ def main():
             sparse_depth_map = createDepthMap(depth_data)
 
             # Fill in sparse depth map
-            lidar_depth_fill = LidarDepthFill(sparse_depth_map)
-            depth_map = lidar_depth_fill.getDepthMap()
-            depth_map_fill_only = lidar_depth_fill.getDepthMapFillOnly()
+            lidarDepthFill = LidarDepthFill(sparse_depth_map)
+            depth_map = lidarDepthFill.getDepthMap()
+            depth_map_fill_only = lidarDepthFill.getDepthMapFillOnly()
             
             # Calculating depth boundaries
-            depth_boundaries = findDepthBoundaries(depth_map_fill_only)
+            boundary_threshold = 7
+            depthBoundaries = DepthBoundaries(depth_map_fill_only, boundary_threshold)
+            depth_boundaries = depthBoundaries.getDepthBoundaries()
 
             # Height map
             heightMap = HeightMap(depth_map, max_height, min_height, 
