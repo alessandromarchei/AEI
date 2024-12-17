@@ -13,6 +13,7 @@ sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.height_map import HeightMap
 from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
+from SuperDepth.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
 
 def createDepthMap(depth_data):
 
@@ -131,7 +132,9 @@ def main():
             height_map = heightMap.getHeightMap()
 
             # Sparse supervision
-            sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height)
+            supervision_threshold = 25
+            depthSparseSupervision = DepthSparseSupervision(image, height_map, max_height, min_height, supervision_threshold)
+            sparse_supervision = depthSparseSupervision.getSparseSupervision()
             
             # Save files
             # RGB Image as PNG
