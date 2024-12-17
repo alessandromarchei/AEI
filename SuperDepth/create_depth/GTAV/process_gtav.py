@@ -11,6 +11,7 @@ sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.height_map import HeightMap
 from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
+from SuperDepth.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
 
 def removeExtraSamples(depth_maps, images):
  
@@ -176,11 +177,13 @@ def main():
             height_map = heightMap.getHeightMap()
 
             # Sparse supervision
-            sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height)
+            supervision_threshold = 50
+            depthSparseSupervision = DepthSparseSupervision(image, height_map, max_height, min_height, supervision_threshold)
+            sparse_supervision = depthSparseSupervision.getSparseSupervision()
 
+            # Removing spurious depth samples
             if(minimum_height > -8):
                 
-
                 # Save files
                 # RGB Image as PNG
                 image_save_path = root_save_path + '/image/' + str(counter) + '.png'
