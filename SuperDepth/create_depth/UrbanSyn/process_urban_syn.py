@@ -10,6 +10,7 @@ import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.height_map import HeightMap
+from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
 
 def removeExtraSamples(depth_filepath, depth_maps, images_filepath, images):
     
@@ -171,12 +172,21 @@ def main():
 
             # Adding check in case data is corrupted
             if depth_data is not None:
+                
                 # Create metric depth map and height map
                 depth_map = createDepthMap(depth_data)
-                depth_boundaries = findDepthBoundaries(depth_map)
+
+                # Depth boundaries
+                boundary_threshold = 10
+                depthBoundaries = DepthBoundaries(depth_map, boundary_threshold)
+                depth_boundaries = depthBoundaries.getDepthBoundaries()
+
+                # Height map
                 heightMap = HeightMap(depth_map, max_height, min_height, 
                  camera_height, focal_length, cy)
                 height_map = heightMap.getHeightMap()
+
+                # Sparse supverision
                 sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height)
                 
                 # Save files
