@@ -54,7 +54,7 @@ def filter_by_image_boundaries(pcd_lidar, uv_img_cords, h, w):
     uv_img_cords_filtered = uv_img_cords[:, valid_indices]
     return pcd_lidar, uv_img_cords_filtered
 
-def filter_and_project_pcd_to_image(pcd, sensor2rgb, K_rgb, target_shape=(1920, 1080), min_distance=1.0, max_distance=None):
+def filter_and_project_pcd_to_image(pcd, sensor2rgb, K_rgb, target_shape=(1920, 1080)):
 
     point_cloud_xyz = pcd[:, :3]
     w, h = target_shape
