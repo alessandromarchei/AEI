@@ -10,6 +10,7 @@ import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.height_map import HeightMap
+from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
 
 def removeExtraSamples(depth_maps, images):
  
@@ -189,7 +190,9 @@ def main():
             depth_map = cv2.resize(depth_im_true, resize_shape)
 
             # Depth boundaries
-            depth_boundaries = findDepthBoundaries(depth_map)
+            boundary_threshold = 10
+            depthBoundaries = DepthBoundaries(depth_map, boundary_threshold)
+            depth_boundaries = depthBoundaries.getDepthBoundaries()
 
             # Height map
             heightMap = HeightMap(depth_map, max_height, min_height, 
