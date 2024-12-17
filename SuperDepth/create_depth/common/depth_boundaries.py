@@ -22,7 +22,7 @@ class DepthBoundaries():
                 grad = abs(x_grad) + abs(y_grad)
                 
                 # Derivative threshold
-                if(grad > threshold):
+                if(grad > threshold and depth_map[i-1, j] != 0):
                     self.depth_boundaries[i,j] = 255
 
     def getDepthBoundaries(self):
