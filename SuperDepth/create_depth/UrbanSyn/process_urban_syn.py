@@ -59,31 +59,6 @@ def createDepthMap(depth_data):
 
     return depth_map
 
-def findDepthBoundaries(depth_map):
-
-    # Getting size of depth map
-    size = depth_map.shape
-    height = size[0]
-    width = size[1]
-
-    # Initializing depth boundary mask
-    depth_boundaries = np.zeros_like(depth_map, dtype=np.uint8)
-
-    # Fiding depth boundaries
-    for i in range(1, height-1):
-        for j in range(1, width-1):
-
-            # Finding derivative
-            x_grad = depth_map[i-1,j] - depth_map[i+1, j]
-            y_grad = depth_map[i,j-1] - depth_map[i, j+1]
-            grad = abs(x_grad) + abs(y_grad)
-            
-            # Derivative threshold
-            if(grad > 10):
-                depth_boundaries[i,j] = 255
-
-    return depth_boundaries
-
 def createSparseSupervision(image, height_map, max_height, min_height):
 
     # Getting size of height map
