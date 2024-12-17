@@ -31,4 +31,4 @@ class HeightMap():
         return self.height_map
     
     def getMinimumHeight(self):
-        self.minimumHeight
+        return self.minimumHeight
