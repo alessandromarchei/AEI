@@ -11,7 +11,7 @@ import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.height_map import HeightMap
-
+from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
 
 def createDepthMap(depth_data):
 
@@ -143,10 +143,16 @@ def main():
             
             # Create metric depth map and height map
             depth_map = createDepthMap(depth_data)
+
+            # Depth boundaries
             depth_boundaries = findDepthBoundaries(depth_map)
+
+            # Height map
             heightMap = HeightMap(depth_map, max_height, min_height, 
                  camera_height, focal_length, cy)
             height_map = heightMap.getHeightMap()
+
+            # Sparse supervision
             sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height)
             
             # Save files
