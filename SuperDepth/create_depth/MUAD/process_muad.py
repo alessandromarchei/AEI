@@ -145,7 +145,9 @@ def main():
             depth_map = createDepthMap(depth_data)
 
             # Depth boundaries
-            depth_boundaries = findDepthBoundaries(depth_map)
+            boundary_threshold = 10
+            depthBoundaries = DepthBoundaries(depth_map, boundary_threshold)
+            depth_boundaries = depthBoundaries.getDepthBoundaries()
 
             # Height map
             heightMap = HeightMap(depth_map, max_height, min_height, 
