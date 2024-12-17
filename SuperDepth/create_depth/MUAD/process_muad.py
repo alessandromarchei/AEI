@@ -4,6 +4,7 @@
 import pathlib
 import cv2
 from PIL import Image
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
@@ -33,31 +34,6 @@ def createDepthMap(depth_data):
                 depth_map[i,j] = max_depth
 
     return depth_map
-
-def findDepthBoundaries(depth_map):
-
-    # Getting size of depth map
-    size = depth_map.shape
-    height = size[0]
-    width = size[1]
-
-    # Initializing depth boundary mask
-    depth_boundaries = np.zeros_like(depth_map, dtype=np.uint8)
-
-    # Fiding depth boundaries
-    for i in range(1, height-1):
-        for j in range(1, width-1):
-
-            # Finding derivative
-            x_grad = depth_map[i-1,j] - depth_map[i+1, j]
-            y_grad = depth_map[i,j-1] - depth_map[i, j+1]
-            grad = abs(x_grad) + abs(y_grad)
-            
-            # Derivative threshold
-            if(grad > 10):
-                depth_boundaries[i,j] = 255
-
-    return depth_boundaries
 
 def createSparseSupervision(image, height_map, max_height, min_height):
 
@@ -178,6 +154,10 @@ def main():
             boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
             boundary_mask = Image.fromarray(depth_boundaries)
             boundary_mask.save(boundary_save_path, "PNG")
+
+            # Height map plot for data auditing purposes
+            height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
+            plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
         
         print('----- Processing complete -----') 
     
