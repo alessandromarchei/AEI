@@ -210,7 +210,7 @@ def main():
             boundary_mask.save(boundary_save_path, "PNG")
 
             # Height map plot for data auditing purposes
-            height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
+            height_plot_save_path = root_save_path + '/height_plot/' + str(counter) + '.png'
             plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
             
             counter += 1
