@@ -11,6 +11,7 @@ from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
 from SuperDepth.create_depth.common.stereo_sparse_supervision import StereoSparseSupervision
 from SuperDepth.create_depth.common.height_map import HeightMap
+from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
 
 def parseCalib(calib_files):
     
@@ -171,7 +172,9 @@ def main():
             depth_map_fill_only = lidar_depth_fill.getDepthMapFillOnly()
             
             # Calculating depth boundaries
-            depth_boundaries = findDepthBoundaries(depth_map_fill_only)
+            boundary_threshold = 10
+            depthBoundaries = DepthBoundaries(depth_map_fill_only, boundary_threshold)
+            depth_boundaries = depthBoundaries.getDepthBoundaries()
 
             # Height map
             heightMap = HeightMap(depth_map, max_height, min_height, 
