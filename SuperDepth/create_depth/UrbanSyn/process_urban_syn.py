@@ -3,6 +3,7 @@
 import pathlib
 import cv2
 from PIL import Image
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
@@ -210,6 +211,10 @@ def main():
                 boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
                 boundary_mask = Image.fromarray(depth_boundaries)
                 boundary_mask.save(boundary_save_path, "PNG")
+
+                # Height map plot for data auditing purposes
+                height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
+                plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
                 
         print('----- Processing complete -----') 
       
