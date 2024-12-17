@@ -11,6 +11,7 @@ from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
 from SuperDepth.create_depth.common.height_map import HeightMap
 from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
+from SuperDepth.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
 
 def parseCalib(calib_filepath):
     
@@ -216,7 +217,9 @@ def main():
             height_map = heightMap.getHeightMap()
 
             # Sparse Supervision
-            sparse_supervision = createSparseSupervision(image, height_map, max_height, min_height)
+            supervision_threshold = 25
+            depthSparseSupervision = DepthSparseSupervision(image, height_map, max_height, min_height, supervision_threshold)
+            sparse_supervision = depthSparseSupervision.getSparseSupervision()
 
              # Crop side regions where depth data is missing
             image, depth_map, depth_boundaries, height_map, sparse_supervision= \
