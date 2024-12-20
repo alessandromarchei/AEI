@@ -26,6 +26,5 @@ class SuperDepthNetwork(nn.Module):
         deep_features = features[4]
         context = self.SceneContext(deep_features)
         neck = self.DepthNeck(context, features)
-        prediction, boundary = \
-            self.SuperDepthHead(neck, features, depth_supervision_features)
-        return prediction, boundary
+        prediction = self.SuperDepthHead(neck, features)
+        return prediction
