@@ -1,9 +1,23 @@
-## model_components
+# model_components
 
 Contains classes for various components of the [AutoSeg neural network](../../AutoSeg/) model layers.
 
-## SceneSeg model weights
+## data_utils
 
-Pre-trained weights for the SceneSeg neural network can be accessed and downloaded at the following google drive link:
+Helper classes for data loading, image augmentation and benchmarking and data checks
 
-[Link to download pre-trained weights](https://drive.google.com/file/d/1vCZMdtd8ZbSyHn1LCZrbNKMK7PQvJHxj/view?usp=sharing)
+## inference
+
+Helper classes related to model inference
+
+## model_components
+
+Contains classes defining model layers and structure of AutoSeg and its components
+
+## training
+
+Helper classes related to model training
+
+## visualizations
+
+Demos on how to run inference on networks and visualize network predictions
