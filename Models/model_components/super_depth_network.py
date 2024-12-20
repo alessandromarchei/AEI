@@ -21,7 +21,7 @@ class SuperDepthNetwork(nn.Module):
         self.SuperDepthHead = SuperDepthHead()
     
 
-    def forward(self, image, pyramid_depth_features):
+    def forward(self, image):
         features = self.Backbone(image)
         deep_features = features[4]
         context = self.SceneContext(deep_features)
