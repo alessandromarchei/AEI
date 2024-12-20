@@ -6,24 +6,23 @@ Pre-trained weights for the [SceneSeg neural network](https://github.com/autowar
 
 [Link to download pre-trained weights](https://drive.google.com/file/d/1vCZMdtd8ZbSyHn1LCZrbNKMK7PQvJHxj/view?usp=sharing)
 
-# Folders
 
-## data_utils
+### data_utils
 
 Helper classes for data loading, image augmentation and benchmarking and data checks
 
-## inference
+### inference
 
 Helper classes related to model inference
 
-## model_components
+### model_components
 
 Contains classes defining model layers and structure of AutoSeg and its components
 
-## training
+### training
 
 Helper classes related to model training
 
-## visualizations
+### visualizations
 
 Demos on how to run inference on networks and visualize network predictions
