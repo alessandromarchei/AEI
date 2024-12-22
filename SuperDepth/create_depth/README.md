@@ -16,4 +16,4 @@ The datasets used to train SuperDepth include:
 - [UrbanSyn](https://www.urbansyn.org)
 
 ## common
-Contains helper classes to hcreate ground truth data
+Contains helper classes used to create ground truth data
