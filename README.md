@@ -1,5 +1,3 @@
-# Privately Owned Vehicles - Autonomous Highway Pilot
-
 <div align="center">
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -14,6 +12,8 @@
 [![YouTube](https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@autowarefoundation)
 [![Website](https://img.shields.io/badge/website-000000?style=for-the-badge&logo=About.me&logoColor=white)](https://autoware.org/)
 </div>
+
+# Privately Owned Vehicles - Autonomous Highway Pilot
 
 The goal for this effort in Autoware is to build an open-source highway autonomy system for privately owned vehicles that can power safe autonomous driving for cars around the world. To learn more about how to participate in this project, please read the [onboarding guide](/ONBOARDING.md)
 
