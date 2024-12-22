@@ -2,14 +2,9 @@
 <div align="center">
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
 ![Discord](https://img.shields.io/discord/953808765935816715?label=Autoware%20Discord&link=https%3A%2F%2Fdiscord.com%2Finvite%2FQ94UsPvReQ)
-
-
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/autowarefoundation/autoware.privately-owned-vehicles)
-
 ![GitHub Repo stars](https://img.shields.io/github/stars/autowarefoundation/autoware.privately-owned-vehicles)
-
 </div>
 
 The goal for this effort in Autoware is to build an open-source highway autonomy system for privately owned vehicles that can power safe autonomous driving for cars around the world. To learn more about how to participate in this project, please read the [onboarding guide](/ONBOARDING.md)
