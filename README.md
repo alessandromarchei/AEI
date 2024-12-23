@@ -93,7 +93,7 @@ We will iteratively and sequentially build the core software stack of the highwa
 As part of our technology roadmap, we will sequentially develop four versions of the Autoware Autonomous Highway Pilot System, called:
 - **Drive Pilot**
 - **Drive Pilot - Plus**
-- **Drive Pilot - Pro**
+- **Drive Pilot - PRO**
 - **Drive Chauffeur**
 
 ![Roadmap](Media/Roadmap.jpg) 
