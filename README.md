@@ -91,10 +91,10 @@ We will aim to develop true hands-off, eyes-off autonomous driving which is enab
 We will iteratively and sequentially build the core software stack of the highway pilot system in a modular manner, and release versions of the autonomous highway pilot system that serve a core customer need, where each new release expands upon the operational-design-domain, technology prowess and safety envelope of the prior release.
 
 As part of our technology roadmap, we will sequentially develop four versions of the Autoware Autonomous Highway Pilot System, called:
-- **Drive Pilot**
-- **Drive Pilot - Plus**
-- **Drive Pilot - PRO**
-- **Drive Chauffeur**
+- ***Drive Pilot***
+- ***Drive Pilot - Plus***
+- ***Drive Pilot - PRO***
+- ***Drive Chauffeur***
 
 ![Roadmap](Media/Roadmap.jpg) 
 
