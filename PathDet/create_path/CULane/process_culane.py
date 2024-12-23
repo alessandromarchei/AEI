@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import shutil
 import pathlib
 from PIL import Image, ImageDraw
 import warnings
@@ -131,7 +132,8 @@ def annotateGT(
         anno_entry, anno_raw_file, 
         raw_dir, visualization_dir, mask_dir,
         img_width, img_height,
-        normalized = True
+        normalized = True,
+        crop = None
 ):
     """
     Annotates and saves an image with:
@@ -143,6 +145,19 @@ def annotateGT(
 
     # Load raw image
     raw_img = Image.open(anno_raw_file).convert("RGB")
+
+    # Handle image cropping
+    if (crop):
+        CROP_TOP = crop["TOP"]
+        CROP_RIGHT = crop["RIGHT"]
+        CROP_BOTTOM = crop["BOTTOM"]
+        CROP_LEFT = crop["LEFT"]
+        raw_img = raw_img.crop((
+            CROP_LEFT, 
+            CROP_TOP, 
+            former_img_width - CROP_RIGHT, 
+            former_img_height - CROP_BOTTOM
+        ))
 
     # Define save name
     # Also save in PNG (EXTREMELY SLOW compared to jpg, for lossless quality)
@@ -186,7 +201,7 @@ def annotateGT(
     mask.save(os.path.join(mask_dir, save_name))
 
 
-def parseAnnotations(anno_path):
+def parseAnnotations(anno_path, crop = None):
     """
     Parses lane annotations from raw img + anno files, then extracts normalized GT data.
 
@@ -208,6 +223,23 @@ def parseAnnotations(anno_path):
                         for i in range(0, len(points), 2)
                     ]
                     lanes.append(lane)
+
+            # Handle image cropping
+            if (crop):
+                CROP_TOP = crop["TOP"]
+                CROP_RIGHT = crop["RIGHT"]
+                CROP_BOTTOM = crop["BOTTOM"]
+                CROP_LEFT = crop["LEFT"]
+                # Crop
+                lanes = [[
+                    (x - CROP_LEFT, y - CROP_TOP) for x, y in lane
+                    if (CROP_LEFT <= x <= (former_img_width - CROP_RIGHT)) and (CROP_TOP <= y <= (former_img_height - CROP_BOTTOM))
+                ] for lane in lanes]
+                # Remove empty lanes
+                lanes = [lane for lane in lanes if (lane and len(lane) >= 2)]   # Pick lanes with >= 2 points
+                if (len(lanes) < 2):    # Ignore frames with less than 2 lanes
+                    warnings.warn(f"Parsing {anno_path}: insufficient lane amount after cropping: {len(lanes)}")
+                    return None
 
             # Determine 2 ego lanes
             lane_anchors = [getLaneAnchor(lane) for lane in lanes]
@@ -270,6 +302,14 @@ if __name__ == "__main__":
         help = "Output directory",
         required = True
     )
+    parser.add_argument(
+        "--crop",
+        type = int,
+        nargs = 4,
+        help = "Crop image: [TOP, RIGHT, BOTTOM, LEFT]. Must always be 4 ints. Non-cropped sizes are 0.",
+        metavar = ("TOP", "RIGHT", "BOTTOM", "LEFT"),
+        required = False
+    )
     # For debugging only
     parser.add_argument(
         "--early_stopping",
@@ -279,6 +319,42 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # Parse dirs
+    dataset_dir = args.dataset_dir
+    output_dir = args.output_dir
+
+    # Parse early stopping
+    if (args.early_stopping):
+        print(f"Early stopping set, each split/class stops after {args.early_stopping} files.")
+        early_stopping = args.early_stopping
+    else:
+        early_stopping = None
+    
+    # Parse crop
+    if (args.crop):
+        print(f"Cropping image set with sizes:")
+        print(f"\nTOP: {args.crop[0]},\tRIGHT: {args.crop[1]},\tBOTTOM: {args.crop[2]},\tLEFT: {args.crop[3]}")
+        if (args.crop[0] + args.crop[2] >= img_height):
+            warnings.warn(f"Cropping size: TOP = {args.crop[0]} and BOTTOM = {args.crop[2]} exceeds image height of {img_height}. Not cropping.")
+            crop = None
+        elif (args.crop[1] + args.crop[3] >= img_width):
+            warnings.warn(f"Cropping size: LEFT = {args.crop[3]} and RIGHT = {args.crop[1]} exceeds image width of {img_width}. No cropping.")
+            crop = None
+        else:
+            crop = {
+                "TOP" : args.crop[0],
+                "RIGHT" : args.crop[1],
+                "BOTTOM" : args.crop[2],
+                "LEFT" : args.crop[3],
+            }
+            former_img_height = img_height
+            former_img_width = img_width
+            img_height -= crop["TOP"] + crop["BOTTOM"]
+            img_width -= crop["LEFT"] + crop["RIGHT"]
+            print(f"New image size: {img_width}W x {img_height}H.\n")
+    else:
+        crop = None
+
     # Generate output structure
     """
     --output_dir
@@ -287,15 +363,11 @@ if __name__ == "__main__":
         |----visualization
         |----drivable_path.json
     """
-    dataset_dir = args.dataset_dir
-    output_dir = args.output_dir
-    if (args.early_stopping):
-        print(f"Early stopping set, each split/class stops after {args.early_stopping} files.")
-        early_stopping = args.early_stopping
-    else:
-        early_stopping = None
     list_splits = ["train", "val", "test"]
     list_subdirs = ["image", "segmentation", "visualization"]
+    if (os.path.exists(output_dir)):
+        warnings.warn(f"Output directory {output_dir} already exists. Purged")
+        shutil.rmtree(output_dir)
     for subdir in list_subdirs:
         subdir_path = os.path.join(output_dir, subdir)
         if (not os.path.exists(subdir_path)):
@@ -340,7 +412,7 @@ if __name__ == "__main__":
                 else:
                     anno_file = os.path.join(dataset_dir, new_anno, anno_path)
 
-                this_data = parseAnnotations(anno_file)
+                this_data = parseAnnotations(anno_file, crop)
                 if (this_data is not None):
 
                     print(f"Processing data in label file {anno_file}.")
@@ -352,6 +424,7 @@ if __name__ == "__main__":
                         mask_dir = os.path.join(output_dir, "segmentation"),
                         img_height = img_height,
                         img_width = img_width,
+                        crop = crop
                     )
 
                     # Save as 6-digit incremental index
