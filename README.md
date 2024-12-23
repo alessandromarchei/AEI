@@ -15,7 +15,7 @@
 
 # Autoware - Autonomous Highway Pilot
 
-The goal for this effort in Autoware is to build an open-source highway autonomy system that can power safe, SAE Level 4, autonomous driving around the world. To learn more about how to participate in this project, please read the [onboarding guide](/ONBOARDING.md)
+The goal for this effort in Autoware is to build an open-source highway autonomy system that can power safe, SAE Level-4, autonomous driving around the world. To learn more about how to participate in this project, please read the [onboarding guide](/ONBOARDING.md)
 
 ![Autoware PoV](Media/Autoware_PoV.jpg) 
 
@@ -88,9 +88,13 @@ The [**AutoSeg foundation model**](/AutoSeg/README.md) is currently being develo
 We will aim to develop true hands-off, eyes-off autonomous driving which is enabled on highways across the world, this will be classified as SAE Level-4 autonomy, where no human supervision is required of the vehicle.
 
 ### Technology Release Cycle
-We will iteratively and sequentially build the core software stack of the highway pilot system in a modular manner, and release versions of the autonomous highway pilot system that serve a core customer need, where each new release and expands upon the operational-design-domain, technology prowess and safety of the prior release.
+We will iteratively and sequentially build the core software stack of the highway pilot system in a modular manner, and release versions of the autonomous highway pilot system that serve a core customer need, where each new release expands upon the operational-design-domain, technology prowess and safety envelope of the prior release.
 
-As part of our technology roadmap, we will sequentially develop four versions of the Autoware Autonomous Highway Pilot System, called **DrivePilot**, **DrivePilot Plus**,  **DrivePilo tPro** and **DriveChauffeur**
+As part of our technology roadmap, we will sequentially develop four versions of the Autoware Autonomous Highway Pilot System, called:
+- **DrivePilot**
+- **DrivePilot Plus**
+- **DrivePilot Pro**
+- **DriveChauffeur**
 
 ![Roadmap](Media/Roadmap.jpg) 
 
