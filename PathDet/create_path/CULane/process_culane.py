@@ -282,18 +282,9 @@ if __name__ == "__main__":
     # Generate output structure
     """
     --output_dir
-        |----train
-            |----image
-            |----segmentation
-            |----visualization
-        |----val
-            |----image
-            |----segmentation
-            |----visualization
-        |----test
-            |----image
-            |----segmentation
-            |----visualization
+        |----image
+        |----segmentation
+        |----visualization
         |----drivable_path.json
     """
     dataset_dir = args.dataset_dir
@@ -305,11 +296,10 @@ if __name__ == "__main__":
         early_stopping = None
     list_splits = ["train", "val", "test"]
     list_subdirs = ["image", "segmentation", "visualization"]
-    for split in list_splits:
-        for subdir in list_subdirs:
-            subdir_path = os.path.join(output_dir, split, subdir)
-            if (not os.path.exists(subdir_path)):
-                os.makedirs(subdir_path, exist_ok = True)
+    for subdir in list_subdirs:
+        subdir_path = os.path.join(output_dir, subdir)
+        if (not os.path.exists(subdir_path)):
+            os.makedirs(subdir_path, exist_ok = True)
 
     # ============================== Parsing annotations ============================== #
 
@@ -322,11 +312,7 @@ if __name__ == "__main__":
     ]
 
     # Parse data by batch
-    data_master = {
-        "train" : {},
-        "val" : {},
-        "test" : {}
-    }
+    data_master = {}
 
     for split in list_splits:
         print(f"\n==================== Processing {split} data ====================\n")
@@ -356,23 +342,25 @@ if __name__ == "__main__":
 
                 this_data = parseAnnotations(anno_file)
                 if (this_data is not None):
+
                     print(f"Processing data in label file {anno_file}.")
                     annotateGT(
                         anno_entry = this_data,
                         anno_raw_file = os.path.join(dataset_dir, img_path),
-                        raw_dir = os.path.join(output_dir, split, "image"),
-                        visualization_dir = os.path.join(output_dir, split, "visualization"),
-                        mask_dir = os.path.join(output_dir, split, "segmentation"),
+                        raw_dir = os.path.join(output_dir, "image"),
+                        visualization_dir = os.path.join(output_dir, "visualization"),
+                        mask_dir = os.path.join(output_dir, "segmentation"),
                         img_height = img_height,
                         img_width = img_width,
                     )
+
                     # Save as 6-digit incremental index
                     img_index = str(str(img_id_counter).zfill(6))
-                    data_master[split][img_index] = {}
-                    data_master[split][img_index]["drivable_path"] = this_data["drivable_path"]
-                    # Save additional classification if it's in test set
-                    if (split == "test"):
-                        data_master[split][img_index]["class"] = label_file.split("/")[-1].split(".")[0]
+                    data_master[img_index] = {}
+                    data_master[img_index]["drivable_path"] = this_data["drivable_path"]
+                    data_master[img_index]["img_height"] = img_height
+                    data_master[img_index]["img_width"] = img_width
+                    
                     # Early stopping, it defined
                     if (early_stopping and img_id_counter >= early_stopping - 1):
                         break
