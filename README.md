@@ -13,9 +13,9 @@
 [![Website](https://img.shields.io/badge/website-000000?style=for-the-badge&logo=About.me&logoColor=white)](https://autoware.org/)
 </div>
 
-# Privately Owned Vehicles - Autonomous Highway Pilot
+# Autoware - Autonomous Highway Pilot
 
-The goal for this effort in Autoware is to build an open-source highway autonomy system for privately owned vehicles that can power safe autonomous driving for cars around the world. To learn more about how to participate in this project, please read the [onboarding guide](/ONBOARDING.md)
+The goal for this effort in Autoware is to build an open-source highway autonomy system that can power safe, SAE Level 4, autonomous driving around the world. To learn more about how to participate in this project, please read the [onboarding guide](/ONBOARDING.md)
 
 ![Autoware PoV](Media/Autoware_PoV.jpg) 
 
@@ -76,21 +76,32 @@ By using an ensemble approach, **Path Finder** will be able to robustly tackle e
 ## High Definition Maps
 **We will not utilize 3D high definition prior maps**, instead opting to use existing 2D navigational (sat-nav style) maps, also called ADAS maps. Human beings can drive on highways without prior knowledge of the detailed 3D geometry of roadways by relying on real-time scene perception, and our system aims to mimic this process.
 
+## End-to-End AI Architecture
+We will follow an **End-to-End AI Architecture** in which each component technology of the highway pilot system is powered through neural-network. We will follow a modular AI approach with component AI systems allowing for system explainability, introspection and diagnostics.
+
+### Vision Pipeline
+The [**AutoSeg foundation model**](/AutoSeg/README.md) is currently being developed as part of the vision pipeline of the Autoware Privately Owned Vehicle Highway Pilot System. It includes the development and implementation of **SuperDepth**, **SceneSeg**, **LaneDet** and **PathDet**.
+
 ## Technology Roadmap
 
 ### Goal
-We will aim to develop true hands-off, eyes-off autonomous driving which is enabled on highways across the world. This will be classified as SAE Level-3 conditional automation, where the self-driving car can operate fully autonomously so long as certain road conditions are met, and when those road conditions are violated, the self-driving system will perform a graceful handover of driving control back to the human driver - and if the human driver is unable to take back control from the self-driving system, then the self-driving car will perform a 'minimal risk maneouvre' to ensure that the car is in a safe state. As part of our technology roadmap, we will sequentially develop three versions of the Autoware Privately Owned Vehicle Autonomous Highway Pilot System, called **DrivePilot**, **DrivePilotPlus** and **DrivePilotPro**.
+We will aim to develop true hands-off, eyes-off autonomous driving which is enabled on highways across the world, this will be classified as SAE Level-4 autonomy, where no human supervision is required of the vehicle.
+
+### Technology Release Cycle
+We will iteratively and sequentially build the core software stack of the highway pilot system in a modular manner, and release versions of the autonomous highway pilot system that serve a core customer need, where each new release and expands upon the operational-design-domain, technology prowess and safety of the prior release.
+
+As part of our technology roadmap, we will sequentially develop four versions of the Autoware Autonomous Highway Pilot System, called **DrivePilot**, **DrivePilot Plus**,  **DrivePilo tPro** and **DriveChauffeur**
 
 ![Roadmap](Media/Roadmap.jpg) 
 
-### Vision Pipeline
-The [**AutoSeg foundation model**](/AutoSeg/README.md) is currently being developed as part of the vision pipeline of the Autoware Privately Owned Vehicle Highway Pilot System. It includes the development and implementation of **SuperDepth**, **SceneSeg**, **LaneDet**, **PathDet**, and **DiversionDet**.
+### *DrivePilot*
+DrivePilot will enable SAE Level-3 autonomy over the full range of highway driving speeds (0 - 70mph). The system will be constrained to single lane driving (no lane changes, exits, on-ramps, roadworks), and will be operable on roads with clearly visible lanes. If these road conditions (ODD) are violated, then the system will perform a safe handover of control to the human driver, and if a handover is not possible, then the system will perform a Minimal Risk Manoeuvre to transition the self-driving car to as a safe state as is possible within its operational design domain. DrivePilot's sensing suite will comprise two front-facing cameras, a main camera, as well as a long-range camera. Additionally, the system will integrate a front-facing 4D Imaging Radar.
 
-### DrivePilot
-DrivePilot will enable SAE Level 3 autonomy over the full range of highway driving speeds (0 - 70mph). The system will be constrained to single lane driving (no lane changes, exits, on-ramps, roadworks), and will be operable on roads with clearly visible lanes. If these road conditions (ODD) are violated, then the system will perform a safe handover of control to the human driver, and if a handover is not possible, then the system will perform a Minimal Risk Manoeuvre to transition the self-driving car to as a safe state as is possible within its operational design domain. DrivePilot's sensing suite will comprise a pair of front-facing mid-range automotive cameras arranged as a stereo pair, a front-facing short range wide-angle automotive monocular camera, a front-facing long range narrow-angle automotive monocular camera, and a front-facing 4D Imaging Radar.
+### *DrivePilot Plus*
+DrivePilot Plus will enable SAE Level-3 autonomy over the full range of highway driving speeds (0 - 70mph), and will build on top of the functionality of DrivePilot to enable fully autonomous lane changes - exits/ramps will be outside of the operational domain of the system. To enable autonomous lane changes, DrivePilot Plus will additionally utilise surround view cameras, and corner RADAR sensors to have 360 degree vision and RADAR sensing coverage. Additionally, the system will also integrate a rear-facing 4D Imaging Radar.
 
-### DrivePilot Plus
-DrivePilot Plus will enable SAE Level 3 autonomy over the full range of highway driving speeds (0 - 70mph), and will build on top of the functionality of DrivePilot to enable fully autonomous lane changes - exits, on/off ramps will be outside of the operational domain of the system. To enable autonomous lane changes, DrivePilot Plus will additionally utilise surround view automotive parking cameras, a mid-range rear-facing automotive camera, corner RADAR sensors, and a rear-facing 4D Imaging Radar.
+### *DrivePilot PRO*
+DrivePilot PRO will enable SAE Level-3 autonomy over the full range of highway driving speeds (0 - 70mph) for an entire highway journey, including fully autonomous lane changes, exits, and on/off-ramps - being able to traverse multiple distinct connected highways without any human intervention or guidance. To enable autonomous driving of an entire highway journey, DrivePilot PRO will be integrated with 2D/ADAS maps to have more detailed road context and prior information about highway road layouts for navigational purposes.
 
-### DrivePilot PRO
-DrivePilot PRO will enable SAE Level 3 autonomy over the full range of highway driving speeds (0 - 70mph) for an entire highway journey, including fully autonomous lane changes, exits, and on/off-ramps - being able to traverse multiple distinct connected highways without any human intervention or guidance. To enable autonomous driving of an entire highway journey, DrivePilot PRO will be integrated with 2D/ADAS maps to have more detailed road context and prior information about highway road layouts for navigational purposes.
+### *DriveChauffeur*
+DriveChauffeur will enable SAE Level-4 autonomy over the full range of highway driving speeds (0 - 70mph) for an entire highway journey, including fully autonomous lane changes, exits, and on/off-ramps without any requirement for human supervision or manual control. In order to ensure system safety and robustness, DriveChauffeur will additionally integrate Short-Wave-Infrared as well as Long-Wave-Infrared front facing cameras which will allow the vehicle to see through fog, dust, haze, smoke and see clearly in pitch-black conditions. This hyper-spectral imaging will enable DriveChauffeur to drive match or exceed human safety performance of the driving task.
