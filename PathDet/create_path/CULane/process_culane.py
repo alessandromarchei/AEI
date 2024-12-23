@@ -310,6 +310,13 @@ if __name__ == "__main__":
         metavar = ("TOP", "RIGHT", "BOTTOM", "LEFT"),
         required = False
     )
+    parser.add_argument(
+        "--sampling_step",
+        type = int,
+        help = "Sampling step for each split/class",
+        required = False,
+        default = 1
+    )
     # For debugging only
     parser.add_argument(
         "--early_stopping",
@@ -322,6 +329,13 @@ if __name__ == "__main__":
     # Parse dirs
     dataset_dir = args.dataset_dir
     output_dir = args.output_dir
+
+    # Parse sampling step
+    if (args.sampling_step):
+        print(f"Sampling step set to {args.sampling_step}.")
+        sampling_step = args.sampling_step
+    else:
+        sampling_step = 1
 
     # Parse early stopping
     if (args.early_stopping):
@@ -401,7 +415,8 @@ if __name__ == "__main__":
             with open(label_file, "r") as f:
                 list_raw_files = f.readlines()
 
-            for img_path in list_raw_files:
+            for i in range(0, len(list_raw_files), sampling_step):
+                img_path = list_raw_files[i]
                 img_id_counter += 1
                 img_path = img_path.strip()
                 if (img_path[0] == "/"):
