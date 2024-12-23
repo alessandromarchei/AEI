@@ -48,7 +48,7 @@ To address this challenge, we aim to develop a **Safety Shield** for self-drivin
 
 Many developers feel that the way to address this challenge is to utilize LIDAR - however, LIDAR sensors suffer from severe noise in rain, snow and fog, making them unusable in these weather conditions and unable to address the obstacle perception challenge. Therefore, we will utilize vision as the primary sensor, alongside RADAR - however, we will utilize vision to not only detect objects using AI, but we will also utilize vision to calculate true metric depth of the driving scene and develop a best-in-class VIDAR (vision-LIDAR) that works at long-range and can reliably measure depth in those weather conditions where LIDAR struggles. We will also utilize state-of-the-art 4D Imaging Radar to have RADAR sensing with greater resolution allowing stronger noise filtering, enabling us to more reliably detect static objects in RADAR alone.
 
-Our **Safety Shield** will comprise three layers:
+Our **Safety Shield** will be comprised of three layers:
 - **Sentry** - Imaging RADAR obstacle detection using 4D pointclouds
 - [**SceneSeg**](/SceneSeg/README.md) - Vision based AI-powered segmentation of all obstacles
 - [**SuperDepth**](/SuperDepth/README.md) - VIDAR based obstacle detection using 3D pointclouds
@@ -67,7 +67,7 @@ Existing highway pilot systems can reliably detect the driving corridor through 
 #### Driving Corridor Perception Solution
 To solve the driving corridor perception challenge, we will develop a universal driving path detection system called **Path Finder**, using two independent driving corridor perception technologies:
 
-Our ***Path Finder** will comprise two layers:
+**Path Finder** will be comprised two layers:
 - [**LaneDet**](/LaneDet/README.md) - lane line detection
 - [**PathDet**](/PathDet/README.md) - end-to-end prediction of driving corridors on roads with and without lanes and also during road works
 
