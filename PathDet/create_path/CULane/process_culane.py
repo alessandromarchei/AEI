@@ -161,7 +161,7 @@ def annotateGT(
 
     # Define save name
     # Also save in PNG (EXTREMELY SLOW compared to jpg, for lossless quality)
-    save_name = str(img_id_counter).zfill(6) + ".jpg"
+    save_name = str(img_id_counter).zfill(6) + ".png"
 
     # Copy raw img and put it in raw dir.
     raw_img.save(os.path.join(raw_dir, save_name))
@@ -308,6 +308,7 @@ if __name__ == "__main__":
         nargs = 4,
         help = "Crop image: [TOP, RIGHT, BOTTOM, LEFT]. Must always be 4 ints. Non-cropped sizes are 0.",
         metavar = ("TOP", "RIGHT", "BOTTOM", "LEFT"),
+        default = [0, 390, 160, 390],    # 2 plus 2 is 4 minus 1 that's 3, quick maths
         required = False
     )
     parser.add_argument(
@@ -315,7 +316,7 @@ if __name__ == "__main__":
         type = int,
         help = "Sampling step for each split/class",
         required = False,
-        default = 1
+        default = 5
     )
     # For debugging only
     parser.add_argument(
