@@ -77,7 +77,7 @@ By using an ensemble approach, **Path Finder** will be able to robustly tackle e
 **We will not utilize 3D high definition prior maps**, instead opting to use existing 2D navigational (sat-nav style) maps, also called ADAS maps. Human beings can drive on highways without prior knowledge of the detailed 3D geometry of roadways by relying on real-time scene perception, and our system aims to mimic this process.
 
 ## End-to-End AI Architecture
-We will follow an **End-to-End AI Architecture** in which each component technology of the highway pilot system is powered through neural-network. We will follow a modular AI approach with component AI systems allowing for system explainability, introspection and diagnostics.
+We will follow an **End-to-End AI Architecture** in which each component technology of the highway pilot system is powered through neural-network. We will follow a modular AI approach with component AI systems allowing for system explainability, introspection, verification and safety validation.
 
 ### Vision Pipeline
 The [**AutoSeg foundation model**](/AutoSeg/README.md) is currently being developed as part of the vision pipeline of the Autoware Privately Owned Vehicle Highway Pilot System. It includes the development and implementation of **SuperDepth**, **SceneSeg**, **LaneDet** and **PathDet**.
