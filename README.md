@@ -51,7 +51,7 @@ Many developers feel that the way to address this challenge is to utilize LIDAR 
 Our **Safety Shield** will comprise three layers:
 - **Sentry** - Imaging RADAR obstacle detection using 4D pointclouds
 - [**SceneSeg**](/SceneSeg/README.md) - Vision based AI-powered segmentation of all obstacles
-- **SuperDepth** - VIDAR based obstacle detection using 3D pointclouds
+- [**SuperDepth**](/SuperDepth/README.md) - VIDAR based obstacle detection using 3D pointclouds
 
 We will additionally detect, classify and track objects based on their semantic class in the 3D scene through an independent vision and 4D Radar pipeline, called **Drive3D**.
 
@@ -65,12 +65,13 @@ Existing highway pilot systems can reliably detect the driving corridor through 
 ![Driving Corridor Perception Challenge](Media/Driving_Corridor_Perception_Challenge.jpg) 
 
 #### Driving Corridor Perception Solution
-To solve the driving corridor perception challenge, we will develop a universal driving path detection system called **Pathfinder**, using three independent driving corridor perception technologies:
+To solve the driving corridor perception challenge, we will develop a universal driving path detection system called **Path Finder**, using two independent driving corridor perception technologies:
 
-- **LaneDet** - lane line detection
-- **PathDet** - direct prediction of driving corridors on roads with and without lanes and also during road works
+Our ***Path Finder** will comprise two layers:
+- [**LaneDet**](/LaneDet/README.md) - lane line detection
+- [**PathDet**](/PathDet/README.md) - end-to-end prediction of driving corridors on roads with and without lanes and also during road works
 
-By using an ensemble approach, **Pathfinder** will be able to robustly tackle edge case driving scnearios and ensure autonomous vehicle safety.
+By using an ensemble approach, **Path Finder** will be able to robustly tackle edge case driving scnearios and ensure autonomous vehicle safety.
 
 ## High Definition Maps
 **We will not utilize 3D high definition prior maps**, instead opting to use existing 2D navigational (sat-nav style) maps, also called ADAS maps. Human beings can drive on highways without prior knowledge of the detailed 3D geometry of roadways by relying on real-time scene perception, and our system aims to mimic this process.
