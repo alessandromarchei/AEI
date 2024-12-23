@@ -91,21 +91,21 @@ We will aim to develop true hands-off, eyes-off autonomous driving which is enab
 We will iteratively and sequentially build the core software stack of the highway pilot system in a modular manner, and release versions of the autonomous highway pilot system that serve a core customer need, where each new release expands upon the operational-design-domain, technology prowess and safety envelope of the prior release.
 
 As part of our technology roadmap, we will sequentially develop four versions of the Autoware Autonomous Highway Pilot System, called:
-- **DrivePilot**
-- **DrivePilot Plus**
-- **DrivePilot Pro**
-- **DriveChauffeur**
+- **Drive Pilot**
+- **Drive Pilot - Plus**
+- **Drive Pilot - Pro**
+- **Drive Chauffeur**
 
 ![Roadmap](Media/Roadmap.jpg) 
 
-### *DrivePilot*
+### *Drive Pilot*
 DrivePilot will enable SAE Level-3 autonomy over the full range of highway driving speeds (0 - 70mph). The system will be constrained to single lane driving (no lane changes, exits, on-ramps, roadworks), and will be operable on roads with clearly visible lanes. If these road conditions (ODD) are violated, then the system will perform a safe handover of control to the human driver, and if a handover is not possible, then the system will perform a Minimal Risk Manoeuvre to transition the self-driving car to as a safe state as is possible within its operational design domain. DrivePilot's sensing suite will comprise two front-facing cameras, a main camera, as well as a long-range camera. Additionally, the system will integrate a front-facing 4D Imaging Radar.
 
-### *DrivePilot Plus*
+### *Drive Pilot - Plus*
 DrivePilot Plus will enable SAE Level-3 autonomy over the full range of highway driving speeds (0 - 70mph), and will build on top of the functionality of DrivePilot to enable fully autonomous lane changes - exits/ramps will be outside of the operational domain of the system. To enable autonomous lane changes, DrivePilot Plus will additionally utilise surround view cameras, and corner RADAR sensors to have 360 degree vision and RADAR sensing coverage. Additionally, the system will also integrate a rear-facing 4D Imaging Radar.
 
-### *DrivePilot PRO*
+### *Drive Pilot - PRO*
 DrivePilot PRO will enable SAE Level-3 autonomy over the full range of highway driving speeds (0 - 70mph) for an entire highway journey, including fully autonomous lane changes, exits, and on/off-ramps - being able to traverse multiple distinct connected highways without any human intervention or guidance. To enable autonomous driving of an entire highway journey, DrivePilot PRO will be integrated with 2D/ADAS maps to have more detailed road context and prior information about highway road layouts for navigational purposes.
 
-### *DriveChauffeur*
+### *Drive Chauffeur*
 DriveChauffeur will enable SAE Level-4 autonomy over the full range of highway driving speeds (0 - 70mph) for an entire highway journey, including fully autonomous lane changes, exits, and on/off-ramps without any requirement for human supervision or manual control. In order to ensure system safety and robustness, DriveChauffeur will additionally integrate Short-Wave-Infrared as well as Long-Wave-Infrared front facing cameras which will allow the vehicle to see through fog, dust, haze, smoke and see clearly in pitch-black conditions. This hyper-spectral imaging will enable DriveChauffeur to drive match or exceed human safety performance of the driving task.
