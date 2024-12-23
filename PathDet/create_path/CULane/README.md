@@ -82,4 +82,4 @@ CULane is a large-scale lane detection dataset specifically designed for autonom
 ## Running the script
 
 ```bash
-python script.py --dataset_dir /path/to/CULane --output_dir /path/to/output
+python process_culane.py --dataset_dir /path/to/CULane --output_dir /path/to/output
