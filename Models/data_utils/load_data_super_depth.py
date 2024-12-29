@@ -3,6 +3,7 @@ import pathlib
 import numpy as np
 from typing import Literal
 from PIL import Image
+from skimage.transform import resize
 from .check_data import CheckData
 
 class LoadDataSceneSeg():
@@ -48,11 +49,18 @@ class LoadDataSceneSeg():
     def getGroundTruth(self, input_label):
         ground_truth = np.load(input_label)
         return ground_truth
+    
+    def resizeData(self, input_image, input_label):
+        image_resized = resize(input_image, (320, 640), anti_aliasing=True)
+        label_resized = resize(input_label, (320, 640), anti_aliasing=True)
+        return image_resized, label_resized
 
     def getItemTrain(self, index):
         self.train_image = Image.open(str(self.train_images[index]))
         self.train_ground_truth = self.getGroundTruth(str(self.train_labels[index]))
-
+        self.train_image, self.train_ground_truth = \
+            self.resizeData(self, self.train_image, self.train_ground_truth)
+        
         return np.array(self.train_image), self.train_ground_truth
 
     def getItemTrainPath(self, index):
@@ -61,7 +69,9 @@ class LoadDataSceneSeg():
     def getItemVal(self, index):
         self.val_image = Image.open(str(self.val_images[index]))
         self.val_ground_truth = self.getGroundTruth(str(self.val_labels[index]))
-
+        self.val_image, self.val_ground_truth = \
+            self.resizeData(self, self.val_image, self.val_ground_truth)
+        
         return np.array(self.val_image), self.val_ground_truth
     
     def getItemValPath(self, index):
