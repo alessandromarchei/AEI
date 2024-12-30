@@ -31,7 +31,6 @@ class SuperDepthTrainer():
         self.prediction = 0
         self.calc_loss = 0
         self.prediction_vis = 0
-        self.checkpoint_path = checkpoint_path
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -47,6 +46,14 @@ class SuperDepthTrainer():
         
         self.model = SuperDepthNetwork(sceneSegNetwork)
 
+        # If we are loading pre-trained weights for the SuperDepth network as well
+        if(len(checkpoint_path) > 0):
+            self.model.load_state_dict(torch.load \
+                (self.checkpoint_path, weights_only=True))
+        
+        # Model to device
+        self.model = self.model.to(self.device)
+        
         # TensorBoard
         self.writer = SummaryWriter()
 
