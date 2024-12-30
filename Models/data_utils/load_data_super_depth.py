@@ -51,7 +51,7 @@ class LoadDataSceneSeg():
         return ground_truth
     
     def resizeData(self, input_image, input_label):
-        image_resized = resize(input_image, (320, 640), anti_aliasing=True)
+        image_resized = np.array(resize(input_image, (320, 640), anti_aliasing=True))
         label_resized = resize(input_label, (320, 640), anti_aliasing=True)
         return image_resized, label_resized
 
@@ -61,7 +61,7 @@ class LoadDataSceneSeg():
         self.train_image, self.train_ground_truth = \
             self.resizeData(self, self.train_image, self.train_ground_truth)
         
-        return np.array(self.train_image), self.train_ground_truth
+        return self.train_image, self.train_ground_truth
 
     def getItemTrainPath(self, index):
         return str(self.train_images[index]), str(self.train_labels[index])
@@ -72,7 +72,7 @@ class LoadDataSceneSeg():
         self.val_image, self.val_ground_truth = \
             self.resizeData(self, self.val_image, self.val_ground_truth)
         
-        return np.array(self.val_image), self.val_ground_truth
+        return self.val_image, self.val_ground_truth
     
     def getItemValPath(self, index):
         return str(self.val_images[index]), str(self.val_labels[index])
