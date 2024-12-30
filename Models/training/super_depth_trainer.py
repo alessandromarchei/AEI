@@ -19,8 +19,6 @@ class SuperDepthTrainer():
         self.image_val = 0
         self.gt = 0
         self.gt_val = 0
-        self.gt_fused = 0
-        self.gt_val_fused = 0
         self.augmented = 0
         self.augmented_val = 0
         self.image_tensor = 0
@@ -30,7 +28,6 @@ class SuperDepthTrainer():
         self.loss = 0
         self.prediction = 0
         self.calc_loss = 0
-        self.prediction_vis = 0
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -131,14 +128,14 @@ class SuperDepthTrainer():
     # Save predicted visualization
     def save_visualization(self, log_count):
         print('Saving Visualization')
-        self.prediction_vis = self.prediction.squeeze(0).cpu().detach()
-        self.prediction_vis = self.prediction_vis.permute(1, 2, 0)
+        prediction_vis = self.prediction.squeeze(0).cpu().detach()
+        prediction_vis = prediction_vis.permute(1, 2, 0)
         fig, axs = plt.subplots(1,3)
         axs[0].imshow(self.image)
         axs[0].set_title('Image',fontweight ="bold") 
         axs[1].imshow(self.augmented)
         axs[1].set_title('Ground Truth',fontweight ="bold") 
-        axs[2].imshow(self.prediction_vis)
+        axs[2].imshow(prediction_vis)
         axs[2].set_title('Prediction',fontweight ="bold") 
         self.writer.add_figure('predictions vs. actuals', \
         fig, global_step=(log_count))
@@ -190,7 +187,10 @@ class SuperDepthTrainer():
         # Converting to tensor and loading
         self.load_data(is_train=False)
 
+        # Running model
         output_val = self.model(self.image_val_tensor)
+
+        # Conversions
         output_val = output_val.squeeze(0).cpu().detach()
         output_val = output_val.permute(1, 2, 0)
         output_val = output_val.numpy()
