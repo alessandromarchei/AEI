@@ -82,7 +82,7 @@ class SuperDepthTrainer():
     def set_val_data(self, image_val, gt_val):
         self.image_val = image_val
         self.gt_val = gt_val
-    '''
+    
     # Image agumentations
     def apply_augmentations(self, is_train):
 
@@ -94,7 +94,7 @@ class SuperDepthTrainer():
             # Augmenting Image
             aug_val = Augmentations(self.image_val, self.gt_val, False)
             self.image_val, self.augmented_val = aug_val.getAugmentedData()
-    '''
+    
     # Load Data
     def load_data(self, is_train):
         self.load_image_tensor(is_train)
@@ -127,25 +127,22 @@ class SuperDepthTrainer():
     # Set evaluation mode
     def set_eval_mode(self):
         self.model = self.model.eval()
-    '''
+    
     # Save predicted visualization
     def save_visualization(self, log_count):
         print('Saving Visualization')
         self.prediction_vis = self.prediction.squeeze(0).cpu().detach()
         self.prediction_vis = self.prediction_vis.permute(1, 2, 0)
-                
-        vis_predict = self.make_visualization()
-        label = self.augmented[0]
         fig, axs = plt.subplots(1,3)
         axs[0].imshow(self.image)
         axs[0].set_title('Image',fontweight ="bold") 
-        axs[1].imshow(label)
+        axs[1].imshow(self.augmented)
         axs[1].set_title('Ground Truth',fontweight ="bold") 
-        axs[2].imshow(vis_predict)
+        axs[2].imshow(self.prediction_vis)
         axs[2].set_title('Prediction',fontweight ="bold") 
         self.writer.add_figure('predictions vs. actuals', \
         fig, global_step=(log_count))
-    '''
+    
     # Load Image as Tensor
     def load_image_tensor(self, is_train):
 
@@ -181,7 +178,6 @@ class SuperDepthTrainer():
         print('Saving model')
         torch.save(self.model.state_dict(), model_save_path)
     
-    '''
     # Run Validation and calculate metrics
     def validate(self, image_val, gt_val):
 
@@ -194,40 +190,21 @@ class SuperDepthTrainer():
         # Converting to tensor and loading
         self.load_data(is_train=False)
 
-        # Calculate IoU score
-        iou_score_full, iou_score_bg, iou_score_fg, iou_score_rd \
-            = self.calc_IoU_val()
+        output_val = self.model(self.image_val_tensor)
+        output_val = output_val.squeeze(0).cpu().detach()
+        output_val = output_val.permute(1, 2, 0)
+        output_val = output_val.numpy()
+
+        gt_val = gt_val.squeeze(0).cpu().detach()
+        gt_val = gt_val.permute(1, 2, 0)
+        gt_val = gt_val.numpy()
+
+        # Calculating mean absolute normalized error
+        rows, columns = gt_val.shape
+        accuracy = np.abs(gt_val - output_val)/(rows*columns)
         
-        return iou_score_full, iou_score_bg, iou_score_fg, iou_score_rd
+        return accuracy
 
-
-    # Visualize predicted result
-    def make_visualization(self):
-        shape = self.prediction_vis.shape
-        _, output = torch.max(self.prediction_vis, dim=2)
-
-        row = shape[0]
-        col = shape[1]
-        vis_predict = Image.new(mode="RGB", size=(col, row))
-    
-        vx = vis_predict.load()
-
-        background_objects_colour = (61, 93, 255)
-        foreground_objects_colour = (255, 28, 145)
-        road_colour = (0, 255, 220)
-
-        # Extracting predicted classes and assigning to colourmap
-        for x in range(row):
-            for y in range(col):
-                if(output[x,y].item() == 0):
-                    vx[y,x] = background_objects_colour
-                elif(output[x,y].item() == 1):
-                    vx[y,x] = foreground_objects_colour
-                elif(output[x,y].item() == 2):
-                    vx[y,x] = road_colour               
-        
-        return vis_predict
-    '''
     def cleanup(self):
         self.writer.flush()
         self.writer.close()
