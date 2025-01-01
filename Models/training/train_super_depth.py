@@ -10,9 +10,23 @@ import sys
 sys.path.append('..')
 from model_components.super_depth_network import SuperDepthNetwork
 from model_components.scene_seg_network import SceneSegNetwork
+from data_utils.load_data_super_depth import LoadDataSuperDepth
+from training.super_depth_trainer import SuperDepthTrainerTrainer
 
 
 def main():
+
+    # Root path
+    root = '/mnt/media/SuperDepth/'
+
+    # Data paths
+    # ACDC
+    muad_labels_filepath= root + 'MUAD/height/'
+    muad_images_filepath = root + 'MUAD/image/'
+
+    # URBANSYN
+    urbansyn_labels_fileapath = root + 'UrbanSyn/height/'
+    urbansyn_images_fileapath = root + 'UrbanSyn/image/
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
