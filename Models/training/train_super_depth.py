@@ -36,9 +36,19 @@ def main():
     muad_num_train_samples, muad_num_val_samples = muad_Dataset.getItemCount()
 
     # URBANSYN - Data Loading
-    urbansyn_Dataset = LoadDataSuperDepth(urbansyn_labels_fileapath, urbansyn_images_fileapath, 'IDDAW')
+    urbansyn_Dataset = LoadDataSuperDepth(urbansyn_labels_fileapath, urbansyn_images_fileapath, 'URBANSYN')
     urbansyn_num_train_samples, urbansyn_num_val_samples = urbansyn_Dataset.getItemCount()
 
+    # Total number of training samples
+    total_train_samples = muad_num_train_samples + \
+    + urbansyn_num_train_samples
+    print(total_train_samples, ': total training samples')
+
+    # Total number of validation samples
+    total_val_samples = muad_num_val_samples + \
+    + urbansyn_num_val_samples
+    print(total_val_samples, ': total validation samples')
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
 
@@ -80,7 +90,7 @@ def main():
     plt.imshow(image)
     plt.figure()
     plt.imshow(prediction)
-
+    
     
 if __name__ == '__main__':
     main()
