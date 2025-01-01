@@ -124,6 +124,21 @@ def main():
                is_urbansyn_complete == False):
                 image, gt = urbansyn_Dataset.getItemTrain(urbansyn_count)      
                 urbansyn_count += 1
+
+            # Assign Data
+            trainer.set_data(image, gt)
+            
+            # Augmenting Image
+            trainer.apply_augmentations(is_train=True)
+
+            # Converting to tensor and loading
+            trainer.load_data(is_train=True)
+
+            # Run model and calculate loss
+            trainer.run_model()
+            
+            # Gradient accumulation
+            trainer.loss_backward()
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
