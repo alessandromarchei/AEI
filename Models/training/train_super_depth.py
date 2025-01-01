@@ -110,6 +110,20 @@ def main():
 
             if(data_list_count >= len(data_list)):
                 data_list_count = 0
+
+            # Read images, apply augmentation, run prediction, calculate
+            # loss for iterated image from each dataset, and increment
+            # dataset iterators
+
+            if(data_list[data_list_count] == 'MUAD' and \
+                is_muad_complete == False):
+                image, gt = muad_Dataset.getItemTrain(muad_count)
+                muad_count += 1
+            
+            if(data_list[data_list_count] == 'URBANSYN' and \
+               is_urbansyn_complete == False):
+                image, gt = urbansyn_Dataset.getItemTrain(urbansyn_count)      
+                urbansyn_count += 1
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
