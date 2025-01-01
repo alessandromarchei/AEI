@@ -4,6 +4,7 @@
 import torch
 import matplotlib.pyplot as plt
 from torchvision import transforms
+import random
 from pytorch_model_summary import summary
 from PIL import Image
 import sys
@@ -48,6 +49,50 @@ def main():
     total_val_samples = muad_num_val_samples + \
     + urbansyn_num_val_samples
     print(total_val_samples, ': total validation samples')
+
+    # Trainer Class
+    trainer = SuperDepthTrainer()
+    trainer.zero_grad()
+    
+    # Total training epochs
+    num_epochs = 10
+    batch_size = 32
+
+    # Epochs
+    for epoch in range(0, num_epochs):
+
+        # Iterators for datasets
+        muad_count = 0
+        urbansyn_count = 0
+
+        is_muad_complete = False
+        is_urbansyn_complete = False
+        
+        data_list = []
+        data_list.append('MUAD')
+        data_list.append('URBANSYN')
+        random.shuffle(data_list)
+        data_list_count = 0
+
+        if(epoch == 1):
+            batch_size = 16
+        
+        if(epoch == 2):
+            batch_size = 8
+        
+        if(epoch == 3):
+            batch_size = 5
+
+        if(epoch >= 4 and epoch < 6):
+            batch_size = 3
+
+        if (epoch >= 6 and epoch < 8):
+            batch_size = 2
+
+        if (epoch > 8):
+            batch_size = 1
+
+
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
