@@ -195,10 +195,6 @@ class SuperDepthTrainer():
         output_val = output_val.permute(1, 2, 0)
         output_val = output_val.numpy()
 
-        gt_val = gt_val.squeeze(0).cpu().detach()
-        gt_val = gt_val.permute(1, 2, 0)
-        gt_val = gt_val.numpy()
-
         # Calculating mean absolute normalized error
         rows, columns = gt_val.shape
         accuracy = np.abs(gt_val - output_val)/(rows*columns)
