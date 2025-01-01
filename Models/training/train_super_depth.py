@@ -92,7 +92,24 @@ def main():
         if (epoch > 8):
             batch_size = 1
 
+        # Loop through data
+        for count in range(0, total_train_samples):
 
+            log_count = count + total_train_samples*epoch
+
+            # Reset iterators
+            if(muad_count == muad_num_train_samples and \
+                is_muad_complete == False):
+                is_muad_complete =  True
+                data_list.remove("MUAD")
+            
+            if(urbansyn_count == urbansyn_num_train_samples and \
+                is_urbansyn_complete == False):
+                is_urbansyn_complete = True
+                data_list.remove("URBANSYN")
+
+            if(data_list_count >= len(data_list)):
+                data_list_count = 0
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
