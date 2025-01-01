@@ -14,7 +14,7 @@ class LoadDataSuperDepth():
         if(self.dataset != 'URBANSYN' and self.dataset != 'MUAD'):
             raise ValueError('Dataset type is not correctly specified')
         
-        self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.png")])
+        self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.npy")])
         self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
 
         self.num_images = len(self.images)
