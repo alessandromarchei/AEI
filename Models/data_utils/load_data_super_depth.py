@@ -3,10 +3,9 @@ import pathlib
 import numpy as np
 from typing import Literal
 from PIL import Image
-from skimage.transform import resize
 from .check_data import CheckData
 
-class LoadDataSceneSeg():
+class LoadDataSuperDepth():
     def __init__(self, labels_filepath, images_filepath, \
         dataset: Literal['URBANSYN', 'MUAD']):
 
