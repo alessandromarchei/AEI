@@ -11,7 +11,7 @@ sys.path.append('..')
 from model_components.super_depth_network import SuperDepthNetwork
 from model_components.scene_seg_network import SceneSegNetwork
 from data_utils.load_data_super_depth import LoadDataSuperDepth
-from training.super_depth_trainer import SuperDepthTrainerTrainer
+from training.super_depth_trainer import SuperDepthTrainer
 
 
 def main():
@@ -19,14 +19,25 @@ def main():
     # Root path
     root = '/mnt/media/SuperDepth/'
 
+    # Model save path
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/'
+
     # Data paths
-    # ACDC
+    # MUAD
     muad_labels_filepath= root + 'MUAD/height/'
     muad_images_filepath = root + 'MUAD/image/'
 
     # URBANSYN
     urbansyn_labels_fileapath = root + 'UrbanSyn/height/'
-    urbansyn_images_fileapath = root + 'UrbanSyn/image/
+    urbansyn_images_fileapath = root + 'UrbanSyn/image/'
+
+    # MUAD - Data Loading
+    muad_Dataset = LoadDataSuperDepth(muad_labels_filepath, muad_images_filepath, 'MUAD')
+    muad_num_train_samples, muad_num_val_samples = muad_Dataset.getItemCount()
+
+    # URBANSYN - Data Loading
+    urbansyn_Dataset = LoadDataSuperDepth(urbansyn_labels_fileapath, urbansyn_images_fileapath, 'IDDAW')
+    urbansyn_num_train_samples, urbansyn_num_val_samples = urbansyn_Dataset.getItemCount()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
