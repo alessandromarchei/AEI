@@ -139,6 +139,30 @@ def main():
             
             # Gradient accumulation
             trainer.loss_backward()
+
+            # Simulating batch size through gradient accumulation
+            if((count+1) % batch_size == 0):
+                trainer.run_optimizer()
+
+            # Logging loss to Tensor Board every 250 steps
+            if((count+1) % 250 == 0):
+                trainer.log_loss(log_count)
+            
+            # Logging Image to Tensor Board every 1000 steps
+            if((count+1) % 1000 == 0):  
+                trainer.save_visualization(log_count)
+            
+            # Save model and run validation on entire validation 
+            # dataset after 8000 steps
+            if((count+1) % 8000 == 0):
+                
+                # Save Model
+                model_save_path = model_save_root_path + 'iter_' + \
+                    str(count + total_train_samples*epoch) \
+                    + '_epoch_' +  str(epoch) + '_step_' + \
+                    str(count) + '.pth'
+                
+                trainer.save_model(model_save_path)
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
