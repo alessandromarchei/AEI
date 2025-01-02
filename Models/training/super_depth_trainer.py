@@ -133,6 +133,7 @@ class SuperDepthTrainer():
     # Normalize ground truth value for visualization
     def shift_height(self, height):
         height = height + np.min(height)
+        return height
     
     # Save predicted visualization
     def save_visualization(self, log_count):
@@ -142,6 +143,7 @@ class SuperDepthTrainer():
         # Converting prediction output to visualization
         prediction_vis = self.prediction.squeeze(0).cpu().detach()
         prediction_vis = prediction_vis.permute(1, 2, 0)
+        prediction_vis = prediction_vis.numpy()
         prediction_vis = self.shift_height(prediction_vis)
 
         # Normalizing ground truth height to same range as predicition
@@ -217,7 +219,7 @@ class SuperDepthTrainer():
         # Calculating mean absolute normalized error
         rows = self.augmented_val.shape[0]
         columns = self.augmented_val.shape[1]
-        accuracy = np.abs(self.augmented_val - output_val)/(rows*columns)
+        accuracy = np.abs(self.augmented_val.numpy() - output_val)/(rows*columns)
         
         return accuracy
 
