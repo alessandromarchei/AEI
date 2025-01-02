@@ -54,7 +54,7 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 10
+    num_epochs = 20
     batch_size = 32
 
     # Epochs
@@ -73,22 +73,22 @@ def main():
         random.shuffle(data_list)
         data_list_count = 0
 
-        if(epoch == 1):
+        if(epoch == 2):
             batch_size = 16
         
-        if(epoch == 2):
+        if(epoch == 4):
             batch_size = 8
         
-        if(epoch == 3):
+        if(epoch == 6):
             batch_size = 5
 
-        if(epoch >= 4 and epoch < 6):
+        if(epoch >= 8 and epoch < 12):
             batch_size = 3
 
-        if (epoch >= 6 and epoch < 8):
+        if (epoch >= 12 and epoch < 16):
             batch_size = 2
 
-        if (epoch > 8):
+        if (epoch > 16):
             batch_size = 1
 
         # Loop through data
