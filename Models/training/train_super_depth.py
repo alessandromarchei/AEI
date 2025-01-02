@@ -177,8 +177,7 @@ def main():
 
                     # MUAD
                     for val_count in range(0, muad_num_val_samples):
-                        image_val, gt_val, _ = \
-                            muad_Dataset.getItemVal(val_count)
+                        image_val, gt_val = muad_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
                         mAE = trainer.validate(image_val, gt_val)
@@ -189,8 +188,7 @@ def main():
 
                     # URBANSYN
                     for val_count in range(0, urbansyn_num_val_samples):
-                        image_val, gt_val, _ = \
-                        urbansyn_Dataset.getItemVal(val_count)
+                        image_val, gt_val = urbansyn_Dataset.getItemVal(val_count)
                         
                         # Run Validation and calculate mAE Score
                         mAE = trainer.validate(image_val, gt_val)
