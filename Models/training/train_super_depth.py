@@ -124,8 +124,6 @@ def main():
                 image, gt = urbansyn_Dataset.getItemTrain(urbansyn_count)      
                 urbansyn_count += 1
 
-            print(image.shape, gt.shape)
-
             # Assign Data
             trainer.set_data(image, gt)
             
