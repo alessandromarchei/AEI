@@ -47,6 +47,7 @@ class LoadDataSuperDepth():
     
     def getGroundTruth(self, input_label):
         ground_truth = np.load(input_label)
+        ground_truth = np.expand_dims(ground_truth, axis=-1)
         return ground_truth
 
     def getItemTrain(self, index):
