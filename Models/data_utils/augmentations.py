@@ -1,11 +1,17 @@
 import albumentations as A
+from typing import Literal
 import random
 
 class Augmentations():
-    def __init__(self, input_image, ground_truth, is_train):
+    def __init__(self, input_image, ground_truth, is_train, data_type: Literal['SEGMENTATION', 'DEPTH']):
         self.is_train = is_train
         self.image = input_image
         self.ground_truth = ground_truth
+
+        self.dataset = data_type
+
+        if(self.dataset != 'SEGMENTATION' and self.dataset != 'DEPTH'):
+            raise ValueError('Dataset type is not correctly specified')
 
         transform_shape = A.Compose(
             [
@@ -35,7 +41,12 @@ class Augmentations():
             masks = self.ground_truth)
         
         self.augmented_image = self.adjust_shape["image"]
-        self.augmented_data = self.adjust_shape["masks"]
+        self.augmented_data = ground_truth
+
+        if (data_type == 'SEGMENTATION'):
+            self.augmented_data = self.adjust_shape["masks"]
+        elif(data_type == 'DEPTH'):
+            self.augmented_data = self.adjust_shape["mask"]
 
         if (random.random() >= 0.25 and self.is_train):
             
