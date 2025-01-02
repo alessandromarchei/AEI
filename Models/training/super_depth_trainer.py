@@ -5,7 +5,6 @@ from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
@@ -203,7 +202,7 @@ class SuperDepthTrainer():
 
         # Augmenting Image
         self.apply_augmentations(is_train=False)
-
+        
         # Converting to tensor and loading
         self.load_data(is_train=False)
 
@@ -214,10 +213,11 @@ class SuperDepthTrainer():
         output_val = output_val.squeeze(0).cpu().detach()
         output_val = output_val.permute(1, 2, 0)
         output_val = output_val.numpy()
-
+        
         # Calculating mean absolute normalized error
-        rows, columns = gt_val.shape
-        accuracy = np.abs(gt_val - output_val)/(rows*columns)
+        rows = self.augmented_val.shape[0]
+        columns = self.augmented_val.shape[1]
+        accuracy = np.abs(self.augmented_val - output_val)/(rows*columns)
         
         return accuracy
 
