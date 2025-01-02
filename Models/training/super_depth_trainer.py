@@ -91,11 +91,11 @@ class SuperDepthTrainer():
 
         if(is_train):
             # Augmenting Image
-            aug_train = Augmentations(self.image, self.gt, True)
+            aug_train = Augmentations(self.image, self.gt, True, data_type='DEPTH')
             self.image, self.augmented = aug_train.getAugmentedData()
         else:
             # Augmenting Image
-            aug_val = Augmentations(self.image_val, self.gt_val, False)
+            aug_val = Augmentations(self.image_val, self.gt_val, False, data_type='DEPTH')
             self.image_val, self.augmented_val = aug_val.getAugmentedData()
     
     # Load Data
