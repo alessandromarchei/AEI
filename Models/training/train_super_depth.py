@@ -153,7 +153,7 @@ def main():
             
             # Save model and run validation on entire validation 
             # dataset after 8000 steps
-            if((count+1) % 8000 == 0):
+            if((count+1) % 4000 == 0):
 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
