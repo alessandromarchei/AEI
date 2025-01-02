@@ -15,7 +15,7 @@ def main():
     root = '/mnt/media/SuperDepth/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_02/'
 
     # Data paths
     # MUAD
