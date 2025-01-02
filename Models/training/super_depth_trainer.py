@@ -151,8 +151,10 @@ class SuperDepthTrainer():
 
         if(is_train):
             image_tensor = self.image_loader(self.image)
+            print('image tensor', image_tensor.shape)
             image_tensor = image_tensor.unsqueeze(0)
             self.image_tensor = image_tensor.to(self.device)
+            print('image tensor unsqueeze', self.image_tensor.shape)
         else:
             image_val_tensor = self.image_loader(self.image_val)
             image_val_tensor = image_val_tensor.unsqueeze(0)
@@ -163,11 +165,15 @@ class SuperDepthTrainer():
 
         if(is_train):
             gt_tensor = torch.from_numpy(self.augmented)
+            gt_tensor = gt_tensor.permute(2, 0, 1)
+            print('gt tensor', gt_tensor.shape)
             gt_tensor = torch.div(gt_tensor, 7)
             gt_tensor = gt_tensor.unsqueeze(0)
             self.gt_tensor = gt_tensor.to(self.device)
+            print('gt tensor unsqueeze', self.gt_tensor.shape)
         else:
             gt_val_tensor = torch.from_numpy(self.augmented_val)
+            gt_val_tensor = gt_val_tensor.permute(2, 0, 1)
             gt_val_tensor = torch.div(gt_val_tensor, 7)
             gt_val_tensor = gt_val_tensor.unsqueeze(0)
             self.gt_val_tensor = gt_val_tensor.to(self.device)
