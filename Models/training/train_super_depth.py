@@ -155,7 +155,7 @@ def main():
             # Save model and run validation on entire validation 
             # dataset after 8000 steps
             if((count+1) % 8000 == 0):
-                
+
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
                     str(count + total_train_samples*epoch) \
@@ -163,49 +163,56 @@ def main():
                     str(count) + '.pth'
                 
                 trainer.save_model(model_save_path)
-    
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Using {device} for inference')
 
-    # Load pre-trained weights
-    sceneSegNetwork = SceneSegNetwork()
-    root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
-    pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
-    sceneSegNetwork.load_state_dict(torch.load \
-        (pretrained_checkpoint_path, weights_only=True, map_location=device))
-    
-    # Instantiate Model with pre-trained weights
-    model = SuperDepthNetwork(sceneSegNetwork)
-    print(summary(model, torch.zeros((1, 3, 320, 640)), show_input=True))
-    model = model.to(device)
+                # Validate
+                print('Validating')
 
-    # Random input
-    input_image_filepath = '/mnt/media/SuperDepth/UrbanSyn/image/10.png'
-    image = Image.open(input_image_filepath)
-    image = image.resize((640, 320))
+                # Setting model to evaluation mode
+                trainer.set_eval_mode()
 
-    # Image loader
-    image_loader = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  
-        ]
-    )
+                # Error
+                running_mAE = 0
 
-    image_tensor = image_loader(image)
-    image_tensor = image_tensor.unsqueeze(0)
-    image_tensor = image_tensor.to(device)
+                # No gradient calculation
+                with torch.no_grad():
 
-    prediction = model(image_tensor)
+                    # MUAD
+                    for val_count in range(0, muad_num_val_samples):
+                        image_val, gt_val, _ = \
+                            muad_Dataset.getItemVal(val_count)
 
-    prediction = prediction.squeeze(0).cpu().detach()
-    prediction = prediction.permute(1, 2, 0)
+                        # Run Validation and calculate mAE Score
+                        mAE = trainer.validate(image_val, gt_val)
 
-    plt.figure()
-    plt.imshow(image)
-    plt.figure()
-    plt.imshow(prediction)
-    
+                        # Accumulating mAE score
+                        running_mAE += mAE
+
+
+                    # URBANSYN
+                    for val_count in range(0, urbansyn_num_val_samples):
+                        image_val, gt_val, _ = \
+                        urbansyn_Dataset.getItemVal(val_count)
+                        
+                        # Run Validation and calculate mAE Score
+                        mAE = trainer.validate(image_val, gt_val)
+
+                        # Accumulating mAE score
+                        running_mAE += mAE
+
+                    # LOGGING
+                    # Calculating average loss of complete validation set
+                    avg_mAE = running_mAE/total_val_samples
+                        
+                    # Logging average validation loss to TensorBoard
+                    trainer.log_val_mAE(avg_mAE, log_count)
+
+                # Resetting model back to training
+                trainer.set_train_mode()
+
+            data_list_count += 1
+
+    trainer.cleanup()
+ 
     
 if __name__ == '__main__':
     main()
