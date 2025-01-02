@@ -130,16 +130,28 @@ class SuperDepthTrainer():
     # Set evaluation mode
     def set_eval_mode(self):
         self.model = self.model.eval()
+
+    # Normalize ground truth value for visualization
+    def shift_height(self, height):
+        height = height + np.min(height)
     
     # Save predicted visualization
     def save_visualization(self, log_count):
+
         print('Saving Visualization')
+
+        # Converting prediction output to visualization
         prediction_vis = self.prediction.squeeze(0).cpu().detach()
         prediction_vis = prediction_vis.permute(1, 2, 0)
+        prediction_vis = self.shift_height(prediction_vis)
+
+        # Normalizing ground truth height to same range as predicition
+        augmented_vis = self.shift_height(self.augmented)/7
+
         fig, axs = plt.subplots(1,3)
         axs[0].imshow(self.image)
         axs[0].set_title('Image',fontweight ="bold") 
-        axs[1].imshow(self.augmented)
+        axs[1].imshow(augmented_vis)
         axs[1].set_title('Ground Truth',fontweight ="bold") 
         axs[2].imshow(prediction_vis)
         axs[2].set_title('Prediction',fontweight ="bold") 
