@@ -219,7 +219,7 @@ class SuperDepthTrainer():
         # Calculating mean absolute normalized error
         rows = self.augmented_val.shape[0]
         columns = self.augmented_val.shape[1]
-        accuracy = np.abs(self.augmented_val.numpy() - output_val)/(rows*columns)
+        accuracy = np.abs(self.augmented_val - output_val)/(rows*columns)
         
         return accuracy
 
