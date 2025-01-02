@@ -50,8 +50,13 @@ def main():
     + urbansyn_num_val_samples
     print(total_val_samples, ': total validation samples')
 
+    # Pre-trained model checkpoint path
+    root_path = \
+        '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
+    pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
+
     # Trainer Class
-    trainer = SuperDepthTrainer()
+    trainer = SuperDepthTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
     trainer.zero_grad()
     
     # Total training epochs
@@ -145,11 +150,11 @@ def main():
                 trainer.run_optimizer()
 
             # Logging loss to Tensor Board every 250 steps
-            if((count+1) % 250 == 0):
+            if((count+1) % 5 == 0):
                 trainer.log_loss(log_count)
             
             # Logging Image to Tensor Board every 1000 steps
-            if((count+1) % 1000 == 0):  
+            if((count+1) % 5 == 0):  
                 trainer.save_visualization(log_count)
             
             # Save model and run validation on entire validation 
