@@ -220,8 +220,8 @@ class SuperDepthTrainer():
         rows = self.augmented_val.shape[0]
         columns = self.augmented_val.shape[1]
         accuracy = np.abs(self.augmented_val - output_val)/(rows*columns)
-        
-        return accuracy
+        avg_mAE = np.average(accuracy)
+        return avg_mAE
 
     def cleanup(self):
         self.writer.flush()
