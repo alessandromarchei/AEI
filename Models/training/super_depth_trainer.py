@@ -162,12 +162,12 @@ class SuperDepthTrainer():
     def load_gt_tensor(self, is_train):
 
         if(is_train):
-            gt_tensor = torch.from_numpy(self.gt)
+            gt_tensor = torch.from_numpy(self.augmented)
             gt_tensor = torch.div(gt_tensor, 7)
             gt_tensor = gt_tensor.unsqueeze(0)
             self.gt_tensor = gt_tensor.to(self.device)
         else:
-            gt_val_tensor = torch.from_numpy(self.gt_val)
+            gt_val_tensor = torch.from_numpy(self.augmented_val)
             gt_val_tensor = torch.div(gt_val_tensor, 7)
             gt_val_tensor = gt_val_tensor.unsqueeze(0)
             self.gt_val_tensor = gt_val_tensor.to(self.device)
