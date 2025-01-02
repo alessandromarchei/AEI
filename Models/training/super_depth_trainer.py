@@ -217,11 +217,8 @@ class SuperDepthTrainer():
         output_val = output_val.numpy()
         
         # Calculating mean absolute normalized error
-        rows = self.augmented_val.shape[0]
-        columns = self.augmented_val.shape[1]
-        accuracy = np.abs(self.augmented_val - output_val)/(rows*columns)
-        avg_mAE = np.average(accuracy)
-        return avg_mAE
+        accuracy = np.average(np.abs(self.augmented_val - output_val))
+        return accuracy
 
     def cleanup(self):
         self.writer.flush()
