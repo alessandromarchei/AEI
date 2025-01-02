@@ -2,15 +2,9 @@
 # Comment above is for Jupyter execution in VSCode
 #! /usr/bin/env python3
 import torch
-import matplotlib.pyplot as plt
-from torchvision import transforms
 import random
-from pytorch_model_summary import summary
-from PIL import Image
 import sys
 sys.path.append('..')
-from model_components.super_depth_network import SuperDepthNetwork
-from model_components.scene_seg_network import SceneSegNetwork
 from data_utils.load_data_super_depth import LoadDataSuperDepth
 from training.super_depth_trainer import SuperDepthTrainer
 
@@ -129,6 +123,8 @@ def main():
                is_urbansyn_complete == False):
                 image, gt = urbansyn_Dataset.getItemTrain(urbansyn_count)      
                 urbansyn_count += 1
+
+            print(image.shape, gt.shape)
 
             # Assign Data
             trainer.set_data(image, gt)
