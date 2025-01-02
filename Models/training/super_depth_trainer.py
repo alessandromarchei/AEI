@@ -71,6 +71,12 @@ class SuperDepthTrainer():
         print('Logging Training Loss', log_count, self.get_loss())
         self.writer.add_scalar("Loss/train", self.get_loss(), (log_count))
 
+    # Logging Validation mAE
+    def log_val_mAE(self, mAE, log_count):
+        print('Logging Validation')      
+        self.writer.add_scalar("Val/mAE", mAE, (log_count))
+        
+
     # Assign input variables
     def set_data(self, image, gt):
         self.image = image
