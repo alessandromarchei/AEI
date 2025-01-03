@@ -15,7 +15,7 @@ def main():
     root = '/mnt/media/SuperDepth/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_02/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_03/'
 
     # Data paths
     # MUAD
@@ -54,7 +54,7 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 20
+    num_epochs = 50
     batch_size = 32
 
     # Epochs
@@ -73,22 +73,22 @@ def main():
         random.shuffle(data_list)
         data_list_count = 0
 
-        if(epoch == 2):
+        if(epoch == 3):
             batch_size = 16
         
-        if(epoch == 4):
+        if(epoch == 5):
             batch_size = 8
         
-        if(epoch == 6):
+        if(epoch == 8):
             batch_size = 5
 
-        if(epoch >= 8 and epoch < 12):
+        if(epoch >= 9 and epoch < 15):
             batch_size = 3
 
-        if (epoch >= 12 and epoch < 16):
+        if (epoch >= 15 and epoch < 25):
             batch_size = 2
 
-        if (epoch > 16):
+        if (epoch >= 25):
             batch_size = 1
 
         # Loop through data
