@@ -215,9 +215,13 @@ class SuperDepthTrainer():
         output_val = output_val.squeeze(0).cpu().detach()
         output_val = output_val.permute(1, 2, 0)
         output_val = output_val.numpy()
-        
+
+        ground_truth_val = self.gt_val_tensor.squeeze(0).cpu().detach()
+        ground_truth_val = ground_truth_val.permute(1, 2, 0)
+        ground_truth_val = ground_truth_val.numpy()
+
         # Calculating mean absolute normalized error
-        accuracy = np.average(np.abs(self.augmented_val - output_val))
+        accuracy = np.average(np.abs(ground_truth_val - output_val))
         return accuracy
 
     def cleanup(self):
