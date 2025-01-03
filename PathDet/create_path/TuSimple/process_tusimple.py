@@ -313,7 +313,8 @@ if __name__ == "__main__":
 
             # Conduct index increment
             img_id_counter += 1
-            set_dir = "/".join(anno_file.split("/")[ : -1]) # Slap "train_set" or "test_set" to the end
+            #set_dir = "/".join(anno_file.split("/")[ : -1]) # Slap "train_set" or "test_set" to the end  <-- Specific to linux hence used os.path.dirname command below
+            set_dir= os.path.dirname(anno_file)
             set_dir = os.path.join(set_dir, test_dir) if test_file in anno_file else set_dir    # Tricky test dir
 
             # Annotate raw images
