@@ -6,6 +6,7 @@ import math
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
+from argparse import ArgumentParser
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
@@ -57,9 +58,15 @@ def create_nc_xy_map(rows, cols, nc_z, fov_v):
 
 def main():
 
+    # Argument parser for data root path and save path
+    parser = ArgumentParser()
+    parser.add_argument("-r", "--root", dest="root_data_path", help="path to root folder with input ground truth labels and images")
+    parser.add_argument("-s", "--save", dest="root_save_path", help="path to folder where processed data will be saved")
+    args = parser.parse_args()
+
     # Filepaths for data loading and savind
-    root_data_path = '/mnt/media/GTAV/'
-    root_save_path = '/mnt/media/SuperDepth/GTAV'
+    root_data_path = args.root_data_path
+    root_save_path = args.root_save_path
 
     # Reading dataset labels and images and sorting returned list in alphabetical order
     depth_maps = sorted([f for f in pathlib.Path(root_data_path).glob("*/gta0/cam0/depth/*.bin")])

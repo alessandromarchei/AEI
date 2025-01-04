@@ -2,7 +2,7 @@
 import numpy as np
 
 class DepthSparseSupervision():
-    def __init__(self, image, height_map, max_height, min_height):
+    def __init__(self, image, height_map, max_height, min_height, threshold = 25):
             
         # Getting size of height map
         size = height_map.shape
@@ -25,7 +25,7 @@ class DepthSparseSupervision():
                 grad = abs(x_grad) + abs(y_grad)
 
                 # Derivative threshold to find likely stereo candidates
-                if(grad > 25):
+                if(grad > threshold):
                     self.sparse_supervision[j,i] = height_map[j,i]
                 else:
                     self.sparse_supervision[j,i] = max_height

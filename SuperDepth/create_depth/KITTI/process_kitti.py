@@ -4,6 +4,7 @@ import pathlib
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
+from argparse import ArgumentParser
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
@@ -52,9 +53,15 @@ def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervi
 
 def main():
 
+    # Argument parser for data root path and save path
+    parser = ArgumentParser()
+    parser.add_argument("-r", "--root", dest="root_data_path", help="path to root folder with input ground truth labels and images")
+    parser.add_argument("-s", "--save", dest="root_save_path", help="path to folder where processed data will be saved")
+    args = parser.parse_args()
+
     # Filepaths for data loading and savind
-    root_data_path = '/mnt/media/KITTI/'
-    root_save_path = '/mnt/media/SuperDepth/KITTI'
+    root_data_path = args.root_data_path
+    root_save_path = args.root_save_path
 
     # Paths to read ground truth depth and input images from training data
     depth_filepath = root_data_path + 'train/'
@@ -113,6 +120,11 @@ def main():
             lidarDepthFill = LidarDepthFill(sparse_depth_map)
             depth_map = lidarDepthFill.getDepthMap()
             depth_map_fill_only = lidarDepthFill.getDepthMapFillOnly()
+
+            # Validity mask
+            valid = np.zeros_like(depth_map_fill_only)
+            valid[np.where(depth_map_fill_only != 0)] = 1
+            validity_mask = Image.fromarray(np.uint8(valid*255))
             
             # Calculating depth boundaries
             boundary_threshold = 7
@@ -154,6 +166,10 @@ def main():
             boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
             boundary_mask = Image.fromarray(depth_boundaries)
             boundary_mask.save(boundary_save_path, "PNG")
+
+            # Validity mask as black and white PNG
+            validity_save_path = root_save_path + '/valid/' + str(counter) + '.png'
+            validity_mask.save(validity_save_path, "PNG")
 
             # Height map plot for data auditing purposes
             height_plot_save_path = root_save_path + '/height_plot/' + str(counter) + '.png'

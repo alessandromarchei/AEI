@@ -5,6 +5,7 @@ import pathlib
 import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
+from argparse import ArgumentParser
 import numpy as np
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
@@ -38,9 +39,15 @@ def createDepthMap(depth_data):
 
 def main():
 
+    # Argument parser for data root path and save path
+    parser = ArgumentParser()
+    parser.add_argument("-r", "--root", dest="root_data_path", help="path to root folder with input ground truth labels and images")
+    parser.add_argument("-s", "--save", dest="root_save_path", help="path to folder where processed data will be saved")
+    args = parser.parse_args()
+
     # Filepaths for data loading and savind
-    root_data_path = '/home/zain/Autoware/Privately_Owned_Vehicles/training_data/SuperDepth/MUAD/'
-    root_save_path = '/mnt/media/SuperDepth/MUAD'
+    root_data_path = args.root_data_path
+    root_save_path = args.root_save_path
 
     # Paths to read ground truth depth and input images from training data
     depth_filepath = root_data_path + 'depth/'
