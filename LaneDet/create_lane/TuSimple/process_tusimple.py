@@ -354,6 +354,7 @@ if __name__ == "__main__":
             # Pop redundant keys
             del anno_entry["lanes"]
             del anno_entry["ego_indexes"]
+            del anno_entry["drivable_path"]
             # Change `raw_file` to 5-digit incremental index
             this_data[str(img_id_counter).zfill(5)] = anno_entry
             this_data.pop(raw_file)
