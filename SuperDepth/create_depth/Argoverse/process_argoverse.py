@@ -61,7 +61,7 @@ def createDepthMap(depth_data, focal_length, baseline):
 
     return depth_map      
 
-def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision):
+def cropData(image_left, depth_map, depth_boundaries, height_map, height_map_fill_only, sparse_supervision, validity_mask):
 
     # Getting size of depth map
     size = depth_map.shape
@@ -73,9 +73,11 @@ def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervi
     depth_map = depth_map[950:height-50, 256 : width]
     depth_boundaries = depth_boundaries[950:height-50, 256 : width]
     height_map = height_map[950:height-50, 256 : width]
+    height_map_fill_only = height_map_fill_only[950:height-50, 256 : width]
     sparse_supervision = sparse_supervision[950:height-50, 256 : width]
+    validity_mask = validity_mask[950:height-50, 256 : width]
 
-    return image_left, depth_map, depth_boundaries, height_map, sparse_supervision
+    return image_left, depth_map, depth_boundaries, height_map, height_map_fill_only, sparse_supervision, validity_mask
 
 def main():
     
@@ -152,6 +154,10 @@ def main():
             lidar_depth_fill = LidarDepthFill(sparse_depth_map)
             depth_map = lidar_depth_fill.getDepthMap()
             depth_map_fill_only = lidar_depth_fill.getDepthMapFillOnly()
+
+            # Validity mask
+            validity_mask = np.zeros_like(depth_map_fill_only)
+            validity_mask[np.where(depth_map_fill_only != 0)] = 1
             
             # Calculating depth boundaries
             boundary_threshold = 10
@@ -163,14 +169,18 @@ def main():
                  camera_height, focal_length, cy)
             height_map = heightMap.getHeightMap()
 
+            heightMapFillOnly = HeightMap(depth_map_fill_only, max_height, min_height, 
+                camera_height, focal_length, cy)
+            height_map_fill_only = heightMapFillOnly.getHeightMap()
+
             # Sparse supervision
             stereoSparseSupervision = StereoSparseSupervision(image_left, image_right, max_height, min_height, 
                     baseline, camera_height, focal_length, cy)
             sparse_supervision = stereoSparseSupervision.getSparseHeightMap()
 
             # Crop side regions where depth data is missing
-            image_left, depth_map, depth_boundaries, height_map, sparse_supervision= \
-                cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision)
+            image_left, depth_map, depth_boundaries, height_map, height_map_fill_only, sparse_supervision, validity_mask= \
+                cropData(image_left, depth_map, depth_boundaries, height_map, height_map_fill_only, sparse_supervision, validity_mask)
 
             # Save files
             # RGB Image as PNG
@@ -185,6 +195,10 @@ def main():
             height_save_path = root_save_path + '/height/' + str(counter) + '.npy'
             np.save(height_save_path, height_map)
 
+            # Height map with hole filing as binary file in .npy format
+            height_fill_only_save_path = root_save_path + '/height_fill/' + str(counter) + '.npy'
+            np.save(height_fill_only_save_path, height_map_fill_only)
+
             # Sparse supervision map as binary file in .npy format
             supervision_save_path = root_save_path + '/supervision/' + str(counter) + '.npy'
             np.save(supervision_save_path, sparse_supervision)
@@ -193,6 +207,11 @@ def main():
             boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
             boundary_mask = Image.fromarray(depth_boundaries)
             boundary_mask.save(boundary_save_path, "PNG")
+
+            # Validity mask as black and white PNG
+            validity_save_path = root_save_path + '/height_validity/' + str(counter) + '.png'
+            validity_mask = Image.fromarray(np.uint8(validity_mask*255))
+            validity_mask.save(validity_save_path, "PNG")
 
             # Height map plot for data auditing purposes
             height_plot_save_path = root_save_path + '/height_plot/' + str(counter) + '.png'
