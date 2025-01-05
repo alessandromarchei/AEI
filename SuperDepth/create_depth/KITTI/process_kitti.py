@@ -34,7 +34,7 @@ def createDepthMap(depth_data):
     return depth_map
 
 
-def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision):
+def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision, validity_mask):
 
     # Getting size of depth map
     size = depth_map.shape
@@ -47,8 +47,9 @@ def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervi
     depth_boundaries = depth_boundaries[:, 256 : width - 100]
     height_map = height_map[:, 256 : width - 100]
     sparse_supervision = sparse_supervision[:, 256 : width - 100]
+    validity_mask = validity_mask[:, 256 : width - 100]
 
-    return image_left, depth_map, depth_boundaries, height_map, sparse_supervision
+    return image_left, depth_map, depth_boundaries, height_map, sparse_supervision, validity_mask
 
 
 def main():
@@ -142,8 +143,8 @@ def main():
             sparse_supervision = stereoSparseSupervision.getSparseHeightMap()
             
             # Crop side regions where depth data is missing
-            image_left, depth_map, depth_boundaries, height_map, sparse_supervision= \
-                cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision)
+            image_left, depth_map, depth_boundaries, height_map, sparse_supervision validity_mask= \
+                cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision, validity_mask)
             
             # Save files
             # RGB Image as PNG
