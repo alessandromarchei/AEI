@@ -12,7 +12,7 @@ from model_components.super_depth_network import SuperDepthNetwork
 from data_utils.augmentations import Augmentations
 
 class SuperDepthTrainer():
-    def __init__(self,  checkpoint_path = '', pretrained_checkpoint_path = '', size=''):
+    def __init__(self,  checkpoint_path = '', pretrained_checkpoint_path = ''):
 
         self.image = 0
         self.image_val = 0
@@ -45,7 +45,7 @@ class SuperDepthTrainer():
         # If we are loading pre-trained weights for the SuperDepth network as well
         if(len(checkpoint_path) > 0):
             self.model.load_state_dict(torch.load \
-                (self.checkpoint_path, weights_only=True))
+                (checkpoint_path, weights_only=True))
         
         # Model to device
         self.model = self.model.to(self.device)
