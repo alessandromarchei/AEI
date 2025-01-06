@@ -67,7 +67,51 @@ def main():
 
         # Setting model to evaluation mode
         trainer.set_eval_mode()
-    
+
+        # VALIDATION
+
+        # Error
+        muad_running_mAE = 0
+        urbansyn_running_mAE = 0
+        overall_running_mAE = 0
+
+        # No gradient calculation
+        with torch.no_grad():
+
+            # MUAD
+            for val_count in range(0, muad_num_val_samples):
+                image_val, gt_val = muad_Dataset.getItemVal(val_count)
+
+                # Run Validation and calculate mAE Score
+                mAE = trainer.validate(image_val, gt_val)
+
+                # Accumulating mAE score
+                muad_running_mAE += mAE
+                overall_running_mAE += mAE
+
+
+            # URBANSYN
+            for val_count in range(0, urbansyn_num_val_samples):
+                image_val, gt_val = urbansyn_Dataset.getItemVal(val_count)
+                
+                # Run Validation and calculate mAE Score
+                mAE = trainer.validate(image_val, gt_val)
+
+                # Accumulating mAE score
+                urbansyn_running_mAE += mAE
+                overall_running_mAE += mAE
+
+            # LOGGING
+            # Calculating average loss of complete validation set
+            avg_muad_mAE = muad_running_mAE/muad_num_val_samples
+            print('MUAD average validation error:', avg_muad_mAE)
+
+            avg_urbansyn_mAE = urbansyn_running_mAE/urbansyn_num_val_samples
+            print('Urbansyn average validation error:', avg_urbansyn_mAE)
+
+            avg_overall_mAE = overall_running_mAE/total_val_samples
+            print('Overall average validation error:', avg_overall_mAE)
+
 
 if __name__ == '__main__':
     main()
