@@ -45,7 +45,8 @@ class SuperDepthTrainer():
         # If we are loading pre-trained weights for the SuperDepth network as well
         if(len(checkpoint_path) > 0):
             self.model.load_state_dict(torch.load \
-                (checkpoint_path, weights_only=True))
+                (checkpoint_path, weights_only=True, map_location=self.device))
+            print('Loading pre-trained model weights of SuperDepth')
         
         # Model to device
         self.model = self.model.to(self.device)
