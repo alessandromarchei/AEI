@@ -2,11 +2,11 @@
 # Comment above is for Jupyter execution in VSCode
 #! /usr/bin/env python3
 import torch
-from scene_seg_trainer import SceneSegTrainer
 from argparse import ArgumentParser
 import sys
 sys.path.append('..')
 from data_utils.load_data_scene_seg import LoadDataSceneSeg
+from training.scene_seg_trainer import SceneSegTrainer
 
 def main():
 
