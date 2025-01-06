@@ -11,6 +11,7 @@ import argparse
 # Define the region of interest (ROI)
 x1, y1 = 62, 84  # Top-left corner coordinates
 img_w, img_h = 1048, 524  # Width and height of the ROI
+future_frames = 100
 
 def load_frame_pos(seg_path):
     """
@@ -86,7 +87,7 @@ def get_frame_positions_local(frame_count, frame_positions, frame_orientations):
     local_from_ecef = ecef_from_local.T
     frame_positions_local = np.einsum('ij,kj->ki', local_from_ecef, frame_positions - frame_positions[frame_count])
     # print(np.linalg.norm(frame_positions[frame_count+200] - frame_positions[frame_count]))
-    return frame_positions_local[frame_count+3:frame_count+200]
+    return frame_positions_local[frame_count+4:frame_count+future_frames]
 
 def extrapolate_to_bottom(points):
     """
@@ -137,17 +138,16 @@ def generate_mask_vis(frame_count, seg_path, out_path, processed_img_count,
     img_points_norm_r = img_from_device(device_path_r)
     img_pts_l = denormalize(img_points_norm_l)
     img_pts_r = denormalize(img_points_norm_r)
-
     # filter out things rejected along the way
     valid = np.logical_and(np.isfinite(img_pts_l).all(axis=1), np.isfinite(img_pts_r).all(axis=1))
     img_pts_l = img_pts_l[valid].astype(int) 
     img_pts_r = img_pts_r[valid].astype(int)
+    # print(len(img_pts_l), len(img_pts_r))
     img_pts = np.array((img_pts_l+img_pts_r)/2,np.int32) -[x1,y1]
-    if len(img_pts) > 190:
-        img_pts = remove_collinear_points(img_pts)
+    if len(img_pts) > future_frames-20:
+        # img_pts = remove_collinear_points(img_pts)
         img_pts = extrapolate_to_bottom(img_pts)
-        w, h = 1048, 524
-        mask = np.zeros((h, w), np.uint8)
+        mask = np.zeros((img_h, img_w), np.uint8)
         for i in range(len(img_pts) - 1):
             cv2.line(img, img_pts[i], img_pts[i + 1], line_color, 3)
             cv2.line(mask, img_pts[i], img_pts[i + 1], (255), 3)
@@ -162,6 +162,7 @@ def generate_mask_vis(frame_count, seg_path, out_path, processed_img_count,
         return img_pts
     else:
         os.remove(out_path + f'images/{processed_img_count:05d}.png')
+        # print(f"Removed {processed_img_count:05d}.png",len(img_pts))
         return None
 
 def extract_frames(seg_path, out_path, img_count, downsampling_factor=1):
@@ -190,7 +191,7 @@ def extract_frames(seg_path, out_path, img_count, downsampling_factor=1):
         
     x2, y2 = x1+img_w, y1+img_h # Bottom-right corner coordinates
     
-    while success and frame_count < 1000:
+    while success and frame_count < 1100:
         if frame_count % downsampling_factor == 0:
             img_count += 1
             cropped_image = image[y1:y2, x1:x2]
@@ -216,7 +217,7 @@ if __name__ == "__main__":
     for seg in segments:
         total_frames, img_count =  extract_frames(seg, out_path, img_count, downsampling_factor)
         frame_positions, frame_orientations = load_frame_pos(seg)
-        print(frame_orientations.shape, frame_positions.shape)
+        # print(frame_orientations.shape, frame_positions.shape)
         for frame_count in range(0, total_frames, downsampling_factor):
             processed_img_count += 1
             drive_path = generate_mask_vis(frame_count, seg, out_path, processed_img_count,frame_positions, frame_orientations)
