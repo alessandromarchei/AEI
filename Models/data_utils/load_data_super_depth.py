@@ -17,10 +17,10 @@ class LoadDataSuperDepth():
         self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.npy")])
         self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
         
-        self.validity = 0
+        self.validity = validity
         self.is_validity = False
 
-        if(len(validity > 0)):
+        if(len(self.validity) > 0):
             self.validity = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
 
             checkValidityData = CheckData(self.validity, self.num_labels)
