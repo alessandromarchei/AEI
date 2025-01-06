@@ -47,13 +47,15 @@ as follows:
 
 - `dataset_root_path` : str
     - path to Comma2k19 dataset directory (Where Chunk folders are present).
+- `out_path` : str
+    - Path to the output directory.
 - `df` : int
     - Factor by which to downsample the frames.
 
 #### b. Example
 
 ```
-`python process_comma2k19.py --dataset_root_path /path/to/Comma2k19 --df 10`
+`python process_comma2k19.py --dataset_root_path /path/to/Comma2k19 --out_path /path/to/output --df 10`
 ```
 
 Structure of outputs in each segment`:
