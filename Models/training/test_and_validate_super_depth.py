@@ -51,6 +51,24 @@ def main():
     if(checkDataImg.getCheck() and checkDataValid.getCheck):
         print(num_test_gt_files, ': total test samples')
 
+        # Loading models
+        pretrained_model_root_path = \
+            '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
+        pretrained_checkpoint_path = pretrained_model_root_path + 'iter_140215_epoch_4_step_15999.pth'
+
+        model_root_path = \
+            'home/zain/Autoware/Privately_Owned_Vehicles/Models\exports\SuperDepth/'
+        model_checkpoint_path = model_root_path + 'iter_118959_epoch_12_step_3999.pth'
+        
+        # Trainer Class
+        trainer = SuperDepthTrainer(checkpoint_path=model_checkpoint_path, 
+            pretrained_checkpoint_path=pretrained_checkpoint_path)
+        trainer.zero_grad()
+
+        # Setting model to evaluation mode
+        trainer.set_eval_mode()
+    
+
 if __name__ == '__main__':
     main()
 # %%
