@@ -71,7 +71,7 @@ def remove_collinear_points(points):
     
     return np.array(result)
 
-def get_frame_positions_local(frame_count, seg_path):
+def get_frame_positions_local(frame_count, frame_positions, frame_orientations):
     """
     Get local frame positions relative to a specific frame.
 
@@ -82,7 +82,6 @@ def get_frame_positions_local(frame_count, seg_path):
     Returns:
     numpy.ndarray: An array of local frame positions.
     """
-    frame_positions, frame_orientations = load_frame_pos(seg_path)
     ecef_from_local = orient.rot_from_quat(frame_orientations[frame_count])
     local_from_ecef = ecef_from_local.T
     frame_positions_local = np.einsum('ij,kj->ki', local_from_ecef, frame_positions - frame_positions[frame_count])
@@ -110,7 +109,9 @@ def extrapolate_to_bottom(points):
         x = int((img_h-intercept)/slope)
     return np.vstack(([x,img_h],points))
 
-def generate_mask_vis(frame_count, seg_path, width=1, height=1.2, fill_color=(128,0,255), line_color=(0,255,0)):
+def generate_mask_vis(frame_count, seg_path, out_path, processed_img_count, 
+                      frame_positions, frame_orientations,
+                      width=1, height=1.2, line_color=(0,255,0)):
     """
     Generate a mask visualization for a specific frame.
 
@@ -125,8 +126,8 @@ def generate_mask_vis(frame_count, seg_path, width=1, height=1.2, fill_color=(12
     Returns:
     numpy.ndarray: An array of image points.
     """
-    img = cv2.imread(seg_path + f'images/frame_{frame_count:04d}.png')
-    device_path = get_frame_positions_local(frame_count, seg_path)
+    img = cv2.imread(out_path + f'images/{processed_img_count:05d}.png')
+    device_path = get_frame_positions_local(frame_count, frame_positions, frame_orientations)
     device_path_l = device_path + np.array([0, 0, height])
     device_path_r = device_path + np.array([0, 0, height])
     device_path_l[:,1] -= width
@@ -142,25 +143,28 @@ def generate_mask_vis(frame_count, seg_path, width=1, height=1.2, fill_color=(12
     img_pts_l = img_pts_l[valid].astype(int) 
     img_pts_r = img_pts_r[valid].astype(int)
     img_pts = np.array((img_pts_l+img_pts_r)/2,np.int32) -[x1,y1]
-    img_pts = remove_collinear_points(img_pts)
-    img_pts = extrapolate_to_bottom(img_pts)
-    w, h = 1048, 524
-    mask = np.zeros((h, w), np.uint8)
-    for i in range(len(img_pts) - 1):
-        cv2.line(img, img_pts[i], img_pts[i + 1], (0, 255, 0), 3)
-        cv2.line(mask, img_pts[i], img_pts[i + 1], (255), 3)
-        
-    mask_folder = seg_path + "segmentation_masks"
-    vis_folder = seg_path + "visualization"
-    if not os.path.exists(mask_folder):
-        os.makedirs(mask_folder)
-        os.makedirs(vis_folder)
-    cv2.imwrite(f"{mask_folder}/mask_{frame_count:04d}.png", mask)
-    cv2.imwrite(f"{vis_folder}/vis_{frame_count:04d}.png", img)
+    if len(img_pts) > 190:
+        img_pts = remove_collinear_points(img_pts)
+        img_pts = extrapolate_to_bottom(img_pts)
+        w, h = 1048, 524
+        mask = np.zeros((h, w), np.uint8)
+        for i in range(len(img_pts) - 1):
+            cv2.line(img, img_pts[i], img_pts[i + 1], line_color, 3)
+            cv2.line(mask, img_pts[i], img_pts[i + 1], (255), 3)
+            
+        mask_folder = out_path + "segmentation"
+        vis_folder = out_path + "visualization"
+        if not os.path.exists(mask_folder):
+            os.makedirs(mask_folder)
+            os.makedirs(vis_folder)
+        cv2.imwrite(f"{mask_folder}/{processed_img_count:05d}.png", mask)
+        cv2.imwrite(f"{vis_folder}/{processed_img_count:05d}.png", img)
+        return img_pts
+    else:
+        os.remove(out_path + f'images/{processed_img_count:05d}.png')
+        return None
 
-    return img_pts
-
-def extract_frames(seg_path, downsampling_factor=1):
+def extract_frames(seg_path, out_path, img_count, downsampling_factor=1):
     """    Extract frames from a video file and save them as images.
 
     Parameters:
@@ -171,7 +175,7 @@ def extract_frames(seg_path, downsampling_factor=1):
     int: The total number of frames extracted.
     """
     video_path = seg_path +"video.hevc"
-    output_folder = seg_path + "images"
+    output_folder = out_path + "images"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -186,32 +190,41 @@ def extract_frames(seg_path, downsampling_factor=1):
         
     x2, y2 = x1+img_w, y1+img_h # Bottom-right corner coordinates
     
-    while success:
+    while success and frame_count < 1000:
         if frame_count % downsampling_factor == 0:
+            img_count += 1
             cropped_image = image[y1:y2, x1:x2]
-            cv2.imwrite(f"{output_folder}/frame_{frame_count:04d}.png", cropped_image)
+            cv2.imwrite(f"{output_folder}/{img_count:05d}.png", cropped_image)
         success, image = vidcap.read()
         frame_count += 1
     vidcap.release()
-    return frame_count
+    return frame_count, img_count
 
 if __name__ == "__main__": 
     parser = argparse.ArgumentParser(description="Process video segments to generate masks and visualizations.")
-    parser.add_argument('--df', type=int, default=10, help='Factor by which to downsample the frames.')
+    parser.add_argument('--df', type=int, default=60, help='Factor by which to downsample the frames.')
     parser.add_argument('--dataset_root_path', type=str, default="", help='Root path of the dataset.')
+    parser.add_argument('--out_path', type=str, default="", help='Path to the output directory.')
 
     args = parser.parse_args()
     downsampling_factor = args.df
     dataset_root_path = args.dataset_root_path
+    out_path = args.out_path
     segments = glob.glob(dataset_root_path+"Chunk_*/*/*/")
+    json_data = {"data": []}
+    processed_img_count, img_count = 0, 0
     for seg in segments:
-        json_data = {"data": []}
-        total_frames =  extract_frames(seg, downsampling_factor)
+        total_frames, img_count =  extract_frames(seg, out_path, img_count, downsampling_factor)
+        frame_positions, frame_orientations = load_frame_pos(seg)
+        print(frame_orientations.shape, frame_positions.shape)
         for frame_count in range(0, total_frames, downsampling_factor):
-            drive_path = generate_mask_vis(frame_count, seg)
-            data = {f"{frame_count:04d}":{"drivable_path": drive_path.tolist(),"image_width": img_w, "image_height": img_h}}
+            processed_img_count += 1
+            drive_path = generate_mask_vis(frame_count, seg, out_path, processed_img_count,frame_positions, frame_orientations)
+            if drive_path is None:
+                continue
+            data = {f"{img_count:05d}":{"drivable_path": drive_path.tolist(),"image_width": img_w, "image_height": img_h}}
             json_data["data"].append(data)
-        with open(f"{seg}drivable_path.json", "w") as json_file:
-            json.dump(json_data, json_file)
         print(f"Finished processing {seg}")
-    print("All segments processed successfully")
+    with open(f"{out_path}drivable_path.json", "w") as json_file:
+        json.dump(json_data, json_file)
+    print("All segments processed successfully", len(segments))
