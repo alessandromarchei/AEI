@@ -7,15 +7,25 @@ from .check_data import CheckData
 
 class LoadDataSuperDepth():
     def __init__(self, labels_filepath, images_filepath, \
-        dataset: Literal['URBANSYN', 'MUAD']):
+        dataset: Literal['URBANSYN', 'MUAD', 'KITTI_TEST'], validity=''):
 
         self.dataset = dataset
 
-        if(self.dataset != 'URBANSYN' and self.dataset != 'MUAD'):
+        if(self.dataset != 'URBANSYN' and self.dataset != 'MUAD' and self.dataset != 'KITTI_TEST'):
             raise ValueError('Dataset type is not correctly specified')
         
         self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.npy")])
         self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
+        
+        self.validity = 0
+        self.is_validity = False
+
+        if(len(validity > 0)):
+            self.validity = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
+
+            checkValidityData = CheckData(self.validity, self.num_labels)
+            if(checkValidityData.getCheck()):
+                self.is_validity = True
 
         self.num_images = len(self.images)
         self.num_labels = len(self.labels)
@@ -65,3 +75,13 @@ class LoadDataSuperDepth():
     
     def getItemValPath(self, index):
         return str(self.val_images[index]), str(self.val_labels[index])
+    
+    def getItemValidity(self, index):
+
+        if(self.is_validity):
+            validity_image = Image.open(str(self.validity[index]))
+        else:
+            raise ValueError('Validity masks not found - check filepath')
+        
+        return np.array(validity_image)
+    
