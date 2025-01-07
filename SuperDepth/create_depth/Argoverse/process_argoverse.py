@@ -82,17 +82,15 @@ def cropData(image_left, depth_map, depth_boundaries, height_map, height_map_fil
 def main():
     
     # Argument parser for data root path and save path
-    #parser = ArgumentParser()
-    #parser.add_argument("-r", "--root", dest="root_data_path", help="path to root folder with input ground truth labels and images")
-    #parser.add_argument("-s", "--save", dest="root_save_path", help="path to folder where processed data will be saved")
-    #args = parser.parse_args()
+    parser = ArgumentParser()
+    parser.add_argument("-r", "--root", dest="root_data_path", help="path to root folder with input ground truth labels and images")
+    parser.add_argument("-s", "--save", dest="root_save_path", help="path to folder where processed data will be saved")
+    args = parser.parse_args()
 
     # Filepaths for data loading and savind
-    #root_data_path = args.root_data_path
-    #root_save_path = args.root_save_path
-    root_data_path = '/mnt/media/Argoverse/'
-    root_save_path = '/mnt/media/SuperDepth/Argoverse'
-
+    root_data_path = args.root_data_path
+    root_save_path = args.root_save_path
+    
     # Paths to read ground truth depth and input images from training data
     depth_filepath = root_data_path + 'disparity_maps_v1.1/'
     images_filepath = root_data_path + 'rectified_stereo_images_v1.1/train/'
@@ -186,29 +184,29 @@ def main():
 
             # Save files
             # RGB Image as PNG
-            #image_save_path = root_save_path + '/image/' + str(counter) + '.png'
-            #image_left.save(image_save_path, "PNG")
+            image_save_path = root_save_path + '/image/' + str(counter) + '.png'
+            image_left.save(image_save_path, "PNG")
 
             # Depth map as binary file in .npy format
-            #depth_save_path = root_save_path + '/depth/' + str(counter) + '.npy'
-            #np.save(depth_save_path, depth_map)
+            depth_save_path = root_save_path + '/depth/' + str(counter) + '.npy'
+            np.save(depth_save_path, depth_map)
 
             # Height map as binary file in .npy format
-            #height_save_path = root_save_path + '/height/' + str(counter) + '.npy'
-            #np.save(height_save_path, height_map)
+            height_save_path = root_save_path + '/height/' + str(counter) + '.npy'
+            np.save(height_save_path, height_map)
 
             # Height map with hole filing as binary file in .npy format
             height_fill_only_save_path = root_save_path + '/height_fill/' + str(counter) + '.npy'
             np.save(height_fill_only_save_path, height_map_fill_only)
 
             # Sparse supervision map as binary file in .npy format
-            #supervision_save_path = root_save_path + '/supervision/' + str(counter) + '.npy'
-            #np.save(supervision_save_path, sparse_supervision)
+            supervision_save_path = root_save_path + '/supervision/' + str(counter) + '.npy'
+            np.save(supervision_save_path, sparse_supervision)
 
             # Boundary mask as PNG
-            #boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
-            #boundary_mask = Image.fromarray(depth_boundaries)
-            #boundary_mask.save(boundary_save_path, "PNG")
+            boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
+            boundary_mask = Image.fromarray(depth_boundaries)
+            boundary_mask.save(boundary_save_path, "PNG")
 
             # Validity mask as black and white PNG
             validity_save_path = root_save_path + '/height_validity/' + str(counter) + '.png'
@@ -216,8 +214,8 @@ def main():
             validity_mask.save(validity_save_path, "PNG")
 
             # Height map plot for data auditing purposes
-            #height_plot_save_path = root_save_path + '/height_plot/' + str(counter) + '.png'
-            #plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
+            height_plot_save_path = root_save_path + '/height_plot/' + str(counter) + '.png'
+            plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
             
             counter += 1
 
