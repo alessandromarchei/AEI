@@ -20,4 +20,3 @@ class SuperDepthUpstream(nn.Module):
         deep_features = features[4]
         context = self.pretrainedContext(deep_features)
         return features, context
-       

@@ -62,7 +62,8 @@ def main():
         
         # Trainer Class
         trainer = SuperDepthTrainer(checkpoint_path=checkpoint_path, 
-            pretrained_checkpoint_path=pretrained_checkpoint_path)
+            pretrained_checkpoint_path=pretrained_checkpoint_path, is_pretrained = True)
+        
         trainer.zero_grad()
 
         # Setting model to evaluation mode
@@ -103,6 +104,8 @@ def main():
 
             # LOGGING
             # Calculating average loss of complete validation set
+            print('Model: ', checkpoint_path)
+
             avg_muad_mAE = muad_running_mAE/muad_num_val_samples
             print('MUAD average validation error:', avg_muad_mAE)
 
