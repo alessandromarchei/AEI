@@ -20,6 +20,12 @@ class Augmentations():
             ]
         )
 
+        transform_shape_valid_test = A.Compose(
+            [
+                A.Resize(width = 640, height = 320),   
+            ]
+        )
+
         transform_noise = A.Compose(
             [      
                 A.MultiplicativeNoise(multiplier=(0.5, 1.5), per_channel=False, p=0.5),
@@ -39,28 +45,58 @@ class Augmentations():
     
         
         self.augmented_data = ground_truth
-        self.augmented_image = input_image
+        self.augmented_image = input_image     
+
 
         if (self.data_type == 'SEGMENTATION'):
 
-            self.adjust_shape = transform_shape(image=self.image, \
-                masks = self.ground_truth)
             
-            self.augmented_data = self.adjust_shape["masks"]
-            self.augmented_image = self.adjust_shape["image"]
+            if(self.is_train):
+
+                # Resize and random horiztonal flip
+                self.adjust_shape = transform_shape(image=self.image, \
+                    masks = self.ground_truth)
+                
+                self.augmented_data = self.adjust_shape["masks"]
+                self.augmented_image = self.adjust_shape["image"]
+
+                # Random image augmentations
+                if (random.random() >= 0.25 and self.is_train):
+            
+                    self.add_noise = transform_noise(image=self.augmented_image)
+                    self.augmented_image = self.add_noise["image"]
+            else:
+
+                # Only resize in test/validation mode
+                self.adjust_shape = transform_shape_valid_test(image=self.image, \
+                masks = self.ground_truth)
+                self.augmented_data = self.adjust_shape["masks"]
+                self.augmented_image = self.adjust_shape["image"]
 
         elif(self.data_type == 'DEPTH'):
 
-            self.adjust_shape = transform_shape(image=self.image, \
-                mask = self.ground_truth)
-            
-            self.augmented_data = self.adjust_shape["mask"]
-            self.augmented_image = self.adjust_shape["image"]
+            if(self.is_train):
 
-        if (random.random() >= 0.25 and self.is_train):
+                # Resize and random horiztonal flip
+                self.adjust_shape = transform_shape(image=self.image, \
+                mask = self.ground_truth)
+                self.augmented_data = self.adjust_shape["mask"]
+                self.augmented_image = self.adjust_shape["image"]
+
+                # Random image augmentations
+                if (random.random() >= 0.25 and self.is_train):
             
-            self.add_noise = transform_noise(image=self.augmented_image)
-            self.augmented_image = self.add_noise["image"]
+                    self.add_noise = transform_noise(image=self.augmented_image)
+                    self.augmented_image = self.add_noise["image"]
+
+            else:
+
+                # Only resize in test/validation mode
+                self.adjust_shape = transform_shape_valid_test(image=self.image, \
+                mask = self.ground_truth)
+                self.augmented_data = self.adjust_shape["mask"]
+                self.augmented_image = self.adjust_shape["image"]
+
         
         self.getAugmentedData()
 
