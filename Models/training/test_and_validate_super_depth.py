@@ -95,15 +95,14 @@ def main():
             overall_running_mAE += mAE
 
         # KITTI-TEST
-        #for test_count in range(0, total_test_samples):
-        #    image_test, gt_test, validity_test = kitti_Dataset.getItemTest(test_count)
+        for test_count in range(0, total_test_samples):
+            image_test, gt_test, validity_test = kitti_Dataset.getItemTest(test_count)
             
             # Run Validation and calculate mAE Score
-        #    mAE = trainer.test(image_test, gt_test, validity_test)
+            mAE = trainer.test(image_test, gt_test, validity_test)
 
             # Accumulating mAE score
-        #    test_running_mAE += mAE
-            
+            test_running_mAE += mAE    
 
         # LOGGING
         # Calculating average loss of complete validation set
