@@ -7,7 +7,7 @@ from .check_data import CheckData
 
 class LoadDataSuperDepth():
     def __init__(self, labels_filepath, images_filepath, \
-        dataset: Literal['URBANSYN', 'MUAD', 'KITTI_TEST'], validity_filepath=''):
+        dataset: Literal['URBANSYN', 'MUAD', 'KITTI_TEST'], validity_filepath='', is_test = False):
 
         self.dataset = dataset
 
@@ -34,7 +34,8 @@ class LoadDataSuperDepth():
             if(checkValidityData.getCheck()):
                 self.is_validity = True
             
-
+        self.test_images = []
+        self.test_labels = []
         self.train_images = []
         self.train_labels = []
         self.val_images = []
@@ -42,6 +43,12 @@ class LoadDataSuperDepth():
         
         self.num_train_samples = 0
         self.num_val_samples = 0
+
+        if(is_test and checkData.getCheck()):
+
+            for count in range (0, self.num_images):
+                self.test_images.append(str(self.images[count]))
+                self.test_labels.append(str(self.labels[count]))
 
         if (checkData.getCheck()):
             for count in range (0, self.num_images):
@@ -82,6 +89,9 @@ class LoadDataSuperDepth():
     def getItemValPath(self, index):
         return str(self.val_images[index]), str(self.val_labels[index])
     
+    def getItemTestPath(self, index):
+        return str(self.test_images[index]), str(self.test_labels[index]), str(self.validity[index])
+    
     def getItemTest(self, index):
 
         validity_image = 0
@@ -90,8 +100,8 @@ class LoadDataSuperDepth():
         else:
             raise ValueError('Validity masks not found - check filepath')
         
-        self.val_image = Image.open(str(self.val_images[index]))
-        self.val_ground_truth = self.getGroundTruth(str(self.val_labels[index]))     
+        self.test_image = Image.open(str(self.test_images[index]))
+        self.test_ground_truth = self.getGroundTruth(str(self.test_labels[index]))     
         
-        return np.array(self.val_image), self.val_ground_truth, np.array(validity_image)
+        return np.array(self.test_image), self.test_ground_truth, np.array(validity_image)
     

@@ -2,11 +2,9 @@
 # Comment above is for Jupyter execution in VSCode
 #! /usr/bin/env python3
 import torch
-import pathlib
 import sys
 sys.path.append('..')
 from data_utils.load_data_super_depth import LoadDataSuperDepth
-from data_utils.check_data import CheckData
 from training.super_depth_trainer import SuperDepthTrainer
 
 def main():
@@ -41,7 +39,7 @@ def main():
     print(total_val_samples, ': total validation samples')
 
     # KITTI - Data Loading
-    kitti_Dataset = LoadDataSuperDepth(kitti_labels_filepath, kitti_images_filepath, 'KITTI_TEST', kitti_validity_filepath)
+    kitti_Dataset = LoadDataSuperDepth(kitti_labels_filepath, kitti_images_filepath, 'KITTI_TEST', kitti_validity_filepath, is_test=True)
     total_test_samples = kitti_Dataset.getTestCount()
 
     # Total number of test samples
@@ -70,7 +68,7 @@ def main():
 
     # No gradient calculation
     with torch.no_grad():
-
+        
         # MUAD
         for val_count in range(0, muad_num_val_samples):
             image_val, gt_val = muad_Dataset.getItemVal(val_count)
@@ -93,11 +91,12 @@ def main():
             # Accumulating mAE score
             urbansyn_running_mAE += mAE
             overall_running_mAE += mAE
-
+        
         # KITTI-TEST
-        for test_count in range(0, total_test_samples):
+        for test_count in range(100, 101):
             image_test, gt_test, validity_test = kitti_Dataset.getItemTest(test_count)
-            
+            img_path, gt_path, vld_path = kitti_Dataset.getItemTestPath(test_count)
+
             # Run Validation and calculate mAE Score
             mAE = trainer.test(image_test, gt_test, validity_test)
 
