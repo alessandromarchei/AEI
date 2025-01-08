@@ -78,6 +78,7 @@ class LoadDataSuperDepth():
     
     def getItemValidity(self, index):
 
+        validity_image = 0
         if(self.is_validity):
             validity_image = Image.open(str(self.validity[index]))
         else:
