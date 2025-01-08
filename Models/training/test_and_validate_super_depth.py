@@ -61,8 +61,7 @@ def main():
         checkpoint_path = model_root_path + 'iter_118959_epoch_12_step_3999.pth'
         
         # Trainer Class
-        trainer = SuperDepthTrainer(checkpoint_path=checkpoint_path, 
-            pretrained_checkpoint_path=pretrained_checkpoint_path, is_pretrained = True)
+        trainer = SuperDepthTrainer(checkpoint_path=checkpoint_path, is_pretrained = True)
         
         trainer.zero_grad()
 

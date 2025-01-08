@@ -33,30 +33,37 @@ class SuperDepthTrainer():
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print(f'Using {self.device} for inference')
 
-        # Instantiate Model for training - load pre-traiend SceneSeg weights only
+        if(is_pretrained):
 
-        if (len(pretrained_checkpoint_path) > 0):
+            # Instantiate Model for validation or inference - load both pre-traiend SceneSeg and SuperDepth weights
+            if(len(checkpoint_path) > 0):
 
-            # Loading SceneSeg pre-trained for upstream weights
-            sceneSegNetwork = SceneSegNetwork()
-            sceneSegNetwork.load_state_dict(torch.load \
-                (pretrained_checkpoint_path, weights_only=True, map_location=self.device))
-                
-            # Loading model with pre-trained upstream weights
-            self.model = SuperDepthNetwork(sceneSegNetwork)
-
-            if(len(checkpoint_path) > 0 and is_pretrained):
+                # Loading model with full pre-trained weights
+                sceneSegNetwork = SceneSegNetwork()
+                self.model = SuperDepthNetwork(sceneSegNetwork)
 
                 # If the model is also pre-trained then load the pre-trained downstream weights
                 self.model.load_state_dict(torch.load \
                     (checkpoint_path, weights_only=True, map_location=self.device))
                 print('Loading pre-trained model weights of SuperDepth and upstream SceneSeg weights as well')
-
-            elif(len(checkpoint_path) == 0 and is_pretrained):
+            else:
                 raise ValueError('Please ensure SuperDepth network weights are provided for downstream elements')
             
+        else:
+
+            # Instantiate Model for training - load pre-traiend SceneSeg weights only
+            if(len(pretrained_checkpoint_path) > 0):
+                
+                # Loading SceneSeg pre-trained for upstream weights
+                sceneSegNetwork = SceneSegNetwork()
+                sceneSegNetwork.load_state_dict(torch.load \
+                    (pretrained_checkpoint_path, weights_only=True, map_location=self.device))
+                    
+                # Loading model with pre-trained upstream weights
+                self.model = SuperDepthNetwork(sceneSegNetwork)
+                print('Loading pre-trained model weights of upstream SceneSeg only, SuperDepth initialised with random weights')
             else:
-                print('Loading pretrained SceneSeg weights only, SuperDepth initialised as random')          
+                raise ValueError('Please ensure SceneSeg network weights are provided for upstream elements')
         
        
         # Model to device
