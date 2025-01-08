@@ -7,7 +7,7 @@ from .check_data import CheckData
 
 class LoadDataSuperDepth():
     def __init__(self, labels_filepath, images_filepath, \
-        dataset: Literal['URBANSYN', 'MUAD', 'KITTI_TEST'], validity=''):
+        dataset: Literal['URBANSYN', 'MUAD', 'KITTI_TEST'], validity_filepath=''):
 
         self.dataset = dataset
 
@@ -22,12 +22,12 @@ class LoadDataSuperDepth():
 
         checkData = CheckData(self.num_images, self.num_labels)
 
-        self.validity = validity
+        self.validity = 0
         self.is_validity = False
         self.num_valid_samples = 0
 
         if(len(self.validity) > 0):
-            self.validity = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
+            self.validity = sorted([f for f in pathlib.Path(validity_filepath).glob("*.png")])
             self.num_valid_samples = len(self.validity)
             checkValidityData = CheckData(self.num_valid_samples, self.num_labels)
 
