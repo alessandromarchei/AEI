@@ -48,7 +48,7 @@ def main():
     # Loading model
     model_root_path = \
         '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/'
-    checkpoint_path = model_root_path + 'iter_118959_epoch_12_step_3999.pth'
+    checkpoint_path = model_root_path + 'iter_281819_epoch_29_step_3999.pth'
     
     # Trainer Class
     trainer = SuperDepthTrainer(checkpoint_path=checkpoint_path, is_pretrained = True)
@@ -66,59 +66,67 @@ def main():
     overall_running_mAE = 0
     test_running_mAE = 0
 
+    validate = False
+    test = True
+
     # No gradient calculation
     with torch.no_grad():
         
-        # MUAD
-        for val_count in range(0, muad_num_val_samples):
-            image_val, gt_val = muad_Dataset.getItemVal(val_count)
-
-            # Run Validation and calculate mAE Score
-            mAE = trainer.validate(image_val, gt_val)
-
-            # Accumulating mAE score
-            muad_running_mAE += mAE
-            overall_running_mAE += mAE
-
-
-        # URBANSYN
-        for val_count in range(0, urbansyn_num_val_samples):
-            image_val, gt_val = urbansyn_Dataset.getItemVal(val_count)
-            
-            # Run Validation and calculate mAE Score
-            mAE = trainer.validate(image_val, gt_val)
-
-            # Accumulating mAE score
-            urbansyn_running_mAE += mAE
-            overall_running_mAE += mAE
-        
-        # KITTI-TEST
-        for test_count in range(100, 101):
-            image_test, gt_test, validity_test = kitti_Dataset.getItemTest(test_count)
-            img_path, gt_path, vld_path = kitti_Dataset.getItemTestPath(test_count)
-
-            # Run Validation and calculate mAE Score
-            mAE = trainer.test(image_test, gt_test, validity_test)
-
-            # Accumulating mAE score
-            test_running_mAE += mAE    
-
-        # LOGGING
-        # Calculating average loss of complete validation set
         print('Model: ', checkpoint_path)
 
-        avg_muad_mAE = muad_running_mAE/muad_num_val_samples
-        print('MUAD average validation error:', avg_muad_mAE)
+        if(validate):
 
-        avg_urbansyn_mAE = urbansyn_running_mAE/urbansyn_num_val_samples
-        print('Urbansyn average validation error:', avg_urbansyn_mAE)
+            print('Running Validation')
+            # MUAD
+            for val_count in range(0, muad_num_val_samples):
+                image_val, gt_val = muad_Dataset.getItemVal(val_count)
 
-        avg_overall_mAE = overall_running_mAE/total_val_samples
-        print('Overall average validation error:', avg_overall_mAE)
+                # Run Validation and calculate mAE Score
+                mAE = trainer.validate(image_val, gt_val)
 
-        avg_test_mAE = test_running_mAE/total_test_samples
-        print('Average test error:', avg_test_mAE)
+                # Accumulating mAE score
+                muad_running_mAE += mAE
+                overall_running_mAE += mAE
 
+
+            # URBANSYN
+            for val_count in range(0, urbansyn_num_val_samples):
+                image_val, gt_val = urbansyn_Dataset.getItemVal(val_count)
+                
+                # Run Validation and calculate mAE Score
+                mAE = trainer.validate(image_val, gt_val)
+
+                # Accumulating mAE score
+                urbansyn_running_mAE += mAE
+                overall_running_mAE += mAE
+      
+            avg_muad_mAE = muad_running_mAE/muad_num_val_samples
+            print('MUAD average validation error:', avg_muad_mAE)
+
+            avg_urbansyn_mAE = urbansyn_running_mAE/urbansyn_num_val_samples
+            print('Urbansyn average validation error:', avg_urbansyn_mAE)
+
+            avg_overall_mAE = overall_running_mAE/total_val_samples
+            print('Overall average validation error:', avg_overall_mAE)
+
+        if(test):
+
+            print('Running Testing')
+
+            # KITTI-TEST
+            for test_count in range(0, total_test_samples):
+                image_test, gt_test, validity_test = kitti_Dataset.getItemTest(test_count)
+            
+                # Run Validation and calculate mAE Score
+                mAE = trainer.test(image_test, gt_test, validity_test)
+
+                # Accumulating mAE score
+                test_running_mAE += mAE    
+
+            
+            avg_test_mAE = test_running_mAE/total_test_samples
+            print('Average test error:', avg_test_mAE)
+      
 
 if __name__ == '__main__':
     main()
