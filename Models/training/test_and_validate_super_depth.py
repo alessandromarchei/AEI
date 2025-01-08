@@ -118,7 +118,7 @@ def main():
         print('Overall average validation error:', avg_overall_mAE)
 
         avg_test_mAE = test_running_mAE/total_test_samples
-        print('Average test validation error:', avg_test_mAE)
+        print('Average test error:', avg_test_mAE)
 
 
 if __name__ == '__main__':
