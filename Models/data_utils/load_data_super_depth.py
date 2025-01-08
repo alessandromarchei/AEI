@@ -26,7 +26,7 @@ class LoadDataSuperDepth():
         self.is_validity = False
         self.num_valid_samples = 0
 
-        if(validity_filepath > 0):
+        if(len(validity_filepath) > 0):
             self.validity = sorted([f for f in pathlib.Path(validity_filepath).glob("*.png")])
             self.num_valid_samples = len(self.validity)
             checkValidityData = CheckData(self.num_valid_samples, self.num_labels)
