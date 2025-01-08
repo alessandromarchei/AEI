@@ -15,23 +15,26 @@ class LoadDataSuperDepth():
             raise ValueError('Dataset type is not correctly specified')
         
         self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.npy")])
+        self.num_labels = len(self.labels)
+
         self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
-        
+        self.num_images = len(self.images)
+
+        checkData = CheckData(self.num_images, self.num_labels)
+
         self.validity = validity
         self.is_validity = False
+        self.num_valid_samples = 0
 
         if(len(self.validity) > 0):
             self.validity = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
+            self.num_valid_samples = len(self.validity)
+            checkValidityData = CheckData(self.num_valid_samples, self.num_labels)
 
-            checkValidityData = CheckData(self.validity, self.num_labels)
             if(checkValidityData.getCheck()):
                 self.is_validity = True
+            
 
-        self.num_images = len(self.images)
-        self.num_labels = len(self.labels)
-
-        checkData = CheckData(self.num_images, self.num_labels)
-        
         self.train_images = []
         self.train_labels = []
         self.val_images = []
@@ -55,6 +58,9 @@ class LoadDataSuperDepth():
     def getItemCount(self):
         return self.num_train_samples, self.num_val_samples
     
+    def getTestCount(self):
+        return self.num_valid_samples
+    
     def getGroundTruth(self, input_label):
         ground_truth = np.load(input_label)
         ground_truth = np.expand_dims(ground_truth, axis=-1)
@@ -76,7 +82,7 @@ class LoadDataSuperDepth():
     def getItemValPath(self, index):
         return str(self.val_images[index]), str(self.val_labels[index])
     
-    def getItemValidity(self, index):
+    def getItemTest(self, index):
 
         validity_image = 0
         if(self.is_validity):
@@ -84,5 +90,8 @@ class LoadDataSuperDepth():
         else:
             raise ValueError('Validity masks not found - check filepath')
         
-        return np.array(validity_image)
+        self.val_image = Image.open(str(self.val_images[index]))
+        self.val_ground_truth = self.getGroundTruth(str(self.val_labels[index]))     
+        
+        return np.array(self.val_image), self.val_ground_truth, np.array(validity_image)
     

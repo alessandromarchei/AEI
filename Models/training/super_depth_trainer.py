@@ -243,6 +243,42 @@ class SuperDepthTrainer():
         accuracy = np.average(np.abs(ground_truth_val - output_val))
         return accuracy
 
+    def test(self, image_val, gt_val, validity):
+        
+        # Set Data
+        self.set_val_data(image_val, gt_val)
+
+        # Augmenting Image
+        self.apply_augmentations(is_train=False)
+        
+        # Converting to tensor and loading
+        self.load_data(is_train=False)
+
+        # Running model
+        output_val = self.model(self.image_val_tensor)
+
+        # Conversions
+        output_val = output_val.squeeze(0).cpu().detach()
+        output_val = output_val.permute(1, 2, 0)
+        output_val = output_val.numpy()
+
+        ground_truth_val = self.gt_val_tensor.squeeze(0).cpu().detach()
+        ground_truth_val = ground_truth_val.permute(1, 2, 0)
+        ground_truth_val = ground_truth_val.numpy()
+
+        # Calculating absolute normalized error
+        abs_diff = np.abs(ground_truth_val - output_val)
+
+        # Validity mask
+        validity[validity!=0] = 1
+        validity = validity.astype('float32')
+        validity
+        
+        # Apply validity mask to get only valid data
+        valid_data = abs_diff*validity
+        accuracy = np.average(valid_data)
+        return accuracy
+
     def cleanup(self):
         self.writer.flush()
         self.writer.close()

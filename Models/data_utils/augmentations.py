@@ -4,6 +4,7 @@ import random
 
 class Augmentations():
     def __init__(self, input_image, ground_truth, is_train, data_type: Literal['SEGMENTATION', 'DEPTH']):
+        
         self.is_train = is_train
         self.image = input_image
         self.ground_truth = ground_truth
