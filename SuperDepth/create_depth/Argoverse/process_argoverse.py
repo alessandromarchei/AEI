@@ -10,9 +10,7 @@ import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
-from SuperDepth.create_depth.common.stereo_sparse_supervision import StereoSparseSupervision
 from SuperDepth.create_depth.common.height_map import HeightMap
-from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
 
 def parseCalib(calib_files):
     
@@ -61,23 +59,20 @@ def createDepthMap(depth_data, focal_length, baseline):
 
     return depth_map      
 
-def cropData(image_left, depth_map, depth_boundaries, height_map, height_map_fill_only, sparse_supervision, validity_mask):
+def cropData(image_left, depth_map_fill_only, height_map_fill_only, validity_mask):
 
     # Getting size of depth map
-    size = depth_map.shape
+    size = depth_map_fill_only.shape
     height = size[0]
     width = size[1]
 
     # Cropping out those parts of data for which depth is unavailable
-    image_left = image_left.crop((256, 950, width, height-50))
-    depth_map = depth_map[950:height-50, 256 : width]
-    depth_boundaries = depth_boundaries[950:height-50, 256 : width]
-    height_map = height_map[950:height-50, 256 : width]
-    height_map_fill_only = height_map_fill_only[950:height-50, 256 : width]
-    sparse_supervision = sparse_supervision[950:height-50, 256 : width]
-    validity_mask = validity_mask[950:height-50, 256 : width]
+    image_left = image_left.crop((0, 518, width, 1750))
+    depth_map_fill_only = depth_map_fill_only[518:1750, 0 : width]
+    height_map_fill_only = height_map_fill_only[518:1750, 0 : width]
+    validity_mask = validity_mask[518:1750, 0 : width]
 
-    return image_left, depth_map, depth_boundaries, height_map, height_map_fill_only, sparse_supervision, validity_mask
+    return image_left, depth_map_fill_only, height_map_fill_only, validity_mask
 
 def main():
     
@@ -90,7 +85,7 @@ def main():
     # Filepaths for data loading and savind
     root_data_path = args.root_data_path
     root_save_path = args.root_save_path
-    
+
     # Paths to read ground truth depth and input images from training data
     depth_filepath = root_data_path + 'disparity_maps_v1.1/'
     images_filepath = root_data_path + 'rectified_stereo_images_v1.1/train/'
@@ -127,16 +122,13 @@ def main():
         # Height map limits
         max_height = 7
         min_height = -2
-
-        # Looping through data with temporal downsampling to get frames every second
-        counter = 0
-        for index in range(0, num_depth_maps, 5):
+    
+        for index in range(0, num_depth_maps):
 
             print(f'Processing image {index} of {num_depth_maps-1}')
 
             # Open images and pre-existing masks
             image_left = Image.open(str(images_left[index]))
-            image_right = Image.open(str(images_right[index]))
             depth_data = np.array(Image.open(str(depth_maps[index])), dtype=int)
 
             # Getting index associated with log
@@ -149,75 +141,43 @@ def main():
 
             # Create depth map
             sparse_depth_map = createDepthMap(depth_data, focal_length, baseline)
-
-            # Fill in sparse depth map
             lidar_depth_fill = LidarDepthFill(sparse_depth_map)
-            depth_map = lidar_depth_fill.getDepthMap()
             depth_map_fill_only = lidar_depth_fill.getDepthMapFillOnly()
 
-            # Validity mask
-            validity_mask = np.zeros_like(depth_map_fill_only)
-            validity_mask[np.where(depth_map_fill_only != 0)] = 1
-            
-            # Calculating depth boundaries
-            boundary_threshold = 10
-            depthBoundaries = DepthBoundaries(depth_map_fill_only, boundary_threshold)
-            depth_boundaries = depthBoundaries.getDepthBoundaries()
-
             # Height map
-            heightMap = HeightMap(depth_map, max_height, min_height, 
-                 camera_height, focal_length, cy)
-            height_map = heightMap.getHeightMap()
-
             heightMapFillOnly = HeightMap(depth_map_fill_only, max_height, min_height, 
                 camera_height, focal_length, cy)
             height_map_fill_only = heightMapFillOnly.getHeightMap()
 
-            # Sparse supervision
-            stereoSparseSupervision = StereoSparseSupervision(image_left, image_right, max_height, min_height, 
-                    baseline, camera_height, focal_length, cy)
-            sparse_supervision = stereoSparseSupervision.getSparseHeightMap()
+            # Validity mask
+            validity_mask = np.zeros_like(depth_map_fill_only)
+            validity_mask[np.where(depth_map_fill_only != 0)] = 1
 
             # Crop side regions where depth data is missing
-            image_left, depth_map, depth_boundaries, height_map, height_map_fill_only, sparse_supervision, validity_mask= \
-                cropData(image_left, depth_map, depth_boundaries, height_map, height_map_fill_only, sparse_supervision, validity_mask)
+            image_left, depth_map_fill_only, height_map_fill_only, validity_mask = \
+                cropData(image_left, depth_map_fill_only, height_map_fill_only, validity_mask)
 
             # Save files
             # RGB Image as PNG
-            image_save_path = root_save_path + '/image/' + str(counter) + '.png'
+            image_save_path = root_save_path + '/image/' + str(index) + '.png'
             image_left.save(image_save_path, "PNG")
 
             # Depth map as binary file in .npy format
-            depth_save_path = root_save_path + '/depth/' + str(counter) + '.npy'
-            np.save(depth_save_path, depth_map)
+            depth_save_path = root_save_path + '/depth/' + str(index) + '.npy'
+            np.save(depth_save_path, depth_map_fill_only)
 
             # Height map as binary file in .npy format
-            height_save_path = root_save_path + '/height/' + str(counter) + '.npy'
-            np.save(height_save_path, height_map)
-
-            # Height map with hole filing as binary file in .npy format
-            height_fill_only_save_path = root_save_path + '/height_fill/' + str(counter) + '.npy'
-            np.save(height_fill_only_save_path, height_map_fill_only)
-
-            # Sparse supervision map as binary file in .npy format
-            supervision_save_path = root_save_path + '/supervision/' + str(counter) + '.npy'
-            np.save(supervision_save_path, sparse_supervision)
-
-            # Boundary mask as PNG
-            boundary_save_path = root_save_path + '/boundary/' + str(counter) + '.png'
-            boundary_mask = Image.fromarray(depth_boundaries)
-            boundary_mask.save(boundary_save_path, "PNG")
+            height_save_path = root_save_path + '/height/' + str(index) + '.npy'
+            np.save(height_save_path, height_map_fill_only)
 
             # Validity mask as black and white PNG
-            validity_save_path = root_save_path + '/height_validity/' + str(counter) + '.png'
+            validity_save_path = root_save_path + '/validity/' + str(index) + '.png'
             validity_mask = Image.fromarray(np.uint8(validity_mask*255))
             validity_mask.save(validity_save_path, "PNG")
 
             # Height map plot for data auditing purposes
-            height_plot_save_path = root_save_path + '/height_plot/' + str(counter) + '.png'
-            plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
-            
-            counter += 1
+            height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
+            plt.imsave(height_plot_save_path, height_map_fill_only, cmap='inferno_r')
 
         print('----- Processing complete -----')         
             
