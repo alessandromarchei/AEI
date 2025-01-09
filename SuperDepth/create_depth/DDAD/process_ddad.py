@@ -2,6 +2,7 @@
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
+from argparse import ArgumentParser
 from dgp.datasets import SynchronizedSceneDataset
 import sys
 sys.path.append('../../../../')
@@ -76,75 +77,132 @@ def saveData(root_save_path, counter, image, depth_map_fill_only,
   plt.imsave(height_plot_save_path, height_map_fill_only, cmap='inferno_r')
 
 def main():
+  
+  # Argument parser for data root path and save path
+  parser = ArgumentParser()
+  parser.add_argument("-d", "--data", dest="ddad_json_path", help="path to ddad.json file")
+  parser.add_argument("-s", "--save", dest="root_save_path", help="path to folder where processed data will be saved")
+  args = parser.parse_args()
 
   # Path to dataset main json file
-  ddad_json_path = '/mnt/media/ddad_train_val/ddad.json'
+  ddad_json_path = args.ddad_json_path
 
   # Save path
-  root_save_path = '/mnt/media/SuperDepth/DDAD'
+  root_save_path = args.root_save_path
 
   # Load synchronized pairs of camera and lidar frames.
-  dataset_train = \
+  dataset_train_front = \
   SynchronizedSceneDataset(ddad_json_path,
       datum_names=('lidar', 'CAMERA_01'),
       generate_depth_from_datum='lidar',
       split='train'
       )
   
-  dataset_val = \
+  dataset_val_front = \
   SynchronizedSceneDataset(ddad_json_path,
       datum_names=('lidar', 'CAMERA_01'),
       generate_depth_from_datum='lidar',
       split='val'
       )
+  
+  dataset_train_rear = \
+  SynchronizedSceneDataset(ddad_json_path,
+      datum_names=('lidar', 'CAMERA_09'),
+      generate_depth_from_datum='lidar',
+      split='train'
+      )
+  
+  dataset_val_rear = \
+  SynchronizedSceneDataset(ddad_json_path,
+      datum_names=('lidar', 'CAMERA_09'),
+      generate_depth_from_datum='lidar',
+      split='val'
+      )
 
   # Iterate through the dataset.
-  num_train_samples = len(dataset_train)
-  num_val_samples = len(dataset_val)
-  total_data = num_train_samples + num_val_samples
+  num_train_front_samples = len(dataset_train_front)
+  num_val_front_samples = len(dataset_val_front)
+  num_train_rear_samples = len(dataset_train_rear)
+  num_val_rear_samples = len(dataset_val_rear)
+  total_data = num_train_front_samples + num_val_front_samples \
+    + num_train_rear_samples + num_val_rear_samples
 
-  print('Training samples', num_train_samples)
-  print('Validation samples', num_val_samples)
   print('Total samples', total_data)
 
   # Data counter
   counter = 0
 
   # Camera height above road surface
-  camera_height = 1.41
+  camera_height_front = 1.3
+  camera_height_rear = 1.4
 
   # Height map limits
   max_height = 7
   min_height = -2
   
   # Training dataset
-  for index in range(0, num_train_samples, 2):
+  for index in range(0, num_train_rear_samples, 2):
 
     # Get data sample and process it
-    sample = dataset_train[index]
+    sample = dataset_train_rear[index]
     image, depth_map_fill_only, height_map_fill_only, validity_mask = \
-        processSample(sample, max_height, min_height, camera_height)
-    
+        processSample(sample, max_height, min_height, camera_height_rear)
+
     # Save data
     saveData(root_save_path, counter, image, depth_map_fill_only, 
             height_map_fill_only, validity_mask)
 
-    counter += 1
+    print('Processing image ', counter, ' of ', total_data/2)
 
-  # Validation dataset
-  for index in range(0, num_val_samples, 2):
+    counter += 1
+  
+  for index in range(0, num_train_front_samples, 2):
 
     # Get data sample and process it
-    sample = dataset_val[index]
+    sample = dataset_train_front[index]
     image, depth_map_fill_only, height_map_fill_only, validity_mask = \
-        processSample(sample, max_height, min_height, camera_height)
+        processSample(sample, max_height, min_height, camera_height_front)
+
+    # Save data
+    saveData(root_save_path, counter, image, depth_map_fill_only, 
+            height_map_fill_only, validity_mask)
+
+    print('Processing image ', counter, ' of ', total_data/2)
+
+    counter += 1
+
+    # Training dataset
+  for index in range(0, num_val_rear_samples, 2):
+
+    # Get data sample and process it
+    sample = dataset_val_rear[index]
+    image, depth_map_fill_only, height_map_fill_only, validity_mask = \
+        processSample(sample, max_height, min_height, camera_height_rear)
+
+    # Save data
+    saveData(root_save_path, counter, image, depth_map_fill_only, 
+            height_map_fill_only, validity_mask)
+
+    print('Processing image ', counter, ' of ', total_data/2)
+
+    counter += 1
+  
+  # Validation dataset
+  for index in range(0, num_val_front_samples, 2):
+
+    # Get data sample and process it
+    sample = dataset_val_front[index]
+    image, depth_map_fill_only, height_map_fill_only, validity_mask = \
+        processSample(sample, max_height, min_height, camera_height_front)
     
     # Save data
     saveData(root_save_path, counter, image, depth_map_fill_only, 
         height_map_fill_only, validity_mask)
 
-    counter += 1
+    print('Processing image ', counter, ' of ', total_data/2)
 
+    counter += 1
+  
 if __name__ == '__main__':
   main()
 
