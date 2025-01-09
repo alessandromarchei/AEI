@@ -11,8 +11,6 @@ sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
 from SuperDepth.create_depth.common.height_map import HeightMap
-from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
-from SuperDepth.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
 
 def parseCalib(calib_filepath):
     
@@ -104,16 +102,15 @@ def create_image_from_point_cloud(uv_img_cords_filtered, filtered_pcd_points, ta
 
     return image
 
-def cropData(image_left, depth_map, depth_boundaries, height_map, sparse_supervision):
+def cropData(image, depth_map_fill_only, height_map_fill_only, validity_mask):
 
     # Cropping out those parts of data for which depth is unavailable
-    image_left = image_left.crop((500, 300, 1300, 700))
-    depth_map = depth_map[300:700, 500:1300]
-    depth_boundaries = depth_boundaries[300:700, 500:1300]
-    height_map = height_map[300:700, 500:1300]
-    sparse_supervision = sparse_supervision[300:700, 500:1300]
+    image = image.crop((410, 200, 1510, 750))
+    depth_map_fill_only = depth_map_fill_only[200:750, 410:1510]
+    height_map_fill_only = height_map_fill_only[200:750, 410:1510]
+    validity_mask = validity_mask[200:750, 410:1510]
 
-    return image_left, depth_map, depth_boundaries, height_map, sparse_supervision
+    return image, depth_map_fill_only, height_map_fill_only, validity_mask
 
 def main():
     
@@ -170,32 +167,25 @@ def main():
                     K_rgb, lidar_to_rgb, target_shape = target_shape)
 
             pointcloud_projection = create_image_from_point_cloud(uv_img_cords_filtered, pcd_points_filtered, target_shape)
+            
+            # Create depth map
             sparse_depth_map = pointcloud_projection[:,:,0]
-
-            # Filled in depth map
             lidar_depth_fill = LidarDepthFill(sparse_depth_map)
-            depth_map = lidar_depth_fill.getDepthMap()
             depth_map_fill_only = lidar_depth_fill.getDepthMapFillOnly()
             
-            # Calculating depth boundaries
-            boundary_threshold = 8
-            depthBoundaries = DepthBoundaries(depth_map_fill_only, boundary_threshold)
-            depth_boundaries = depthBoundaries.getDepthBoundaries()
-
             # Height map
-            heightMap = HeightMap(depth_map, max_height, min_height, 
-                 camera_height, focal_length, cy)
-            height_map = heightMap.getHeightMap()
+            heightMapFillOnly = HeightMap(depth_map_fill_only, max_height, min_height, 
+                camera_height, focal_length, cy)
+            height_map_fill_only = heightMapFillOnly.getHeightMap()
 
-            # Sparse Supervision
-            supervision_threshold = 25
-            depthSparseSupervision = DepthSparseSupervision(image, height_map, max_height, min_height, supervision_threshold)
-            sparse_supervision = depthSparseSupervision.getSparseSupervision()
+            # Validity mask
+            validity_mask = np.zeros_like(depth_map_fill_only)
+            validity_mask[np.where(depth_map_fill_only != 0)] = 1
 
-             # Crop side regions where depth data is missing
-            image, depth_map, depth_boundaries, height_map, sparse_supervision= \
-                cropData(image, depth_map, depth_boundaries, height_map, sparse_supervision)
-                        
+            # Crop side regions where depth data is missing
+            image, depth_map_fill_only, height_map_fill_only, validity_mask = \
+                cropData(image, depth_map_fill_only, height_map_fill_only, validity_mask)
+    
             # Save files
             # RGB Image as PNG
             image_save_path = root_save_path + '/image/' + str(index) + '.png'
@@ -203,25 +193,21 @@ def main():
 
             # Depth map as binary file in .npy format
             depth_save_path = root_save_path + '/depth/' + str(index) + '.npy'
-            np.save(depth_save_path, depth_map)
+            np.save(depth_save_path, depth_map_fill_only)
 
             # Height map as binary file in .npy format
             height_save_path = root_save_path + '/height/' + str(index) + '.npy'
-            np.save(height_save_path, height_map)
+            np.save(height_save_path, height_map_fill_only)
 
-            # Sparse supervision map as binary file in .npy format
-            supervision_save_path = root_save_path + '/supervision/' + str(index) + '.npy'
-            np.save(supervision_save_path, sparse_supervision)
-
-            # Boundary mask as PNG
-            boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
-            boundary_mask = Image.fromarray(depth_boundaries)
-            boundary_mask.save(boundary_save_path, "PNG")
+            # Validity mask as black and white PNG
+            validity_save_path = root_save_path + '/validity/' + str(index) + '.png'
+            validity_mask = Image.fromarray(np.uint8(validity_mask*255))
+            validity_mask.save(validity_save_path, "PNG")
 
             # Height map plot for data auditing purposes
             height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
-            plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
-
+            plt.imsave(height_plot_save_path, height_map_fill_only, cmap='inferno_r')
+            
         print('----- Processing complete -----')    
 
 if __name__ == '__main__':
