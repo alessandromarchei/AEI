@@ -93,8 +93,6 @@ def main():
         cy = 194.13
         # Camera mounting height above ground
         camera_height = 1.65
-        # Stereo camera baseline distance
-        #baseline = 0.54 
 
         # Height map limits
         max_height = 7
