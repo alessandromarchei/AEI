@@ -135,11 +135,11 @@ Annotates and saves an image with:
 #### b. Returns
 No returns.
 
-#### c. Notes
-In visualization image, different lanes have different colors:
-- Outer lanes: yello.
-- Left Ego lane: green.
-- Right Ego lane: blue.
+> [!NOTE]
+> In visualization image, different lanes have different colors:
+> Outer lanes: yello.
+> Left Ego lane: green.
+> Right Ego lane: blue.
 
 ### 6. `parseAnnotations()`
 
@@ -162,10 +162,11 @@ First, read raw annotation/label data, then filter and process lane info, then i
         + `img_width` (float): image width. TuSimple is 1280.
         + `img_height` (float): image height. TuSimple is 720.
 
-#### c. Notes
-- Lanes with fewer than 2 valid points `(x != 2)` are ignored.
-- All coords are normalized, as requested by Mr. Zain.
-- Warnings are issued for frames with no lanes on one side, while finding ego indexes.
+> [!NOTE]
+> Lanes with fewer than 2 valid points `(x != 2)` are ignored.
+> All coords are normalized, as requested by Mr. Zain.
+> Warnings are issued for frames with no lanes on one side, while finding ego indexes.
+> Output of this function is trimmed before saving in json file.
 
 ## II. Workflow & usage
 
