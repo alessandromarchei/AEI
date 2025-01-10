@@ -1,6 +1,6 @@
 # process_tusimple.py
 
-## TuSimple dataset preprocessing script for PathDet.
+## TuSimple dataset preprocessing script for LaneDet.
 
 ## This ReadME and script is carried over from a similar script with necessary changes from: [TuSimple-PathDet](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/PathDet/create_path/TuSimple)
 
@@ -88,7 +88,8 @@ Sometimes there's no lanes on one side of the frame, so I return a string to ind
 
 ### 4. `getDrivablePath()`
 
-'This function is not needed for Lane detection but kept it for future use.'
+[!NOTE]
+This function is not needed for Lane detection but kept it for future use.
 
 Computes drivable path as midpoint between 2 ego lanes, basically the main point of this task.
 
