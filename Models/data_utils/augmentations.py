@@ -3,11 +3,17 @@ from typing import Literal
 import random
 
 class Augmentations():
-    def __init__(self, input_image, ground_truth, is_train, data_type: Literal['SEGMENTATION', 'DEPTH']):
+    def __init__(self, input_image, ground_truth, is_train, data_type: Literal['SEGMENTATION', 'DEPTH'], validity=None):
         
         self.is_train = is_train
         self.image = input_image
         self.ground_truth = ground_truth
+
+        # Optional pixel-level validity mask
+        self.validity = validity
+        self.is_validity = False
+        if(validity != None):
+            self.is_validity = True
 
         self.data_type = data_type
 
@@ -21,10 +27,25 @@ class Augmentations():
             ]
         )
 
-        transform_shape_valid_test = A.Compose(
+        transform_shape_test = A.Compose(
             [
                 A.Resize(width = 640, height = 320),   
             ]
+        )
+        
+        transform_shape_with_validity = A.Compose(
+            [
+                A.Resize(width = 640, height = 320),   
+                A.HorizontalFlip(p = 0.5),   
+            ],
+            additional_targets={'validity': 'image'}
+        )
+
+        transform_shape_test_with_validity = A.Compose(
+            [
+                A.Resize(width = 640, height = 320),   
+            ],
+            additional_targets={'validity': 'image'}
         )
 
         transform_noise = A.Compose(
@@ -47,7 +68,7 @@ class Augmentations():
         
         self.augmented_data = ground_truth
         self.augmented_image = input_image     
-
+        self.augmented_validity = validity
 
         if (self.data_type == 'SEGMENTATION'):
 
@@ -69,7 +90,7 @@ class Augmentations():
             else:
 
                 # Only resize in test/validation mode
-                self.adjust_shape = transform_shape_valid_test(image=self.image, \
+                self.adjust_shape = transform_shape_test(image=self.image, \
                 masks = self.ground_truth)
                 self.augmented_data = self.adjust_shape["masks"]
                 self.augmented_image = self.adjust_shape["image"]
@@ -79,10 +100,12 @@ class Augmentations():
             if(self.is_train):
 
                 # Resize and random horiztonal flip
-                self.adjust_shape = transform_shape(image=self.image, \
-                mask = self.ground_truth)
+                self.adjust_shape = transform_shape_with_validity(image=self.image, \
+                    validity=self.validity, mask=self.ground_truth)
+                
                 self.augmented_data = self.adjust_shape["mask"]
                 self.augmented_image = self.adjust_shape["image"]
+                self.augmented_validity = self.adjust_shape["validity"]
 
                 # Random image augmentations
                 if (random.random() >= 0.25 and self.is_train):
@@ -93,10 +116,11 @@ class Augmentations():
             else:
 
                 # Only resize in test/validation mode
-                self.adjust_shape = transform_shape_valid_test(image=self.image, \
-                mask = self.ground_truth)
+                self.adjust_shape = transform_shape_test_with_validity(image=self.image, \
+                    validity=self.validity, mask = self.ground_truth)
                 self.augmented_data = self.adjust_shape["mask"]
                 self.augmented_image = self.adjust_shape["image"]
+                self.augmented_validity = self.adjust_shape["validity"]
 
         
         self.getAugmentedData()
