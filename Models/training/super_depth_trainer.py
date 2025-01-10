@@ -116,6 +116,7 @@ class SuperDepthTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='DEPTH')
+            
             self.image, self.augmented, self.validity = \
                 augTrain.applyTransformDepth(image=self.image, 
                                              ground_truth=self.gt, validity=self.validity)
