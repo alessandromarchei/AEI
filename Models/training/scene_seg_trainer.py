@@ -95,17 +95,21 @@ class SceneSegTrainer():
     def apply_augmentations(self, is_train):
 
         if(is_train):
-            # Augmenting Image
-            aug_train = Augmentations(self.image, self.gt, True, data_type='SEGMENTATION')
-            self.image, self.augmented = aug_train.getAugmentedData()
+            # Augmenting Data for training
+            augTrain = Augmentations(is_train=True, data_type='SEGMENTATION')
+
+            self.image, self.augmented,  = \
+                augTrain.applyTransformSeg(image=self.image, ground_truth=self.gt)
             
             # Ground Truth with probabiliites for each class in separate channels
             self.gt_fused = np.stack((self.augmented[1], self.augmented[2], \
                         self.augmented[3]), axis=2)
         else:
-            # Augmenting Image
-            aug_val = Augmentations(self.image_val, self.gt_val, False, data_type='SEGMENTATION')
-            self.image_val, self.augmented_val = aug_val.getAugmentedData()
+            # Augmenting Data for testing/validation
+            augVal = Augmentations(is_train=False, data_type='SEGMENTATION')
+            
+            self.image_val, self.augmented_val = \
+                augVal.applyTransformDepth(image=self.image_val, ground_truth=self.gt_val)
 
             # Ground Truth with probabiliites for each class in separate channels
             self.gt_val_fused = np.stack((self.augmented_val[1], self.augmented_val[2], \
