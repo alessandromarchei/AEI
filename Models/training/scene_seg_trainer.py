@@ -109,7 +109,7 @@ class SceneSegTrainer():
             augVal = Augmentations(is_train=False, data_type='SEGMENTATION')
             
             self.image_val, self.augmented_val = \
-                augVal.applyTransformDepth(image=self.image_val, ground_truth=self.gt_val)
+                augVal.applyTransformSeg(image=self.image_val, ground_truth=self.gt_val)
 
             # Ground Truth with probabiliites for each class in separate channels
             self.gt_val_fused = np.stack((self.augmented_val[1], self.augmented_val[2], \
