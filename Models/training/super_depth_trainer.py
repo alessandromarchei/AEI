@@ -142,7 +142,6 @@ class SuperDepthTrainer():
         self.load_gt_tensor(is_train)
         self.load_validity_tensor(is_train)
 
-
     # Run Model
     def run_model(self):     
         self.loss = nn.L1Loss()
@@ -251,10 +250,10 @@ class SuperDepthTrainer():
         torch.save(self.model.state_dict(), model_save_path)
     
     # Run Validation and calculate metrics
-    def validate(self, image_val, gt_val):
+    def validate(self, image_val, gt_val, validity_val):
 
         # Set Data
-        self.set_val_data(image_val, gt_val)
+        self.set_val_data(image_val, gt_val, validity_val)
 
         # Augmenting Image
         self.apply_augmentations(is_train=False)
@@ -265,57 +264,12 @@ class SuperDepthTrainer():
         # Running model
         output_val = self.model(self.image_val_tensor)
 
-        # Conversions
-        output_val = output_val.squeeze(0).cpu().detach()
-        output_val = output_val.permute(1, 2, 0)
-        output_val = output_val.numpy()
+        # Calculate loss
+        abs_diff = torch.abs(output_val - self.gt_val_tensor)*(self.validity_val_tensor)
+        accuracy = torch.mean(abs_diff)
+        accuracy_val = accuracy.detach().cpu().numpy()
 
-        ground_truth_val = self.gt_val_tensor.squeeze(0).cpu().detach()
-        ground_truth_val = ground_truth_val.permute(1, 2, 0)
-        ground_truth_val = ground_truth_val.numpy()
-
-        # Calculating mean absolute normalized error
-        accuracy = np.average(np.abs(ground_truth_val - output_val))
-        return accuracy
-
-    def test(self, image_val, gt_val, validity):
-        
-        # Set Data
-        self.set_val_data(image_val, gt_val)
-
-        # Augmenting Image
-        self.apply_augmentations(is_train=False)
-        
-        # Converting to tensor and loading
-        self.load_data(is_train=False)
-
-        # Running model
-        output_val = self.model(self.image_val_tensor)
-
-        # Conversions
-        output_val = output_val.squeeze(0).cpu().detach()
-        output_val = output_val.permute(1, 2, 0)
-        output_val = output_val.numpy()
-
-        ground_truth_val = self.gt_val_tensor.squeeze(0).cpu().detach()
-        ground_truth_val = ground_truth_val.permute(1, 2, 0)
-        ground_truth_val = ground_truth_val.numpy()
-
-        # Calculating absolute normalized error
-        abs_diff = np.abs(ground_truth_val - output_val)
-
-        # Validity mask
-        validity[validity!=0] = 1
-        validity = validity.astype('float32')
-        validity = np.expand_dims(validity, axis=-1)
-        height = abs_diff.shape[0]
-        width = abs_diff.shape[1]
-        validity = cv2.resize(validity, dsize=(height, width), interpolation=cv2.INTER_CUBIC)
-        
-        # Apply validity mask to get only valid data
-        valid_data = abs_diff*validity
-        accuracy = np.average(valid_data)
-        return accuracy
+        return accuracy_val
 
     def cleanup(self):
         self.writer.flush()
