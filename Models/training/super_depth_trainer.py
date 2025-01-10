@@ -22,6 +22,7 @@ class SuperDepthTrainer():
         self.validity = 0
         self.validity_val = 0
         self.validity_tensor = 0
+        self.validity_val_tensor = 0
         self.augmented = 0
         self.augmented_val = 0
         self.image_tensor = 0
@@ -88,6 +89,13 @@ class SuperDepthTrainer():
             ]
         )
 
+        # Loaders
+        self.validity_loader = transforms.Compose(
+            [
+                transforms.ToTensor()
+            ]
+        )
+
     # Logging Training Loss
     def log_loss(self, log_count):
         print('Logging Training Loss', log_count, self.get_loss())
@@ -116,7 +124,7 @@ class SuperDepthTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='DEPTH')
-            
+
             self.image, self.augmented, self.validity = \
                 augTrain.applyTransformDepth(image=self.image, 
                                              ground_truth=self.gt, validity=self.validity)
@@ -132,6 +140,7 @@ class SuperDepthTrainer():
     def load_data(self, is_train):
         self.load_image_tensor(is_train)
         self.load_gt_tensor(is_train)
+        self.load_validity_tensor(is_train)
 
 
     # Run Model
@@ -217,6 +226,18 @@ class SuperDepthTrainer():
             gt_val_tensor = torch.div(gt_val_tensor, 7)
             gt_val_tensor = gt_val_tensor.unsqueeze(0)
             self.gt_val_tensor = gt_val_tensor.to(self.device)
+
+    # Load Image as Tensor
+    def load_validity_tensor(self, is_train):
+
+        if(is_train):
+            validity_tensor = self.validity_loader(self.validity)
+            validity_tensor = validity_tensor.unsqueeze(0)
+            self.validity_tensor = validity_tensor.to(self.device)
+        else:
+            validity_val_tensor = self.validity_loader(self.validity_val)
+            validity_val_tensor = validity_val_tensor.unsqueeze(0)
+            self.validity_val_tensor = validity_val_tensor.to(self.device)
     
     # Zero Gradient
     def zero_grad(self):
