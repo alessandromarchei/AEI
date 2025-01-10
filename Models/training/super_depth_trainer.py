@@ -114,13 +114,18 @@ class SuperDepthTrainer():
     def apply_augmentations(self, is_train):
 
         if(is_train):
-            # Augmenting Image
-            aug_train = Augmentations(self.image, self.gt, True, data_type='DEPTH')
-            self.image, self.augmented = aug_train.getAugmentedData()
+            # Augmenting Data for training
+            augTrain = Augmentations(is_train=True, data_type='DEPTH')
+            self.image, self.augmented, self.validity = \
+                augTrain.applyTransformDepth(image=self.image, 
+                                             ground_truth=self.gt, validity=self.validity)
         else:
-            # Augmenting Image
-            aug_val = Augmentations(self.image_val, self.gt_val, False, data_type='DEPTH')
-            self.image_val, self.augmented_val = aug_val.getAugmentedData()
+            # Augmenting Data for testing/validation
+            augVal = Augmentations(is_train=False, data_type='DEPTH')
+            
+            self.image_val, self.augmented_val, self.validity_val = \
+                augVal.applyTransformDepth(image=self.image_val, 
+                                           ground_truth=self.gt_val, validity=self.validity_val)
     
     # Load Data
     def load_data(self, is_train):
