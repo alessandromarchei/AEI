@@ -179,7 +179,7 @@ First, read raw annotation/label data, then filter and process lane info, then i
     - Determine 2 anchors of 2 ego lanes.
 3. Determine drivable path.
 4. Parse everything to new index, all coords normalized.
-5. Save a copy of raw img, and a labeled img with ego, drivable path, & others.
+5. Save a copy of raw img, and a labeled img with egolanes, outer lane and other info.
 
 ### 2. Usage
 
