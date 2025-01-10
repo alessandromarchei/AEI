@@ -88,8 +88,8 @@ Sometimes there's no lanes on one side of the frame, so I return a string to ind
 
 ### 4. `getDrivablePath()`
 
-[!NOTE]
-This function is not needed for Lane detection but kept it for future use.
+> [!NOTE]
+> This function is not needed for Lane detection but kept it for future use.
 
 Computes drivable path as midpoint between 2 ego lanes, basically the main point of this task.
 
