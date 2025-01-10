@@ -2,7 +2,9 @@
 
 ## TuSimple dataset preprocessing script for PathDet.
 
-This script parse the [TuSimple lane detection dataset](https://www.kaggle.com/datasets/manideep1108/tusimple?resource=download) (24GB) to create a dataset comprising input images in PNG format and a single drivable path as the ground truth, derived as the mid-line between the left/right ego lanes.
+## This ReadME and script is carried over from a similar script with necessary changes from: [TuSimple-PathDet](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/PathDet/create_path/TuSimple)
+
+This script parse the [TuSimple lane detection dataset](https://www.kaggle.com/datasets/manideep1108/tusimple?resource=download) (24GB) to create a dataset comprising input images, binary mask outlining all lanes in image and an annotated image with lanes marked over original image.
 
 - Data acquisition: by TuSimple - an autonomous trucking company, with 6,408 road images on US highways.
 - Features:
@@ -86,6 +88,8 @@ Sometimes there's no lanes on one side of the frame, so I return a string to ind
 
 ### 4. `getDrivablePath()`
 
+'This function is not needed for Lane detection but kept it for future use.'
+
 Computes drivable path as midpoint between 2 ego lanes, basically the main point of this task.
 
 Average is taken with points having same y-coord. If not, skip to ensure alignment.
@@ -106,7 +110,7 @@ Average is taken with points having same y-coord. If not, skip to ensure alignme
 Annotates and saves an image with:
 - Raw image, in `output_dir/image`.
 - Annotated image with all lanes, in `output_dir/visualization`.
-- Binary segmentation mask of drivable path, in `output_dir/segmentation`.
+- Binary mask with white lanes highlighted over black background, in `output_dir/segmentation`.
 
 #### a. Parameters
 
@@ -132,9 +136,9 @@ No returns.
 
 #### c. Notes
 In visualization image, different lanes have different colors:
-- Outer lanes: red.
-- Ego lanes: green.
-- Drivable path: yellow.
+- Outer lanes: yello.
+- Left Ego lane: green.
+- Right Ego lane: blue.
 
 ### 6. `parseAnnotations()`
 
