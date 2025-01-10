@@ -4,6 +4,7 @@ from torchvision import transforms
 from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
+import cv2
 import numpy as np
 import sys
 sys.path.append('..')
@@ -18,6 +19,9 @@ class SuperDepthTrainer():
         self.image_val = 0
         self.gt = 0
         self.gt_val = 0
+        self.validity = 0
+        self.validity_val = 0
+        self.validity_tensor = 0
         self.augmented = 0
         self.augmented_val = 0
         self.image_tensor = 0
@@ -96,13 +100,15 @@ class SuperDepthTrainer():
         
 
     # Assign input variables
-    def set_data(self, image, gt):
+    def set_data(self, image, gt, validity):
         self.image = image
         self.gt = gt
+        self.validity = validity
 
-    def set_val_data(self, image_val, gt_val):
+    def set_val_data(self, image_val, gt_val, validity_val):
         self.image_val = image_val
         self.gt_val = gt_val
+        self.validity_val = validity_val
     
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -272,7 +278,10 @@ class SuperDepthTrainer():
         # Validity mask
         validity[validity!=0] = 1
         validity = validity.astype('float32')
-        validity
+        validity = np.expand_dims(validity, axis=-1)
+        height = abs_diff.shape[0]
+        width = abs_diff.shape[1]
+        validity = cv2.resize(validity, dsize=(height, width), interpolation=cv2.INTER_CUBIC)
         
         # Apply validity mask to get only valid data
         valid_data = abs_diff*validity
