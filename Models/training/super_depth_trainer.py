@@ -147,7 +147,9 @@ class SuperDepthTrainer():
     def run_model(self):     
         self.loss = nn.L1Loss()
         self.prediction = self.model(self.image_tensor)
-        self.calc_loss = self.loss(self.prediction, self.gt_tensor)
+
+        abs_diff = torch.abs(self.prediction - self.gt_tensor)*(self.validity_tensor)
+        self.calc_loss = torch.mean(abs_diff)
 
     # Loss Backward Pass
     def loss_backward(self): 
