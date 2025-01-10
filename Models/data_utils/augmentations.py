@@ -65,8 +65,6 @@ class Augmentations():
                 A.ToGray(num_output_channels=3, method='weighted_average', p=0.1)           
             ]
         )
-    
-
 
     # SEMANTIC SEGMENTATION
     # Set data values
