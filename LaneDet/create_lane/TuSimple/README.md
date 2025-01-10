@@ -2,7 +2,8 @@
 
 ## TuSimple dataset preprocessing script for LaneDet.
 
-## This ReadME and script is carried over from a similar script with necessary changes from: [TuSimple-PathDet](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/PathDet/create_path/TuSimple)
+> [NOTE]
+> This ReadME and script is carried over from a similar script with necessary changes from: [TuSimple-PathDet](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/PathDet/create_path/TuSimple)
 
 This script parse the [TuSimple lane detection dataset](https://www.kaggle.com/datasets/manideep1108/tusimple?resource=download) (24GB) to create a dataset comprising input images, binary mask outlining all lanes in image and an annotated image with lanes marked over original image.
 
