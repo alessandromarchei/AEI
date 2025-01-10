@@ -137,9 +137,9 @@ No returns.
 
 > [!NOTE]
 > - In visualization image, different lanes have different colors:
-> - Outer lanes: yello.
-> - Left Ego lane: green.
-> - Right Ego lane: blue.
+>   - Outer lanes: yello.
+>   - Left Ego lane: green.
+>   - Right Ego lane: blue.
 
 ### 6. `parseAnnotations()`
 
