@@ -179,12 +179,19 @@ class SuperDepthTrainer():
         return edge_loss
         
     # Run Model
-    def run_model(self):     
+    def run_model(self, is_sim):     
         
         self.prediction = self.model(self.image_tensor)
         mAE_loss = self.mAE_validity_loss()
         edge_loss = self.edge_validity_loss()
-        total_loss = mAE_loss + edge_loss
+
+        total_loss = 0
+        
+        if(is_sim):
+            total_loss = mAE_loss + edge_loss
+        else:
+            total_loss = mAE_loss
+
         self.calc_loss = total_loss
 
     # Loss Backward Pass
