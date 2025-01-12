@@ -96,6 +96,19 @@ class SuperDepthTrainer():
             ]
         )
 
+        # Gradient filters
+        # Gradient - x
+        self.gx_filter = torch.Tensor([[1, 0, -1],
+        [2, 0, -2],
+        [1, 0, -1]])
+        self.gx_filter = self.gx_filter.view((1,1,3,3))
+        
+        # Gradient - y
+        self.gy_filter = torch.Tensor([[1, 2, 1],
+        [0, 0, 0],
+        [-1, -2, -1]])
+        self.gy_filter = self.gy_filter.view((1,1,3,3))
+
     # Logging Training Loss
     def log_loss(self, log_count):
         print('Logging Training Loss', log_count, self.get_loss())
@@ -142,13 +155,37 @@ class SuperDepthTrainer():
         self.load_gt_tensor(is_train)
         self.load_validity_tensor(is_train)
 
+
+    def mAE_validity_loss(self):
+
+        mAE = torch.abs(self.prediction - self.gt_tensor)*(self.validity_tensor)
+        mAE_loss = torch.mean(mAE)
+
+        return mAE_loss
+    
+    def edge_validity_loss(self):
+
+        G_x_pred = nn.functional.conv2d(self.prediction, self.gx_filter)
+        G_y_pred = nn.functional.conv2d(self.prediction, self.gy_filter)
+        G_pred = torch.sqrt(torch.pow(G_x_pred,2)+ torch.pow(G_y_pred,2))
+
+        G_x_gt = nn.functional.conv2d(self.gt_tensor, self.gx_filter)
+        G_y_gt = nn.functional.conv2d(self.gt_tensor, self.gy_filter)
+        G_gt = torch.sqrt(torch.pow(G_x_gt,2)+ torch.pow(G_y_gt,2))
+
+        edge_diff = torch.abs(G_pred - G_gt)*(self.validity_tensor)
+        edge_loss = torch.mean(edge_diff)
+
+        return edge_loss
+        
     # Run Model
     def run_model(self):     
-        self.loss = nn.L1Loss()
+        
         self.prediction = self.model(self.image_tensor)
-
-        abs_diff = torch.abs(self.prediction - self.gt_tensor)*(self.validity_tensor)
-        self.calc_loss = torch.mean(abs_diff)
+        mAE_loss = self.mAE_validity_loss()
+        edge_loss = self.edge_validity_loss()
+        total_loss = mAE_loss + edge_loss
+        self.calc_loss = total_loss
 
     # Loss Backward Pass
     def loss_backward(self): 
