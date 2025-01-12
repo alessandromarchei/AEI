@@ -123,7 +123,8 @@ def main():
         max_height = 7
         min_height = -2
     
-        for index in range(0, num_depth_maps):
+        #for index in range(0, num_depth_maps):
+        for index in range(3335, num_depth_maps):            
 
             print(f'Processing image {index} of {num_depth_maps-1}')
 
