@@ -35,9 +35,9 @@ def filterFileNames(mask_dir, json_file, max_files):
             name = file['name']
             if np.any(extractRedMask(mask_dir, name)):
                 name_list.append(name)
-
-        if len(name_list) >= max_files:
-            break
+        if max_files != None:
+            if len(name_list) >= max_files:
+                break
 
     return name_list
 
@@ -63,7 +63,7 @@ def saveSelectedFiles(mask_dir, input_json, filtered_names, output_dir):
         image = Image.open(image_path).convert("RGB")
         image.save(os.path.join(output_image_dir, name_png))
 
-    writeFilteredJson(input_json, filtered_names, os.path.join(output_dir, 'filtered_data.json'))
+    writeFilteredJson(input_json, filtered_names, os.path.join(output_dir, 'drivable_path_audited.json'))
 
 
 def extractRedMask(mask_dir, file_name):
@@ -86,14 +86,18 @@ def main():
     parser.add_argument('--lane_json', type=str, required=True, help="Path to the lane JSON file.")
     parser.add_argument('--mask_dir', type=str, required=True, help="Directory containing drivable path masks.")
     parser.add_argument('--output_dir', type=str, required=True, help="Directory to save filtered data and masks.")
-    parser.add_argument('--max_files', type=int, default=1000, help="Maximum number of files to process.")
+    parser.add_argument('--max_files', type=int, required=False, help="Maximum number of files to process.")
     args = parser.parse_args()
 
     # Load the lane JSON file
     lane_json_data = loadJsonFile(args.lane_json)
 
-    # Filter filenames based on conditions
-    filtered_names = filterFileNames(args.mask_dir, lane_json_data, args.max_files)
+    if args.max_files:
+        # Filter filenames based on conditions
+        filtered_names = filterFileNames(args.mask_dir, lane_json_data, args.max_files)
+    else:
+        filtered_names = filterFileNames(args.mask_dir, lane_json_data, None)
+        
 
     # Save filtered files and JSON
     saveSelectedFiles(args.mask_dir, lane_json_data, filtered_names, args.output_dir)

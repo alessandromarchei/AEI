@@ -239,6 +239,26 @@ def cutChippedEdge(edges, distance_criteria = 50):
 
     return edges
 
+def cropMask(mask_np,crop_values):
+    """
+    Crops a binary mask within a specified values.
+    
+    :param mask_np: 2D numpy array representing the binary mask.
+    :param crop_values: A tuple (top, right, bottom, left) defining the crop values.
+    :return: Cropped mask as a 2D numpy array.
+    """
+    # Unpack crop values
+    top, right, bottom, left = (crop_values[key] for key in ['TOP', 'RIGHT', 'BOTTOM', 'LEFT'])
+
+    # Validate bounding box dimensions
+    if right + left > mask_np.shape[1] or top + bottom > mask_np.shape[0]:
+        raise ValueError("Bounding box dimensions are out of the mask's range.")
+    
+    # Crop the mask using array slicing
+    cropped_mask = mask_np[top:-bottom, right:-left]
+
+    return cropped_mask
+
 # for debugging
 def showImage(mask_np):
     image = Image.fromarray(mask_np)
@@ -376,7 +396,7 @@ def annotateImage(image, ego_lanes, drivable_path):
 
     return image
 
-def drawDrivablePathMask(drivable_path):
+def drawDrivablePathMask(drivable_path,img_width = 1280, img_height = 720):
     # Create a blank black image using PIL
     mask = Image.new('L', (img_width, img_height), 0)  # 'L' for grayscale, initial color 0 (black)
     # Draw the drivable path on the mask
@@ -414,8 +434,43 @@ if __name__ == '__main__':
         type = str, 
         help = "Output directory"
     )
+
+    parser.add_argument(
+        "--crop",
+        type = int,
+        nargs= 4,
+        help = "Crop image: [TOP, RIGHT, BOTTOM, LEFT]. Must always be 4 ints. Non-cropped sizes are 0.",
+        metavar = ("TOP", "RIGHT", "BOTTOM", "LEFT"),
+        required = False
+    )
+
     args = parser.parse_args()
 
+    # Parse crop
+    if (args.crop):
+        print(f"Cropping image set with sizes:")
+        print(f"\nTOP: {args.crop[0]},\tRIGHT: {args.crop[1]},\tBOTTOM: {args.crop[2]},\tLEFT: {args.crop[3]}")
+        if (args.crop[0] + args.crop[2] >= img_height):
+            warnings.warn(f"Cropping size: TOP = {args.crop[0]} and BOTTOM = {args.crop[2]} exceeds image height of {img_height}. Not cropping.")
+            crop = None
+        elif (args.crop[1] + args.crop[3] >= img_width):
+            warnings.warn(f"Cropping size: LEFT = {args.crop[3]} and RIGHT = {args.crop[1]} exceeds image width of {img_width}. No cropping.")
+            crop = None
+        else:
+            crop = {
+                "TOP" : args.crop[0],
+                "RIGHT" : args.crop[1],
+                "BOTTOM" : args.crop[2],
+                "LEFT" : args.crop[3],
+            }
+            former_img_height = img_height
+            former_img_width = img_width
+            img_height -= crop["TOP"] + crop["BOTTOM"]
+            img_width -= crop["LEFT"] + crop["RIGHT"]
+            print(f"New image size: {img_width}W x {img_height}H.\n")
+    else:
+        crop = None
+    
     # Generate output structure
     """
     --output_dir
@@ -449,6 +504,7 @@ if __name__ == '__main__':
     for img_id_counter, mask_np in enumerate(mask_np_list):
         # Generate the save name for the image (5-digit format)
         save_name = str(img_id_counter).zfill(5) + ".png"
+        print(name_list[img_id_counter])
 
         # Get the image file path and open the image
         image_path = os.path.join(image_dir, name_list[img_id_counter].replace('png','jpg'))
@@ -461,7 +517,7 @@ if __name__ == '__main__':
         new_edges_point_list = excludeTopBottomEdge(edges, x_threshold=5, y_threshold=1)
 
         # Convert the list of edge points back into a mask
-        edges = fromPointToMask(new_edges_point_list, show=False)
+        edges = fromPointToMask(new_edges_point_list,former_img_width,former_img_height ,show=False)
 
         # Filter out any one-point edges from the mask
         edges = filterOnePointEdge(edges)
@@ -474,6 +530,10 @@ if __name__ == '__main__':
 
         # For debugging show image
         # showImage(edges)
+        if crop:
+            edges = cropMask(edges,crop)
+        # For debugging show image
+        # showImage(edges)
 
         # Detect the left and right ego lanes (representing the drivable area)
         left_ego, right_ego = getEgoLane(edge_mask=edges)
@@ -483,14 +543,19 @@ if __name__ == '__main__':
 
         # Copy the original image and save it to the 'image' directory
         copy_image = image.copy()
-        copy_image.save(os.path.join(output_dir, 'image', save_name))
+        # Define the bounding box (left, upper, right, lower)
+        crop_box = (crop['LEFT'], crop['TOP'], crop['LEFT']+img_width, crop['TOP']+img_height)
+
+        # Crop the image
+        cropped_image = copy_image.crop(crop_box)
+        cropped_image.save(os.path.join(output_dir, 'image', save_name))
 
         # Annotate the image with the drivable path and ego lanes, then save it to the 'visualization' directory
-        annotated_image = annotateImage(image.copy(), [left_ego, right_ego], drivable_path)
+        annotated_image = annotateImage(cropped_image, [left_ego, right_ego], drivable_path)
         annotated_image.save(os.path.join(output_dir, "visualization", save_name))
 
         # Generate a segmentation mask for the drivable path and save it to the 'segmentation' directory
-        segmentation_mask = drawDrivablePathMask(drivable_path)
+        segmentation_mask = drawDrivablePathMask(drivable_path, img_width, img_height)
         segmentation_mask.save(os.path.join(output_dir, "segmentation", save_name))
 
         # Prepare annotation data for the current image (normalized drivable path coordinates)
