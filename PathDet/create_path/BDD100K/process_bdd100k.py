@@ -13,59 +13,29 @@ def custom_warning_format(message, category, filename, lineno, line = None):
 warnings.formatwarning = custom_warning_format
 
 
-
 # ============================== Mask Process functions ============================== #
-def readJson(filename):
-    """
-    Reads a JSON file containing polygon data, generates binary masks for the polygons, 
-    and returns a list of 2D numpy arrays representing these masks.
+def extractMaskFromPNG(dir):
+    files = [f for f in os.listdir(dir) if os.path.isfile(os.path.join(dir,f))]
 
-    :param filename: Path to the JSON file.
-    :return: List of 2D numpy arrays, each representing a binary mask of a polygon.
-    """
-    # Open and load the JSON file
-    with open(filename, 'r') as f:
-        read_data = json.load(f)
-    
-    # Extract the vertices of polygons with valid labels
-    vertices_list = [
-        data['labels'][0]['poly2d'][0]['vertices']
-        for data in read_data
-        if 'labels' in data and len(data['labels']) > 0 and 'poly2d' in data['labels'][0]
-    ]
+    red_min = np.array([150, 0, 0])     # Dark red lower bound
+    red_max = np.array([255, 100, 100]) # Bright red upper bound
 
-    name_list = [
-        data['name']
-        for data in read_data
-        if 'labels' in data and len(data['labels']) > 0 and 'poly2d' in data['labels'][0]
-    ]
-
-    # Define the dimensions of the output mask images
-    img_width, img_height = 1280, 720
-
-    # Initialize a list to store the binary masks as numpy arrays
     mask_np_list = []
-    
-    # Iterate through the list of vertices to create masks
-    for vertices in vertices_list:
-        # Create a blank black image using PIL ('L' mode for grayscale)
-        mask = Image.new('L', (img_width, img_height), 0)  # Initial color 0 (black)
 
-        # Convert vertices to integer tuples for pixel coordinates
-        vertices_point = [(int(x), int(y)) for x, y in vertices]
+    for f in files:
+        mask_path = os.path.join(dir, f)
+        # Load the image
+        img = Image.open(mask_path).convert("RGB")
+        img_np = np.array(img)
 
-        # Draw the polygon on the mask with white fill (255)
-        draw = ImageDraw.Draw(mask)
-        draw.polygon(vertices_point, fill=255)  # Fill the polygon with white
+        # Create a mask for red pixels
+        red_mask = np.all((img_np >= red_min) & (img_np <= red_max), axis=-1).astype(np.uint8) * 255
 
-        # Convert the PIL image to a numpy array
-        mask_np = np.array(mask)
-
-        # Append the numpy array to the list
-        mask_np_list.append(mask_np)
+        # Append the binary mask to the list
+        mask_np_list.append(red_mask)
 
     # Return the list of binary masks
-    return mask_np_list, name_list
+    return mask_np_list, files
 
 def detectEdge(mask_np):
     """
@@ -259,7 +229,6 @@ def cutChippedEdge(edges, distance_criteria = 50):
 
             # Remove rows based on the distance criteria
             if left_distance >= distance_criteria or right_distance >= distance_criteria:
-                print('yeah')
                 if total_count // 2 >= count:
                     # Remove the top half of the rows if the left distance is too large
                     edges[:y,:] = 0
@@ -430,7 +399,7 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        "--label_json", 
+        "--mask_dir", 
         type = str, 
         help = "BDD100k lane mark directory (right after extraction)"
     )
@@ -455,7 +424,7 @@ if __name__ == '__main__':
         |----visualization
         |----drivable_path.json
     """
-    label_json = args.label_json
+    mask_dir = args.mask_dir
     image_dir = args.image_dir
     output_dir = args.output_dir
 
@@ -466,11 +435,11 @@ if __name__ == '__main__':
             os.makedirs(subdir_path, exist_ok = True)
 
     # Read the label JSON file and extract mask data and corresponding image names
-    mask_np_list, name_list = readJson(label_json)
+    mask_np_list, name_list = extractMaskFromPNG(mask_dir)
 
     # Initialize the master data structure for storing processed results
     data_master = {
-        'files': label_json,
+        'files': mask_dir,
         'data': {}
     }
 
@@ -482,7 +451,7 @@ if __name__ == '__main__':
         save_name = str(img_id_counter).zfill(5) + ".png"
 
         # Get the image file path and open the image
-        image_path = os.path.join(image_dir, name_list[img_id_counter])
+        image_path = os.path.join(image_dir, name_list[img_id_counter].replace('png','jpg'))
         image = Image.open(image_path).convert("RGB")
 
         # Detect edges in the mask
