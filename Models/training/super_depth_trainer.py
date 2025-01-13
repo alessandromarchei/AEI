@@ -144,7 +144,7 @@ class SuperDepthTrainer():
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='DEPTH')
-            augVal.setDataDepth(self.image, self.gt, self.validity)
+            augVal.setDataDepth(self.image_val, self.gt_val, self.validity_val)
             self.image_val, self.augmented_val, self.validity_val = \
                 augVal.applyTransformDepth(image=self.image_val, 
                                            ground_truth=self.gt_val, validity=self.validity_val)
