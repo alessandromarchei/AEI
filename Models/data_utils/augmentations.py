@@ -75,10 +75,6 @@ class Augmentations():
         
         self.augmented_data = ground_truth
         self.augmented_image = image  
-    
-    # Get data values
-    def getAugmentedDataSeg(self):
-        return self.augmented_image, self.augmented_data
 
     # Apply augmentations transform
     def applyTransformSeg(self, image, ground_truth):
@@ -109,7 +105,7 @@ class Augmentations():
             self.augmented_data = self.adjust_shape["masks"]
             self.augmented_image = self.adjust_shape["image"]
 
-        self.getAugmentedDataSeg()
+        return self.augmented_image, self.augmented_data
 
     # DEPTH ESTIMATION
     # Set data values
@@ -122,10 +118,6 @@ class Augmentations():
         self.augmented_validity = validity
         self.augmented_data = ground_truth
         self.augmented_image = image  
-
-    # Get data values
-    def getAugmentedDataDepth(self):
-        return self.augmented_image, self.augmented_data, self.augmented_validity
 
     # Apply augmentations transform
     def applyTransformDepth(self, image, ground_truth, validity):
@@ -160,7 +152,7 @@ class Augmentations():
             self.augmented_image = self.adjust_shape["image"]
             self.augmented_validity = self.adjust_shape["validity"]
 
-        self.getAugmentedDataDepth()
+        return self.augmented_image, self.augmented_data, self.augmented_validity
 
 
     
