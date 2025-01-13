@@ -137,14 +137,14 @@ class SuperDepthTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='DEPTH')
-
+            augTrain.setDataDepth(self.image, self.gt, self.validity)
             self.image, self.augmented, self.validity = \
                 augTrain.applyTransformDepth(image=self.image, 
                                              ground_truth=self.gt, validity=self.validity)
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='DEPTH')
-            
+            augVal.setDataDepth(self.image, self.gt, self.validity)
             self.image_val, self.augmented_val, self.validity_val = \
                 augVal.applyTransformDepth(image=self.image_val, 
                                            ground_truth=self.gt_val, validity=self.validity_val)
@@ -186,7 +186,7 @@ class SuperDepthTrainer():
         edge_loss = self.edge_validity_loss()
 
         total_loss = 0
-        
+
         if(is_sim):
             total_loss = mAE_loss + edge_loss
         else:
