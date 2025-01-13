@@ -102,12 +102,14 @@ class SuperDepthTrainer():
         [2, 0, -2],
         [1, 0, -1]])
         self.gx_filter = self.gx_filter.view((1,1,3,3))
+        self.gx_filter.to(self.device)
         
         # Gradient - y
         self.gy_filter = torch.Tensor([[1, 2, 1],
         [0, 0, 0],
         [-1, -2, -1]])
         self.gy_filter = self.gy_filter.view((1,1,3,3))
+        self.gy_filter.to(self.device)
 
     # Logging Training Loss
     def log_loss(self, log_count):
