@@ -19,19 +19,49 @@ def main():
     model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_14/'
 
     # Data paths
-    # Argoverse
-    argoverse_labels_filepath= root + 'Argoverse/height/'
+    # ARGOVERSE
+    argoverse_labels_filepath = root + 'Argoverse/height/'
     argoverse_images_filepath = root + 'Argoverse/image/'
     argoverse_validities_filepath = root + 'Argoverse/validity/'
+
+    # KITTI
+    kitti_labels_filepath = root + 'KITTI/height/'
+    kitti_images_filepath = root + 'KITTI/image/'
+    kitti_validities_filepath = root + 'KITTI/validity/'
+
+    # MUSES
+    muses_labels_filepath = root + 'MUSES/height/'
+    muses_images_filepath = root + 'MUSES/image/'
+    muses_validities_filepath = root + 'MUSES/validity/'
+
+    # DDAD
+    ddad_labels_filepath = root + 'DDAD/height/'
+    ddad_images_filepath = root + 'DDAD/image/'
+    ddad_validities_filepath = root + 'DDAD/validity/'
 
     # URBANSYN
     urbansyn_labels_fileapath = root + 'UrbanSyn/height/'
     urbansyn_images_fileapath = root + 'UrbanSyn/image/'
 
-    # Argoverse - Data Loading
+    # ARGOVERSE - Data Loading
     argoverse_Dataset = LoadDataSuperDepth(argoverse_labels_filepath, argoverse_images_filepath, 
                                            'ARGOVERSE', argoverse_validities_filepath)
     argoverse_num_train_samples, argoverse_num_val_samples = argoverse_Dataset.getItemCount()
+
+    # KITTI - Data Loading
+    kitti_Dataset = LoadDataSuperDepth(kitti_labels_filepath, kitti_images_filepath, 
+                                           'KITTI', kitti_validities_filepath)
+    kitti_num_train_samples, kitti_num_val_samples = kitti_Dataset.getItemCount()
+
+    # MUSES - Data Loading
+    muses_Dataset = LoadDataSuperDepth(muses_labels_filepath, muses_images_filepath, 
+                                           'MUSES', muses_validities_filepath)
+    muses_num_train_samples, muses_num_val_samples = muses_Dataset.getItemCount()
+
+    # DDAD - Data Loading
+    ddad_Dataset = LoadDataSuperDepth(ddad_labels_filepath, ddad_images_filepath, 
+                                           'DDAD', ddad_validities_filepath)
+    ddad_num_train_samples, ddad_num_val_samples = ddad_Dataset.getItemCount()
 
     # URBANSYN - Data Loading
     urbansyn_Dataset = LoadDataSuperDepth(urbansyn_labels_fileapath, urbansyn_images_fileapath, 'URBANSYN')
@@ -39,12 +69,14 @@ def main():
 
     # Total number of training samples
     total_train_samples = argoverse_num_train_samples + \
-    + urbansyn_num_train_samples
+        kitti_num_train_samples + muses_num_train_samples + \
+        ddad_num_train_samples + urbansyn_num_train_samples
     print(total_train_samples, ': total training samples')
 
     # Total number of validation samples
     total_val_samples = argoverse_num_val_samples + \
-    + urbansyn_num_val_samples
+        kitti_num_val_samples + muses_num_val_samples + \
+        ddad_num_val_samples + urbansyn_num_val_samples
     print(total_val_samples, ': total validation samples')
 
     
@@ -58,12 +90,12 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 50
-    batch_size = 32
+    num_epochs = 10
+    batch_size = 6
 
     # Epochs
-    #for epoch in range(0, num_epochs):
-    for epoch in range(0, 1):
+    for epoch in range(0, num_epochs):
+
         # Iterators for datasets
         argoverse_count = 0
         urbansyn_count = 0
@@ -77,27 +109,18 @@ def main():
         random.shuffle(data_list)
         data_list_count = 0
 
-        if(epoch == 3):
-            batch_size = 16
-        
-        if(epoch == 5):
-            batch_size = 8
-        
-        if(epoch == 8):
-            batch_size = 5
-
-        if(epoch >= 9 and epoch < 15):
+        if(epoch == 2):
             batch_size = 3
-
-        if (epoch >= 15 and epoch < 25):
+        
+        if(epoch == 3):
             batch_size = 2
-
-        if (epoch >= 25):
+        
+        if(epoch >= 4):
             batch_size = 1
 
+
         # Loop through data
-        for count in range(0, 2):
-        #for count in range(0, total_train_samples):
+        for count in range(0, total_train_samples):
 
             log_count = count + total_train_samples*epoch
 
