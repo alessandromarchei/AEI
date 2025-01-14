@@ -242,12 +242,17 @@ def main():
                 trainer.set_eval_mode()
 
                 # Error
-                running_mAE = 0
-                # ----- TBD (Calculate and log mAE for each dataset) -----
+                running_mAE_overall = 0
+                running_mAE_argoverse = 0
+                running_mAE_kitti = 0
+                running_mAE_muses = 0
+                running_mAE_ddad = 0
+                running_mAE_urbansyn = 0
+                
                 # No gradient calculation
                 with torch.no_grad():
 
-                    # MUAD
+                    # ARGOVERSE
                     for val_count in range(0, argoverse_num_val_samples):
                         image_val, gt_val = argoverse_Dataset.getItemVal(val_count)
 
@@ -255,8 +260,41 @@ def main():
                         mAE = trainer.validate(image_val, gt_val)
 
                         # Accumulating mAE score
-                        running_mAE += mAE
+                        running_mAE_argoverse += mAE
+                        running_mAE_overall += mAE
 
+                    # KITTI
+                    for val_count in range(0, kitti_num_val_samples):
+                        image_val, gt_val = kitti_Dataset.getItemVal(val_count)
+
+                        # Run Validation and calculate mAE Score
+                        mAE = trainer.validate(image_val, gt_val)
+
+                        # Accumulating mAE score
+                        running_mAE_kitti += mAE
+                        running_mAE_overall += mAE
+
+                    # MUSES
+                    for val_count in range(0, muses_num_val_samples):
+                        image_val, gt_val = muses_Dataset.getItemVal(val_count)
+
+                        # Run Validation and calculate mAE Score
+                        mAE = trainer.validate(image_val, gt_val)
+
+                        # Accumulating mAE score
+                        running_mAE_muses += mAE
+                        running_mAE_overall += mAE
+
+                    # DDAD
+                    for val_count in range(0, ddad_num_val_samples):
+                        image_val, gt_val = ddad_Dataset.getItemVal(val_count)
+
+                        # Run Validation and calculate mAE Score
+                        mAE = trainer.validate(image_val, gt_val)
+
+                        # Accumulating mAE score
+                        running_mAE_ddad += mAE
+                        running_mAE_overall += mAE
 
                     # URBANSYN
                     for val_count in range(0, urbansyn_num_val_samples):
@@ -266,14 +304,21 @@ def main():
                         mAE = trainer.validate(image_val, gt_val)
 
                         # Accumulating mAE score
-                        running_mAE += mAE
+                        running_mAE_urbansyn += mAE
+                        running_mAE_overall += mAE
 
                     # LOGGING
-                    # Calculating average loss of complete validation set
-                    avg_mAE = running_mAE/total_val_samples
+                    # Calculating average loss of complete validation set for both
+                    # each specific dataset as well as the overall combined dataset
+                    avg_mAE_argoverse = running_mAE_argoverse/argoverse_num_val_samples
+                    avg_mAE_kitti = running_mAE_kitti/kitti_num_val_samples
+                    avg_mAE_muses = running_mAE_muses/muses_num_val_samples
+                    avg_mAE_ddad = running_mAE_ddad/ddad_num_val_samples
+                    avg_mAE_urbansyn = running_mAE_urbansyn/urbansyn_num_val_samples
+                    avg_mAE_overall = running_mAE_overall/total_val_samples
                         
                     # Logging average validation loss to TensorBoard
-                    trainer.log_val_mAE(avg_mAE, log_count)
+                    trainer.log_val_mAE(avg_mAE_overall, log_count)
 
                 # Resetting model back to training
                 trainer.set_train_mode()
