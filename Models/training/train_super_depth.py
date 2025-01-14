@@ -91,24 +91,34 @@ def main():
     
     # Total training epochs
     num_epochs = 10
-    batch_size = 6
+    batch_size = 5
 
     # Epochs
     for epoch in range(0, num_epochs):
 
         # Iterators for datasets
         argoverse_count = 0
+        kitti_count = 0
+        muses_count = 0
+        ddad_count = 0
         urbansyn_count = 0
 
         is_argoverse_complete = False
+        is_kitti_complete = False
+        is_muses_complete = False
+        is_ddad_complete = False
         is_urbansyn_complete = False
         
         data_list = []
         data_list.append('ARGOVERSE')
+        data_list.append('KITTI')
+        data_list.append('MUSES')
+        data_list.append('DDAD')
         data_list.append('URBANSYN')
         random.shuffle(data_list)
         data_list_count = 0
 
+        # Batch schedule
         if(epoch == 2):
             batch_size = 3
         
@@ -129,6 +139,21 @@ def main():
                 is_argoverse_complete == False):
                 is_argoverse_complete =  True
                 data_list.remove("ARGOVERSE")
+
+            if(kitti_count == kitti_num_train_samples and \
+                is_kitti_complete == False):
+                is_kitti_complete =  True
+                data_list.remove("KITTI")
+
+            if(muses_count == muses_num_train_samples and \
+                is_muses_complete == False):
+                is_muses_complete =  True
+                data_list.remove("MUSES")
+            
+            if(ddad_count == ddad_num_train_samples and \
+                is_ddad_complete == False):
+                is_ddad_complete =  True
+                data_list.remove("DDAD")
             
             if(urbansyn_count == urbansyn_num_train_samples and \
                 is_urbansyn_complete == False):
