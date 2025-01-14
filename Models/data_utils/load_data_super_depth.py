@@ -108,7 +108,7 @@ class LoadDataSuperDepth():
     def getItemVal(self, index):
         val_image = Image.open(str(self.val_images[index]))
         val_ground_truth = self.getGroundTruth(str(self.val_labels[index]))
-        val_validity = self.getValidity(val_ground_truth, str(self.val_validities[index])) 
+        val_validity = self.getValidity(val_ground_truth, index) 
 
         return  np.array(val_image), val_ground_truth, val_validity
     
