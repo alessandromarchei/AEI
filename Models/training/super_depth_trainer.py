@@ -187,11 +187,11 @@ class SuperDepthTrainer():
         
         self.prediction = self.model(self.image_tensor)
         mAE_loss = self.mAE_validity_loss()
-        edge_loss = self.edge_validity_loss()
-
+        
         total_loss = 0
 
         if(is_sim):
+            edge_loss = self.edge_validity_loss()
             total_loss = mAE_loss + edge_loss
         else:
             total_loss = mAE_loss
