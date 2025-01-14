@@ -152,7 +152,7 @@ def main():
     saveData(root_save_path, counter, image, depth_map_fill_only, 
             height_map_fill_only, validity_mask)
 
-    print('Processing image ', counter, ' of ', total_data/2)
+    print('Processing image ', counter, ' of ', round(total_data/2)-1)
 
     counter += 1
   
@@ -167,7 +167,7 @@ def main():
     saveData(root_save_path, counter, image, depth_map_fill_only, 
             height_map_fill_only, validity_mask)
 
-    print('Processing image ', counter, ' of ', total_data/2)
+    print('Processing image ', counter, ' of ', round(total_data/2)-1)
 
     counter += 1
 
@@ -183,7 +183,7 @@ def main():
     saveData(root_save_path, counter, image, depth_map_fill_only, 
             height_map_fill_only, validity_mask)
 
-    print('Processing image ', counter, ' of ', total_data/2)
+    print('Processing image ', counter, ' of ', round(total_data/2)-1)
 
     counter += 1
   
@@ -199,9 +199,11 @@ def main():
     saveData(root_save_path, counter, image, depth_map_fill_only, 
         height_map_fill_only, validity_mask)
 
-    print('Processing image ', counter, ' of ', total_data/2)
+    print('Processing image ', counter, ' of ', round(total_data/2)-1)
 
     counter += 1
+  
+  print('--- Processing Complete ----')
   
 if __name__ == '__main__':
   main()
