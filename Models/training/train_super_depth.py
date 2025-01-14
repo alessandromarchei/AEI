@@ -2,6 +2,7 @@
 # Comment above is for Jupyter execution in VSCode
 #! /usr/bin/env python3
 import torch
+import matplotlib.pyplot as plt
 import random
 import sys
 sys.path.append('..')
@@ -15,35 +16,38 @@ def main():
     root = '/mnt/media/SuperDepth/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_03/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_14/'
 
     # Data paths
-    # MUAD
-    muad_labels_filepath= root + 'MUAD/height/'
-    muad_images_filepath = root + 'MUAD/image/'
+    # Argoverse
+    argoverse_labels_filepath= root + 'Argoverse/height/'
+    argoverse_images_filepath = root + 'Argoverse/image/'
+    argoverse_validities_filepath = root + 'Argoverse/validity/'
 
     # URBANSYN
     urbansyn_labels_fileapath = root + 'UrbanSyn/height/'
     urbansyn_images_fileapath = root + 'UrbanSyn/image/'
 
-    # MUAD - Data Loading
-    muad_Dataset = LoadDataSuperDepth(muad_labels_filepath, muad_images_filepath, 'MUAD')
-    muad_num_train_samples, muad_num_val_samples = muad_Dataset.getItemCount()
+    # Argoverse - Data Loading
+    argoverse_Dataset = LoadDataSuperDepth(argoverse_labels_filepath, argoverse_images_filepath, 
+                                           'ARGOVERSE', argoverse_validities_filepath)
+    argoverse_num_train_samples, argoverse_num_val_samples = argoverse_Dataset.getItemCount()
 
     # URBANSYN - Data Loading
     urbansyn_Dataset = LoadDataSuperDepth(urbansyn_labels_fileapath, urbansyn_images_fileapath, 'URBANSYN')
     urbansyn_num_train_samples, urbansyn_num_val_samples = urbansyn_Dataset.getItemCount()
 
     # Total number of training samples
-    total_train_samples = muad_num_train_samples + \
+    total_train_samples = argoverse_num_train_samples + \
     + urbansyn_num_train_samples
     print(total_train_samples, ': total training samples')
 
     # Total number of validation samples
-    total_val_samples = muad_num_val_samples + \
+    total_val_samples = argoverse_num_val_samples + \
     + urbansyn_num_val_samples
     print(total_val_samples, ': total validation samples')
 
+    
     # Pre-trained model checkpoint path
     root_path = \
         '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
@@ -58,17 +62,17 @@ def main():
     batch_size = 32
 
     # Epochs
-    for epoch in range(0, num_epochs):
-
+    #for epoch in range(0, num_epochs):
+    for epoch in range(0, 1):
         # Iterators for datasets
-        muad_count = 0
+        argoverse_count = 0
         urbansyn_count = 0
 
-        is_muad_complete = False
+        is_argoverse_complete = False
         is_urbansyn_complete = False
         
         data_list = []
-        data_list.append('MUAD')
+        data_list.append('ARGOVERSE')
         data_list.append('URBANSYN')
         random.shuffle(data_list)
         data_list_count = 0
@@ -92,15 +96,16 @@ def main():
             batch_size = 1
 
         # Loop through data
-        for count in range(0, total_train_samples):
+        for count in range(0, 2):
+        #for count in range(0, total_train_samples):
 
             log_count = count + total_train_samples*epoch
 
             # Reset iterators
-            if(muad_count == muad_num_train_samples and \
-                is_muad_complete == False):
-                is_muad_complete =  True
-                data_list.remove("MUAD")
+            if(argoverse_count == argoverse_num_train_samples and \
+                is_argoverse_complete == False):
+                is_argoverse_complete =  True
+                data_list.remove("ARGOVERSE")
             
             if(urbansyn_count == urbansyn_num_train_samples and \
                 is_urbansyn_complete == False):
@@ -113,19 +118,21 @@ def main():
             # Read images, apply augmentation, run prediction, calculate
             # loss for iterated image from each dataset, and increment
             # dataset iterators
+            is_sim = False
 
-            if(data_list[data_list_count] == 'MUAD' and \
-                is_muad_complete == False):
-                image, gt = muad_Dataset.getItemTrain(muad_count)
-                muad_count += 1
+            if(data_list[data_list_count] == 'ARGOVERSE' and \
+                is_argoverse_complete == False):
+                image, gt, validity = argoverse_Dataset.getItemTrain(argoverse_count)
+                argoverse_count += 1
             
             if(data_list[data_list_count] == 'URBANSYN' and \
                is_urbansyn_complete == False):
-                image, gt = urbansyn_Dataset.getItemTrain(urbansyn_count)      
+                image, gt, validity = urbansyn_Dataset.getItemTrain(urbansyn_count)
+                is_sim = True      
                 urbansyn_count += 1
 
             # Assign Data
-            trainer.set_data(image, gt)
+            trainer.set_data(image, gt, validity)
             
             # Augmenting Image
             trainer.apply_augmentations(is_train=True)
@@ -134,8 +141,8 @@ def main():
             trainer.load_data(is_train=True)
 
             # Run model and calculate loss
-            trainer.run_model()
-            
+            trainer.run_model(is_sim)
+
             # Gradient accumulation
             trainer.loss_backward()
 
@@ -152,8 +159,8 @@ def main():
                 trainer.save_visualization(log_count)
             
             # Save model and run validation on entire validation 
-            # dataset after 8000 steps
-            if((count+1) % 4000 == 0):
+            # dataset after 1000 steps
+            if((count+1) % 10000 == 0):
 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
@@ -171,13 +178,13 @@ def main():
 
                 # Error
                 running_mAE = 0
-
+                # ----- TBD (Calculate and log mAE for each dataset) -----
                 # No gradient calculation
                 with torch.no_grad():
 
                     # MUAD
-                    for val_count in range(0, muad_num_val_samples):
-                        image_val, gt_val = muad_Dataset.getItemVal(val_count)
+                    for val_count in range(0, argoverse_num_val_samples):
+                        image_val, gt_val = argoverse_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
                         mAE = trainer.validate(image_val, gt_val)
@@ -205,11 +212,11 @@ def main():
 
                 # Resetting model back to training
                 trainer.set_train_mode()
-
+            
             data_list_count += 1
-
+            
     trainer.cleanup()
- 
+    
     
 if __name__ == '__main__':
     main()
