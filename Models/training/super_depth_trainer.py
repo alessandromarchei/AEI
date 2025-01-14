@@ -102,6 +102,7 @@ class SuperDepthTrainer():
         [2, 0, -2],
         [1, 0, -1]])
         self.gx_filter = self.gx_filter.view((1,1,3,3))
+        self.gx_filter = self.gx_filter.type(torch.cuda.FloatTensor)
         self.gx_filter.to(self.device)
         
         # Gradient - y
@@ -109,6 +110,7 @@ class SuperDepthTrainer():
         [0, 0, 0],
         [-1, -2, -1]])
         self.gy_filter = self.gy_filter.view((1,1,3,3))
+        self.gy_filter = self.gy_filter.type(torch.cuda.FloatTensor)
         self.gy_filter.to(self.device)
 
     # Logging Training Loss
@@ -167,12 +169,12 @@ class SuperDepthTrainer():
     
     def edge_validity_loss(self):
 
-        G_x_pred = nn.functional.conv2d(self.prediction, self.gx_filter)
-        G_y_pred = nn.functional.conv2d(self.prediction, self.gy_filter)
+        G_x_pred = nn.functional.conv2d(self.prediction, self.gx_filter, padding=1)
+        G_y_pred = nn.functional.conv2d(self.prediction, self.gy_filter, padding=1)
         G_pred = torch.sqrt(torch.pow(G_x_pred,2)+ torch.pow(G_y_pred,2))
 
-        G_x_gt = nn.functional.conv2d(self.gt_tensor, self.gx_filter)
-        G_y_gt = nn.functional.conv2d(self.gt_tensor, self.gy_filter)
+        G_x_gt = nn.functional.conv2d(self.gt_tensor, self.gx_filter, padding=1)
+        G_y_gt = nn.functional.conv2d(self.gt_tensor, self.gy_filter, padding=1)
         G_gt = torch.sqrt(torch.pow(G_x_gt,2)+ torch.pow(G_y_gt,2))
 
         edge_diff = torch.abs(G_pred - G_gt)*(self.validity_tensor)
@@ -266,12 +268,14 @@ class SuperDepthTrainer():
             gt_tensor = gt_tensor.permute(2, 0, 1)
             gt_tensor = torch.div(gt_tensor, 7)
             gt_tensor = gt_tensor.unsqueeze(0)
+            gt_tensor = gt_tensor.type(torch.FloatTensor)
             self.gt_tensor = gt_tensor.to(self.device)
         else:
             gt_val_tensor = torch.from_numpy(self.augmented_val)
             gt_val_tensor = gt_val_tensor.permute(2, 0, 1)
             gt_val_tensor = torch.div(gt_val_tensor, 7)
             gt_val_tensor = gt_val_tensor.unsqueeze(0)
+            gt_val_tensor = gt_val_tensor.type(torch.FloatTensor)
             self.gt_val_tensor = gt_val_tensor.to(self.device)
 
     # Load Image as Tensor
