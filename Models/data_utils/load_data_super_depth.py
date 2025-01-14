@@ -81,8 +81,9 @@ class LoadDataSuperDepth():
         if(self.is_validity):
             validity = Image.open(str(self.train_validities[index]))
             validity = np.array(validity)
+            validity = np.expand_dims(validity, axis=-1)
         else:
-            validity = np.ones_like(gt)*255
+            validity = np.full_like(gt, 255).astype('uint8') 
 
         return validity
 
