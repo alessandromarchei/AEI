@@ -308,15 +308,15 @@ def main():
                         running_mAE_overall += mAE
 
                     # LOGGING
-                    # Calculating average loss of complete validation set for both
+                    # Calculating average loss of complete validation set for
                     # each specific dataset as well as the overall combined dataset
+                    avg_mAE_overall = running_mAE_overall/total_val_samples
                     avg_mAE_argoverse = running_mAE_argoverse/argoverse_num_val_samples
                     avg_mAE_kitti = running_mAE_kitti/kitti_num_val_samples
                     avg_mAE_muses = running_mAE_muses/muses_num_val_samples
                     avg_mAE_ddad = running_mAE_ddad/ddad_num_val_samples
                     avg_mAE_urbansyn = running_mAE_urbansyn/urbansyn_num_val_samples
-                    avg_mAE_overall = running_mAE_overall/total_val_samples
-                        
+                    
                     # Logging average validation loss to TensorBoard
                     trainer.log_val_mAE(avg_mAE_overall, avg_mAE_argoverse, avg_mAE_kitti, 
                         avg_mAE_muses, avg_mAE_ddad, avg_mAE_urbansyn, log_count)
