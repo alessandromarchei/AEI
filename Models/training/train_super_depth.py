@@ -163,15 +163,32 @@ def main():
             if(data_list_count >= len(data_list)):
                 data_list_count = 0
 
+            # Flag for whether dataset is simulated or not
+            is_sim = False
+
             # Read images, apply augmentation, run prediction, calculate
             # loss for iterated image from each dataset, and increment
             # dataset iterators
-            is_sim = False
 
             if(data_list[data_list_count] == 'ARGOVERSE' and \
                 is_argoverse_complete == False):
                 image, gt, validity = argoverse_Dataset.getItemTrain(argoverse_count)
                 argoverse_count += 1
+
+            if(data_list[data_list_count] == 'KITTI' and \
+                is_kitti_complete == False):
+                image, gt, validity = kitti_Dataset.getItemTrain(kitti_count)
+                kitti_count += 1
+
+            if(data_list[data_list_count] == 'MUSES' and \
+                is_muses_complete == False):
+                image, gt, validity = muses_Dataset.getItemTrain(muses_count)
+                muses_count += 1
+
+            if(data_list[data_list_count] == 'DDAD' and \
+                is_ddad_complete == False):
+                image, gt, validity = ddad_Dataset.getItemTrain(ddad_count)
+                ddad_count += 1
             
             if(data_list[data_list_count] == 'URBANSYN' and \
                is_urbansyn_complete == False):
@@ -207,7 +224,7 @@ def main():
                 trainer.save_visualization(log_count)
             
             # Save model and run validation on entire validation 
-            # dataset after 1000 steps
+            # dataset after 10000 steps
             if((count+1) % 10000 == 0):
 
                 # Save Model
