@@ -90,7 +90,7 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 10
+    num_epochs = 30
     batch_size = 5
 
     # Epochs
@@ -119,13 +119,13 @@ def main():
         data_list_count = 0
 
         # Batch schedule
-        if(epoch == 2):
+        if(epoch == 3):
             batch_size = 3
         
-        if(epoch == 3):
+        if(epoch == 5):
             batch_size = 2
         
-        if(epoch >= 4):
+        if(epoch >= 10):
             batch_size = 1
 
 
@@ -225,8 +225,8 @@ def main():
             
             # Save model and run validation on entire validation 
             # dataset after 10000 steps
-            if((count+1) % 10000 == 0):
-
+            if((count+1) % 1 == 0):
+                '''
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
                     str(count + total_train_samples*epoch) \
@@ -234,7 +234,7 @@ def main():
                     str(count) + '.pth'
                 
                 trainer.save_model(model_save_path)
-
+                '''
                 # Validate
                 print('Validating')
 
@@ -253,55 +253,60 @@ def main():
                 with torch.no_grad():
 
                     # ARGOVERSE
-                    for val_count in range(0, argoverse_num_val_samples):
-                        image_val, gt_val = argoverse_Dataset.getItemVal(val_count)
+                    #for val_count in range(0, argoverse_num_val_samples):
+                    for val_count in range(0, 1):
+                        image_val, gt_val, validity_val = argoverse_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val)
+                        mAE = trainer.validate(image_val, gt_val, validity_val)
 
                         # Accumulating mAE score
                         running_mAE_argoverse += mAE
                         running_mAE_overall += mAE
 
                     # KITTI
-                    for val_count in range(0, kitti_num_val_samples):
-                        image_val, gt_val = kitti_Dataset.getItemVal(val_count)
+                    #for val_count in range(0, kitti_num_val_samples):
+                    for val_count in range(0, 1):
+                        image_val, gt_val, validity_val = kitti_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val)
+                        mAE = trainer.validate(image_val, gt_val, validity_val)
 
                         # Accumulating mAE score
                         running_mAE_kitti += mAE
                         running_mAE_overall += mAE
 
                     # MUSES
-                    for val_count in range(0, muses_num_val_samples):
-                        image_val, gt_val = muses_Dataset.getItemVal(val_count)
+                    #for val_count in range(0, muses_num_val_samples):
+                    for val_count in range(0, 1):
+                        image_val, gt_val, validity_val = muses_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val)
+                        mAE = trainer.validate(image_val, gt_val, validity_val)
 
                         # Accumulating mAE score
                         running_mAE_muses += mAE
                         running_mAE_overall += mAE
 
                     # DDAD
-                    for val_count in range(0, ddad_num_val_samples):
-                        image_val, gt_val = ddad_Dataset.getItemVal(val_count)
+                    #for val_count in range(0, ddad_num_val_samples):
+                    for val_count in range(0, 1):
+                        image_val, gt_val, validity_val = ddad_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val)
+                        mAE = trainer.validate(image_val, gt_val, validity_val)
 
                         # Accumulating mAE score
                         running_mAE_ddad += mAE
                         running_mAE_overall += mAE
 
                     # URBANSYN
-                    for val_count in range(0, urbansyn_num_val_samples):
-                        image_val, gt_val = urbansyn_Dataset.getItemVal(val_count)
+                    #for val_count in range(0, urbansyn_num_val_samples):
+                    for val_count in range(0, 1):
+                        image_val, gt_val, validity_val = urbansyn_Dataset.getItemVal(val_count)
                         
                         # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val)
+                        mAE = trainer.validate(image_val, gt_val, validity_val)
 
                         # Accumulating mAE score
                         running_mAE_urbansyn += mAE
