@@ -318,7 +318,8 @@ def main():
                     avg_mAE_overall = running_mAE_overall/total_val_samples
                         
                     # Logging average validation loss to TensorBoard
-                    trainer.log_val_mAE(avg_mAE_overall, log_count)
+                    trainer.log_val_mAE(avg_mAE_overall, avg_mAE_argoverse, avg_mAE_kitti, 
+                        avg_mAE_muses, avg_mAE_ddad, avg_mAE_urbansyn, log_count)
 
                 # Resetting model back to training
                 trainer.set_train_mode()
