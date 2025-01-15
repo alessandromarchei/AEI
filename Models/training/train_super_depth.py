@@ -252,8 +252,7 @@ def main():
                 with torch.no_grad():
 
                     # ARGOVERSE
-                    #for val_count in range(0, argoverse_num_val_samples):
-                    for val_count in range(0, 1):
+                    for val_count in range(0, argoverse_num_val_samples):
                         image_val, gt_val, validity_val = argoverse_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
@@ -264,8 +263,7 @@ def main():
                         running_mAE_overall += mAE
 
                     # KITTI
-                    #for val_count in range(0, kitti_num_val_samples):
-                    for val_count in range(0, 1):
+                    for val_count in range(0, kitti_num_val_samples):
                         image_val, gt_val, validity_val = kitti_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
@@ -276,8 +274,7 @@ def main():
                         running_mAE_overall += mAE
 
                     # MUSES
-                    #for val_count in range(0, muses_num_val_samples):
-                    for val_count in range(0, 1):
+                    for val_count in range(0, muses_num_val_samples):
                         image_val, gt_val, validity_val = muses_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
@@ -288,8 +285,7 @@ def main():
                         running_mAE_overall += mAE
 
                     # DDAD
-                    #for val_count in range(0, ddad_num_val_samples):
-                    for val_count in range(0, 1):
+                    for val_count in range(0, ddad_num_val_samples):
                         image_val, gt_val, validity_val = ddad_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
@@ -300,8 +296,7 @@ def main():
                         running_mAE_overall += mAE
 
                     # URBANSYN
-                    #for val_count in range(0, urbansyn_num_val_samples):
-                    for val_count in range(0, 1):
+                    for val_count in range(0, urbansyn_num_val_samples):
                         image_val, gt_val, validity_val = urbansyn_Dataset.getItemVal(val_count)
                         
                         # Run Validation and calculate mAE Score
