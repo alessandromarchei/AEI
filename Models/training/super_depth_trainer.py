@@ -202,12 +202,12 @@ class SuperDepthTrainer():
 
         if(is_sim):
             edge_loss = self.edge_validity_loss()
-            total_loss = mAE_loss + edge_loss
+            total_loss = mAE_loss + edge_loss*2
         else:
             total_loss = mAE_loss
 
         self.calc_loss = total_loss
-
+        
     # Loss Backward Pass
     def loss_backward(self): 
         self.calc_loss.backward()
