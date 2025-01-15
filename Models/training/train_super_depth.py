@@ -90,7 +90,7 @@ def main():
     
     # Total training epochs
     num_epochs = 30
-    batch_size = 20
+    batch_size = 10
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -119,10 +119,10 @@ def main():
 
         # Batch schedule
         if(epoch == 3):
-            batch_size = 10
+            batch_size = 5
         
         if(epoch == 5):
-            batch_size = 5
+            batch_size = 2
         
         if(epoch >= 10):
             batch_size = 1
@@ -223,8 +223,8 @@ def main():
                 trainer.save_visualization(log_count)
             
             # Save model and run validation on entire validation 
-            # dataset after 5000 steps
-            if((count+1) % 5000 == 0):
+            # dataset after 5290 steps
+            if((count+1) % 5290 == 0):
                 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
