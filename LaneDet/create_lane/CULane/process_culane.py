@@ -213,52 +213,8 @@ def annotateGT(
         mask_draw.line(lane,fill=255,width=lane_w)
  
 
-    mask.save(os.path.join(mask_dir, save_name))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    """
-    # Draw lanes
-    for idx, lane in enumerate(anno_entry["lanes"]):
-        if (normalized):
-            lane = [(x * img_width, y * img_height) for x, y in lane]
-        if (idx in anno_entry["ego_indexes"]):
-            # Ego lanes, in green
-            draw.line(lane, fill = lane_colors["ego_green"], width = lane_w)
-        else:
-            # Outer lanes, in red
-            draw.line(lane, fill = lane_colors["outer_red"], width = lane_w)
-    # Drivable path, in yellow
-    if (normalized):
-        drivable_renormed = [(x * img_width, y * img_height) for x, y in anno_entry["drivable_path"]]
-    else:
-        drivable_renormed = anno_entry["drivable_path"]
-    draw.line(drivable_renormed, fill = lane_colors["drive_path_yellow"], width = lane_w)
-
-    # Save visualization img, same format with raw, just different dir
-    raw_img.save(os.path.join(visualization_dir, save_name))
-    """
-    
-    """
-    # Working on binary mask
-    mask = Image.new("L", (img_width, img_height), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
-    mask.save(os.path.join(mask_dir, save_name))
-    """
+    mask.save(os.path.join(mask_dir, save_name))  
+   
 
 def parseAnnotations(anno_path, crop = None):
     """
@@ -504,13 +460,12 @@ if __name__ == "__main__":
 
                     # Save as 6-digit incremental index
                     img_index = str(str(img_id_counter).zfill(6))
-                    data_master[img_index] = {}
-                    #data_master[img_index]["drivable_path"] = this_data["drivable_path"]
+                    data_master[img_index] = {}                    
                     data_master[img_index]["egoleft_lane"] = this_data["lanes"][this_data["ego_indexes"][0]]
                     data_master[img_index]["egoright_lane"] = this_data["lanes"][this_data["ego_indexes"][1]]
                     data_master[img_index]["outer_lane"]=[]
 
-                    #save the outer lanes
+                    #identify the the outer lanes and save in data_master
                     for idx,lane in enumerate(this_data["lanes"]):
                         if idx in this_data["ego_indexes"]:
                             continue
