@@ -16,7 +16,7 @@ def main():
     root = '/mnt/media/SuperDepth/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_14/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_15/'
 
     # Data paths
     # ARGOVERSE
@@ -224,8 +224,8 @@ def main():
                 trainer.save_visualization(log_count)
             
             # Save model and run validation on entire validation 
-            # dataset after 10000 steps
-            if((count+1) % 1 == 0):
+            # dataset after 5000 steps
+            if((count+1) % 5000 == 0):
                 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
