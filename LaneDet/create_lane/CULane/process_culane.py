@@ -168,12 +168,69 @@ def annotateGT(
     
     # Draw all lanes & lines
     draw = ImageDraw.Draw(raw_img)
-    lane_colors = {
-        "outer_red": (255, 0, 0), 
-        "ego_green": (0, 255, 0), 
-        "drive_path_yellow": (255, 255, 0)
+    lane_colors = {     
+        "leftego_green": (0, 255, 0),
+        "rightego_blue" : (0,0,255),
+        "outer_yellow": (255, 255, 0)
     }
     lane_w = 5
+
+    for idx,lane in enumerate(anno_entry["lanes"]):
+        if(normalized):
+            lane = [( x * img_width, y*img_height) for x,y in lane]
+
+        # left ego lane in green
+        if (idx == anno_entry["ego_indexes"][0]):           
+            draw.line(lane, fill = lane_colors["leftego_green"], width = lane_w)
+
+        # right ego lane in blue    
+        elif (idx == anno_entry["ego_indexes"][1]):
+            draw.line(lane, fill = lane_colors["rightego_blue"], width = lane_w)
+
+        # Outer lanes, in yellow
+        else:            
+            draw.line(lane, fill = lane_colors["outer_yellow"], width = lane_w)    
+
+    # Save visualization img, same format with raw, just different dir
+    raw_img.save(os.path.join(visualization_dir, save_name))     
+
+
+    # renormalize all lanes
+    lanes_renormed=[]
+    for lane in anno_entry["lanes"]:
+        
+        
+            lane_renormed=[(x* img_width,y*img_height) for x,y in lane]
+            lanes_renormed.append(lane_renormed)
+
+    
+    # Working on binary mask
+    mask = Image.new("L", (img_width, img_height), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    #mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
+
+    for lane in lanes_renormed:
+        mask_draw.line(lane,fill=255,width=lane_w)
+ 
+
+    mask.save(os.path.join(mask_dir, save_name))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    """
     # Draw lanes
     for idx, lane in enumerate(anno_entry["lanes"]):
         if (normalized):
@@ -193,13 +250,15 @@ def annotateGT(
 
     # Save visualization img, same format with raw, just different dir
     raw_img.save(os.path.join(visualization_dir, save_name))
-
+    """
+    
+    """
     # Working on binary mask
     mask = Image.new("L", (img_width, img_height), 0)
     mask_draw = ImageDraw.Draw(mask)
     mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
     mask.save(os.path.join(mask_dir, save_name))
-
+    """
 
 def parseAnnotations(anno_path, crop = None):
     """
@@ -446,7 +505,17 @@ if __name__ == "__main__":
                     # Save as 6-digit incremental index
                     img_index = str(str(img_id_counter).zfill(6))
                     data_master[img_index] = {}
-                    data_master[img_index]["drivable_path"] = this_data["drivable_path"]
+                    #data_master[img_index]["drivable_path"] = this_data["drivable_path"]
+                    data_master[img_index]["egoleft_lane"] = this_data["lanes"][this_data["ego_indexes"][0]]
+                    data_master[img_index]["egoright_lane"] = this_data["lanes"][this_data["ego_indexes"][1]]
+                    data_master[img_index]["outer_lane"]=[]
+
+                    #save the outer lanes
+                    for idx,lane in enumerate(this_data["lanes"]):
+                        if idx in this_data["ego_indexes"]:
+                            continue
+                        else:
+                            data_master[img_index]["outer_lane"].append(lane)
                     data_master[img_index]["img_height"] = img_height
                     data_master[img_index]["img_width"] = img_width
                     
