@@ -90,7 +90,7 @@ def main():
     
     # Total training epochs
     num_epochs = 30
-    batch_size = 5
+    batch_size = 20
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -119,10 +119,10 @@ def main():
 
         # Batch schedule
         if(epoch == 3):
-            batch_size = 3
+            batch_size = 10
         
         if(epoch == 5):
-            batch_size = 2
+            batch_size = 5
         
         if(epoch >= 10):
             batch_size = 1
