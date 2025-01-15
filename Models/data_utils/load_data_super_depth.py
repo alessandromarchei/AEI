@@ -74,23 +74,28 @@ class LoadDataSuperDepth():
         ground_truth = np.expand_dims(ground_truth, axis=-1)
         return ground_truth
     
-    def getValidity(self, gt, index):
+    def getValidity(self, gt, index, is_train):
 
         validity = 0
 
         if(self.is_validity):
-            validity = Image.open(str(self.train_validities[index]))
+            if(is_train):
+                validity = Image.open(str(self.train_validities[index]))
+            else:
+                validity = Image.open(str(self.val_validities[index]))
+
             validity = np.array(validity)
             validity = np.expand_dims(validity, axis=-1)
         else:
             validity = np.full_like(gt, 255).astype('uint8') 
 
         return validity
+    
 
     def getItemTrain(self, index):
         train_image = Image.open(str(self.train_images[index]))
         train_ground_truth = self.getGroundTruth(str(self.train_labels[index]))
-        train_validity = self.getValidity(train_ground_truth, index)
+        train_validity = self.getValidity(train_ground_truth, index, is_train=True)
 
         return  np.array(train_image), train_ground_truth, train_validity
 
@@ -108,7 +113,7 @@ class LoadDataSuperDepth():
     def getItemVal(self, index):
         val_image = Image.open(str(self.val_images[index]))
         val_ground_truth = self.getGroundTruth(str(self.val_labels[index]))
-        val_validity = self.getValidity(val_ground_truth, index) 
+        val_validity = self.getValidity(val_ground_truth, index, is_train=False) 
 
         return  np.array(val_image), val_ground_truth, val_validity
     
