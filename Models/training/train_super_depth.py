@@ -2,7 +2,6 @@
 # Comment above is for Jupyter execution in VSCode
 #! /usr/bin/env python3
 import torch
-import matplotlib.pyplot as plt
 import random
 import sys
 sys.path.append('..')
