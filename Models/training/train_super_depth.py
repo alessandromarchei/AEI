@@ -226,7 +226,7 @@ def main():
             # Save model and run validation on entire validation 
             # dataset after 10000 steps
             if((count+1) % 1 == 0):
-                '''
+                
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
                     str(count + total_train_samples*epoch) \
@@ -234,7 +234,7 @@ def main():
                     str(count) + '.pth'
                 
                 trainer.save_model(model_save_path)
-                '''
+                
                 # Validate
                 print('Validating')
 
@@ -321,6 +321,14 @@ def main():
                     avg_mAE_muses = running_mAE_muses/muses_num_val_samples
                     avg_mAE_ddad = running_mAE_ddad/ddad_num_val_samples
                     avg_mAE_urbansyn = running_mAE_urbansyn/urbansyn_num_val_samples
+
+                    print('--- Validation Scores ---')
+                    print('Overall: ', avg_mAE_overall)
+                    print('ARGOVERSE: ', avg_mAE_argoverse)
+                    print('KITTI: ', avg_mAE_kitti)
+                    print('MUSES: ', avg_mAE_muses)
+                    print('DDAD:', avg_mAE_ddad)
+                    print('URBANSYN: ', avg_mAE_urbansyn)
                     
                     # Logging average validation loss to TensorBoard
                     trainer.log_val_mAE(avg_mAE_overall, avg_mAE_argoverse, avg_mAE_kitti, 

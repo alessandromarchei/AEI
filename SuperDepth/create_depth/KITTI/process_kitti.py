@@ -126,7 +126,7 @@ def main():
             # Crop side regions where depth data is missing
             image_left, depth_map_fill_only, height_map_fill_only, validity_mask = \
                 cropData(image_left, depth_map_fill_only, height_map_fill_only, validity_mask)
-
+            
             # Save files
             # RGB Image as PNG
             image_save_path = root_save_path + '/image/' + str(counter) + '.png'
