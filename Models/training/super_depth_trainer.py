@@ -78,7 +78,7 @@ class SuperDepthTrainer():
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.00001
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -120,14 +120,13 @@ class SuperDepthTrainer():
 
     # Logging Validation mAE overall
     def log_val_mAE(self, mAE_overall, mAE_argoverse, mAE_kitti, 
-                        mAE_muses, mAE_ddad, mAE_urbansyn, log_count):
+                        mAE_ddad, mAE_urbansyn, log_count):
         
         print('Logging Validation')      
         
         self.writer.add_scalars("Val/mAE_dataset",{
             'mAE_argoverse': mAE_argoverse,
             'mAE_kitti': mAE_kitti,
-            'mAE_muses': mAE_muses,
             'mAE_ddad': mAE_ddad,
             'mAE_urbansyn': mAE_urbansyn
         }, (log_count))
@@ -187,8 +186,10 @@ class SuperDepthTrainer():
         G_y_gt = nn.functional.conv2d(self.gt_tensor, self.gy_filter, padding=1)
         G_gt = torch.sqrt(torch.pow(G_x_gt,2)+ torch.pow(G_y_gt,2))
 
-        edge_diff = torch.abs(G_pred - G_gt)*(self.validity_tensor)
-        edge_loss = torch.mean(edge_diff)
+        edge_diff_RMSE = torch.abs(G_pred - G_gt)*(self.validity_tensor)
+        edge_diff_mAE = torch.abs(G_x_pred - G_x_gt)*(self.validity_tensor) + \
+                            torch.abs(G_y_pred - G_y_gt)*(self.validity_tensor)
+        edge_loss = torch.mean(edge_diff_RMSE) + torch.mean(edge_diff_mAE)
 
         return edge_loss
         
@@ -202,7 +203,8 @@ class SuperDepthTrainer():
 
         if(is_sim):
             edge_loss = self.edge_validity_loss()
-            total_loss = mAE_loss + edge_loss*2
+            combined_loss = mAE_loss + edge_loss
+            total_loss = combined_loss*3
         else:
             total_loss = mAE_loss
 
