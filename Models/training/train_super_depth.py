@@ -28,11 +28,6 @@ def main():
     kitti_images_filepath = root + 'KITTI/image/'
     kitti_validities_filepath = root + 'KITTI/validity/'
 
-    # MUSES
-    muses_labels_filepath = root + 'MUSES/height/'
-    muses_images_filepath = root + 'MUSES/image/'
-    muses_validities_filepath = root + 'MUSES/validity/'
-
     # DDAD
     ddad_labels_filepath = root + 'DDAD/height/'
     ddad_images_filepath = root + 'DDAD/image/'
@@ -52,11 +47,6 @@ def main():
                                            'KITTI', kitti_validities_filepath)
     kitti_num_train_samples, kitti_num_val_samples = kitti_Dataset.getItemCount()
 
-    # MUSES - Data Loading
-    muses_Dataset = LoadDataSuperDepth(muses_labels_filepath, muses_images_filepath, 
-                                           'MUSES', muses_validities_filepath)
-    muses_num_train_samples, muses_num_val_samples = muses_Dataset.getItemCount()
-
     # DDAD - Data Loading
     ddad_Dataset = LoadDataSuperDepth(ddad_labels_filepath, ddad_images_filepath, 
                                            'DDAD', ddad_validities_filepath)
@@ -68,13 +58,13 @@ def main():
 
     # Total number of training samples
     total_train_samples = argoverse_num_train_samples + \
-        kitti_num_train_samples + muses_num_train_samples + \
+        kitti_num_train_samples + \
         ddad_num_train_samples + urbansyn_num_train_samples
     print(total_train_samples, ': total training samples')
 
     # Total number of validation samples
     total_val_samples = argoverse_num_val_samples + \
-        kitti_num_val_samples + muses_num_val_samples + \
+        kitti_num_val_samples + \
         ddad_num_val_samples + urbansyn_num_val_samples
     print(total_val_samples, ': total validation samples')
 
@@ -89,8 +79,8 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 30
-    batch_size = 10
+    num_epochs = 10
+    batch_size = 5
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -98,20 +88,17 @@ def main():
         # Iterators for datasets
         argoverse_count = 0
         kitti_count = 0
-        muses_count = 0
         ddad_count = 0
         urbansyn_count = 0
 
         is_argoverse_complete = False
         is_kitti_complete = False
-        is_muses_complete = False
         is_ddad_complete = False
         is_urbansyn_complete = False
         
         data_list = []
         data_list.append('ARGOVERSE')
         data_list.append('KITTI')
-        data_list.append('MUSES')
         data_list.append('DDAD')
         data_list.append('URBANSYN')
         random.shuffle(data_list)
@@ -119,12 +106,12 @@ def main():
 
         # Batch schedule
         if(epoch == 3):
-            batch_size = 5
+            batch_size = 3
         
-        if(epoch == 5):
+        if(epoch == 4):
             batch_size = 2
         
-        if(epoch >= 10):
+        if(epoch > 4):
             batch_size = 1
 
 
@@ -143,11 +130,6 @@ def main():
                 is_kitti_complete == False):
                 is_kitti_complete =  True
                 data_list.remove("KITTI")
-
-            if(muses_count == muses_num_train_samples and \
-                is_muses_complete == False):
-                is_muses_complete =  True
-                data_list.remove("MUSES")
             
             if(ddad_count == ddad_num_train_samples and \
                 is_ddad_complete == False):
@@ -178,11 +160,6 @@ def main():
                 is_kitti_complete == False):
                 image, gt, validity = kitti_Dataset.getItemTrain(kitti_count)
                 kitti_count += 1
-
-            if(data_list[data_list_count] == 'MUSES' and \
-                is_muses_complete == False):
-                image, gt, validity = muses_Dataset.getItemTrain(muses_count)
-                muses_count += 1
 
             if(data_list[data_list_count] == 'DDAD' and \
                 is_ddad_complete == False):
@@ -223,8 +200,8 @@ def main():
                 trainer.save_visualization(log_count)
             
             # Save model and run validation on entire validation 
-            # dataset after 5290 steps
-            if((count+1) % 5290 == 0):
+            # dataset after 5000 steps
+            if((count+1) % 5000 == 0):
                 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
@@ -244,7 +221,6 @@ def main():
                 running_mAE_overall = 0
                 running_mAE_argoverse = 0
                 running_mAE_kitti = 0
-                running_mAE_muses = 0
                 running_mAE_ddad = 0
                 running_mAE_urbansyn = 0
                 
@@ -271,17 +247,6 @@ def main():
 
                         # Accumulating mAE score
                         running_mAE_kitti += mAE
-                        running_mAE_overall += mAE
-
-                    # MUSES
-                    for val_count in range(0, muses_num_val_samples):
-                        image_val, gt_val, validity_val = muses_Dataset.getItemVal(val_count)
-
-                        # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val, validity_val)
-
-                        # Accumulating mAE score
-                        running_mAE_muses += mAE
                         running_mAE_overall += mAE
 
                     # DDAD
@@ -312,7 +277,6 @@ def main():
                     avg_mAE_overall = running_mAE_overall/total_val_samples
                     avg_mAE_argoverse = running_mAE_argoverse/argoverse_num_val_samples
                     avg_mAE_kitti = running_mAE_kitti/kitti_num_val_samples
-                    avg_mAE_muses = running_mAE_muses/muses_num_val_samples
                     avg_mAE_ddad = running_mAE_ddad/ddad_num_val_samples
                     avg_mAE_urbansyn = running_mAE_urbansyn/urbansyn_num_val_samples
 
@@ -320,13 +284,12 @@ def main():
                     print('Overall: ', avg_mAE_overall)
                     print('ARGOVERSE: ', avg_mAE_argoverse)
                     print('KITTI: ', avg_mAE_kitti)
-                    print('MUSES: ', avg_mAE_muses)
                     print('DDAD:', avg_mAE_ddad)
                     print('URBANSYN: ', avg_mAE_urbansyn)
                     
                     # Logging average validation loss to TensorBoard
                     trainer.log_val_mAE(avg_mAE_overall, avg_mAE_argoverse, avg_mAE_kitti, 
-                        avg_mAE_muses, avg_mAE_ddad, avg_mAE_urbansyn, log_count)
+                       avg_mAE_ddad, avg_mAE_urbansyn, log_count)
 
                 # Resetting model back to training
                 trainer.set_train_mode()
