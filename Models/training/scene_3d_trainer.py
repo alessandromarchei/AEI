@@ -12,7 +12,7 @@ from model_components.scene_seg_network import SceneSegNetwork
 from model_components.scene_3d_network import Scene3DNetwork
 from data_utils.augmentations import Augmentations
 
-class SuperDepthTrainer():
+class Scene3DTrainer():
     def __init__(self,  checkpoint_path = '', pretrained_checkpoint_path = '', is_pretrained = False):
 
         self.image = 0
