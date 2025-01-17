@@ -10,7 +10,7 @@ from model_components.scene_3d_network import Scene3DNetwork
 
 
 class Scene3DNetworkInfer():
-    def __init__(self, checkpoint_path = '',):
+    def __init__(self, checkpoint_path = ''):
 
         # Image loader
         self.image_loader = transforms.Compose(
