@@ -6,7 +6,7 @@ from torchvision import transforms
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
-from model_components.super_depth_network import SuperDepthNetwork
+from model_components.scene_3d_network import Scene3DNetwork
 
 
 class Scene3DNetworkInfer():
@@ -26,7 +26,7 @@ class Scene3DNetworkInfer():
             
         # Instantiate model, load to device and set to evaluation mode
         sceneSegNetwork = SceneSegNetwork()
-        self.model = SuperDepthNetwork(sceneSegNetwork)
+        self.model = Scene3DNetwork(sceneSegNetwork)
 
         if(len(checkpoint_path) > 0):
             self.model.load_state_dict(torch.load \
