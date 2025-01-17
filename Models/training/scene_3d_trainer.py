@@ -4,7 +4,6 @@ from torchvision import transforms
 from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-import cv2
 import numpy as np
 import sys
 sys.path.append('..')
