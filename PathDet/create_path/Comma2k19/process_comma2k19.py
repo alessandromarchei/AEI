@@ -105,7 +105,7 @@ def check_multiple_x_for_y(points):
     unique_y, counts = np.unique(sorted_points[:, 1], return_counts=True)
 
     # Check if any y value has more than one corresponding x value
-    return np.all(counts < 5) or np.any(counts > 50) or np.any(points[:,1] < 200)
+    return np.any(counts > 50) or np.any(points[:,1] < 200)
 
 def generate_mask_vis(frame_count, out_path, processed_img_count, 
                       frame_positions, frame_orientations, org_img,
@@ -141,16 +141,15 @@ def generate_mask_vis(frame_count, out_path, processed_img_count,
     valid = (x_s >= 0) & (x_s < img_w) & \
            (y_s >= 0) 
     img_pts = img_pts[valid]
-    # if len(img_pts) < 5 or check_multiple_x_for_y(img_pts):
-    #     return None
-    img_pts = extrapolate_to_bottom(img_pts)
-    if img_pts[0][0]<250 or img_pts[0][0]>800:
+    if len(img_pts) < 5 or check_multiple_x_for_y(img_pts):
         return None
-    # auc = polygon_area(img_pts[:,0], img_pts[:,1])
-    # if auc > 8000 or auc < 2000:
-    #     return None
+    img_pts = extrapolate_to_bottom(img_pts)
+    if img_pts[0][0]<250 or img_pts[0][0]>750 or img_pts[-1][0]<150 or img_pts[-1][0]>950:
+        return None
+    auc = polygon_area(img_pts[:,0], img_pts[:,1])
+    if auc > 17000:
+        return None 
     # print(len(img_pts_l), len(img_pts_r))
-    # img_pts = remove_collinear_points(img_pts)
     img = org_img.copy()
     mask = np.zeros((img_h, img_w), np.uint8)
     for i in range(len(img_pts) - 1):

@@ -2,13 +2,14 @@ import json
 import os
 
 # Load JSON data
-with open('drivable_path.json', 'r') as file:
+out_path = 'output2/'
+with open(out_path+'drivable_path.json', 'r') as file:
     data = json.load(file)
 data = data['data']
 # Directory where images are stored
-image_directory = 'images'
-vis_directory = 'visualization'
-mask_directory = 'segmentation'
+image_directory = out_path+'images'
+vis_directory = out_path+'visualization'
+mask_directory = out_path+'segmentation'
 
 # Filter out elements with missing image files
 new_data = []
