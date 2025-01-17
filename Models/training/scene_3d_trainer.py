@@ -49,9 +49,9 @@ class Scene3DTrainer():
                 # If the model is also pre-trained then load the pre-trained downstream weights
                 self.model.load_state_dict(torch.load \
                     (checkpoint_path, weights_only=True, map_location=self.device))
-                print('Loading pre-trained model weights of SuperDepth and upstream SceneSeg weights as well')
+                print('Loading pre-trained model weights of Scene3D and upstream SceneSeg weights as well')
             else:
-                raise ValueError('Please ensure SuperDepth network weights are provided for downstream elements')
+                raise ValueError('Please ensure Scene3D network weights are provided for downstream elements')
             
         else:
 
@@ -65,7 +65,7 @@ class Scene3DTrainer():
                     
                 # Loading model with pre-trained upstream weights
                 self.model = Scene3DNetwork(sceneSegNetwork)
-                print('Loading pre-trained model weights of upstream SceneSeg only, SuperDepth initialised with random weights')
+                print('Loading pre-trained model weights of upstream SceneSeg only, Scene3D initialised with random weights')
             else:
                 raise ValueError('Please ensure SceneSeg network weights are provided for upstream elements')
         
@@ -202,7 +202,7 @@ class Scene3DTrainer():
 
         if(is_sim):
             edge_loss = self.edge_validity_loss()
-            combined_loss = mAE_loss + edge_loss
+            combined_loss = mAE_loss + (edge_loss*1.5)
             total_loss = combined_loss*3
         else:
             total_loss = mAE_loss
