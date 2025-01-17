@@ -11,7 +11,7 @@ from training.scene_3d_trainer import Scene3DTrainer
 def main():
 
     # Root path
-    root = '/mnt/media/SuperDepth/'
+    root = '/mnt/media/Scene3D/'
 
     # Model save path
     model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_15/'
