@@ -31,7 +31,6 @@ class Scene3DTrainer():
         self.loss = 0
         self.prediction = 0
         self.calc_loss = 0
-        self.calc_loss_list = []
         self.model = 0
 
         # Checking devices (GPU vs CPU)
@@ -209,7 +208,6 @@ class Scene3DTrainer():
             total_loss = mAE_loss
             
         self.calc_loss = total_loss
-        self.calc_loss_list.append(total_loss)
 
     # Loss Backward Pass
     def loss_backward(self): 
@@ -217,9 +215,7 @@ class Scene3DTrainer():
 
     # Get loss value
     def get_loss(self):
-        avg_loss = torch.mean(torch.stack(self.calc_loss_list))
-        self.calc_loss_list = []
-        return avg_loss.item()
+        return self.calc_loss.item()
 
     # Run Optimizer
     def run_optimizer(self):
