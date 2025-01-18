@@ -203,11 +203,11 @@ class Scene3DTrainer():
 
         if(is_sim):
             edge_loss = self.edge_validity_loss()
-            combined_loss = mAE_loss + (edge_loss*1.5)
-            total_loss = combined_loss*3
+            combined_loss = mAE_loss + edge_loss
+            total_loss = combined_loss
         else:
             total_loss = mAE_loss
-
+            
         self.calc_loss = total_loss
         self.calc_loss_list.append(total_loss)
 
