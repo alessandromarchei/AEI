@@ -14,7 +14,7 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SuperDepth/2025_01_15/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_18/'
 
     # Data paths
     # ARGOVERSE
@@ -78,11 +78,13 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 20
-    batch_size = 5
+    num_epochs = 50
+    batch_size = 8
 
     # Epochs
     for epoch in range(0, num_epochs):
+
+        print('Epoch: ', epoch + 1)
 
         # Iterators for datasets
         argoverse_count = 0
@@ -104,20 +106,16 @@ def main():
         data_list_count = 0
 
         # Batch schedule
-        if(epoch == 3):
-            batch_size = 3
+        if(epoch == 15):
+            batch_size = 4
         
-        if(epoch == 4):
-            batch_size = 2
-        
-        if(epoch > 4):
-            batch_size = 1
-
 
         # Loop through data
-        for count in range(0, total_train_samples):
+        #for count in range(0, total_train_samples):
+        for count in range(0, urbansyn_num_train_samples):
 
-            log_count = count + total_train_samples*epoch
+            #log_count = count + total_train_samples*epoch
+            log_count = count + urbansyn_num_train_samples*epoch
 
             # Reset iterators
             if(argoverse_count == argoverse_num_train_samples and \
@@ -152,22 +150,26 @@ def main():
 
             if(data_list[data_list_count] == 'ARGOVERSE' and \
                 is_argoverse_complete == False):
-                image, gt, validity = argoverse_Dataset.getItemTrain(argoverse_count)
+                randomlist = random.sample(range(0, argoverse_num_train_samples), argoverse_num_train_samples)
+                image, gt, validity = argoverse_Dataset.getItemTrain(randomlist[argoverse_count])
                 argoverse_count += 1
 
             if(data_list[data_list_count] == 'KITTI' and \
                 is_kitti_complete == False):
-                image, gt, validity = kitti_Dataset.getItemTrain(kitti_count)
+                randomlist = random.sample(range(0, kitti_num_train_samples), kitti_num_train_samples)
+                image, gt, validity = kitti_Dataset.getItemTrain(randomlist[kitti_count])
                 kitti_count += 1
 
             if(data_list[data_list_count] == 'DDAD' and \
                 is_ddad_complete == False):
-                image, gt, validity = ddad_Dataset.getItemTrain(ddad_count)
+                randomlist = random.sample(range(0, ddad_num_train_samples), ddad_num_train_samples)
+                image, gt, validity = ddad_Dataset.getItemTrain(randomlist[ddad_count])
                 ddad_count += 1
             
             if(data_list[data_list_count] == 'URBANSYN' and \
                is_urbansyn_complete == False):
-                image, gt, validity = urbansyn_Dataset.getItemTrain(urbansyn_count)
+                randomlist = random.sample(range(0, urbansyn_num_train_samples), urbansyn_num_train_samples)
+                image, gt, validity = urbansyn_Dataset.getItemTrain(randomlist[urbansyn_count])
                 is_sim = True      
                 urbansyn_count += 1
 
