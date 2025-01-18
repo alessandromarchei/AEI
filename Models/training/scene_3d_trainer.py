@@ -218,7 +218,7 @@ class Scene3DTrainer():
     # Get loss value
     def get_loss(self):
         avg_loss = torch.mean(torch.stack(self.calc_loss_list))
-        self.calc_loss_list.clear
+        self.calc_loss_list = []
         return avg_loss.item()
 
     # Run Optimizer
