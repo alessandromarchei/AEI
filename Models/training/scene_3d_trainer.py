@@ -114,17 +114,15 @@ class Scene3DTrainer():
 
     # Logging Training Loss
     def log_loss(self, log_count):
-        print('Logging Training Loss', log_count, self.get_loss())
         self.writer.add_scalar("Loss/train", self.get_loss(), (log_count))
 
     # Logging Validation mAE overall
-    def log_val_mAE(self, mAE_overall, mAE_argoverse, mAE_kitti, 
+    def log_val_mAE(self, mAE_overall, mAE_kitti, 
                         mAE_ddad, mAE_urbansyn, log_count):
         
         print('Logging Validation')      
         
         self.writer.add_scalars("Val/mAE_dataset",{
-            'mAE_argoverse': mAE_argoverse,
             'mAE_kitti': mAE_kitti,
             'mAE_ddad': mAE_ddad,
             'mAE_urbansyn': mAE_urbansyn
@@ -179,16 +177,16 @@ class Scene3DTrainer():
 
         G_x_pred = nn.functional.conv2d(self.prediction, self.gx_filter, padding=1)
         G_y_pred = nn.functional.conv2d(self.prediction, self.gy_filter, padding=1)
-        G_pred = torch.sqrt(torch.pow(G_x_pred,2)+ torch.pow(G_y_pred,2))
+        G_pred = torch.pow(G_x_pred,2)+ torch.pow(G_y_pred,2)
 
         G_x_gt = nn.functional.conv2d(self.gt_tensor, self.gx_filter, padding=1)
         G_y_gt = nn.functional.conv2d(self.gt_tensor, self.gy_filter, padding=1)
-        G_gt = torch.sqrt(torch.pow(G_x_gt,2)+ torch.pow(G_y_gt,2))
+        G_gt = torch.pow(G_x_gt,2)+ torch.pow(G_y_gt,2)
 
-        edge_diff_RMSE = torch.abs(G_pred - G_gt)*(self.validity_tensor)
+        edge_diff_MSE = torch.abs(G_pred - G_gt)*(self.validity_tensor)
         edge_diff_mAE = torch.abs(G_x_pred - G_x_gt)*(self.validity_tensor) + \
                             torch.abs(G_y_pred - G_y_gt)*(self.validity_tensor)
-        edge_loss = torch.mean(edge_diff_RMSE) + torch.mean(edge_diff_mAE)
+        edge_loss = torch.mean(edge_diff_MSE) + torch.mean(edge_diff_mAE)
 
         return edge_loss
         
@@ -202,7 +200,8 @@ class Scene3DTrainer():
 
         if(is_sim):
             edge_loss = self.edge_validity_loss()
-            combined_loss = mAE_loss + edge_loss
+            combined_loss = mAE_loss + edge_loss*1.5
+            #combined_loss = mAE_loss + edge_loss
             total_loss = combined_loss
         else:
             total_loss = mAE_loss
@@ -237,8 +236,6 @@ class Scene3DTrainer():
     
     # Save predicted visualization
     def save_visualization(self, log_count):
-
-        print('Saving Visualization')
 
         # Converting prediction output to visualization
         prediction_vis = self.prediction.squeeze(0).cpu().detach()
@@ -306,9 +303,14 @@ class Scene3DTrainer():
         self.optimizer.zero_grad()
 
     # Save Model
-    def save_model(self, model_save_path):
+    def save_model(self, epoch, model_save_path, optimizer_save_path):
         print('Saving model')
         torch.save(self.model.state_dict(), model_save_path)
+        torch.save({
+            'epoch': epoch,
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'loss': self.calc_loss
+            }, optimizer_save_path)
     
     # Run Validation and calculate metrics
     def validate(self, image_val, gt_val, validity_val):
