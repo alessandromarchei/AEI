@@ -14,13 +14,10 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_18/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_22/model/'
+    optim_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_22/optim/'
 
     # Data paths
-    # ARGOVERSE
-    argoverse_labels_filepath = root + 'Argoverse/height/'
-    argoverse_images_filepath = root + 'Argoverse/image/'
-    argoverse_validities_filepath = root + 'Argoverse/validity/'
 
     # KITTI
     kitti_labels_filepath = root + 'KITTI/height/'
@@ -36,11 +33,6 @@ def main():
     urbansyn_labels_fileapath = root + 'UrbanSyn/height/'
     urbansyn_images_fileapath = root + 'UrbanSyn/image/'
 
-    # ARGOVERSE - Data Loading
-    argoverse_Dataset = LoadDataScene3D(argoverse_labels_filepath, argoverse_images_filepath, 
-                                           'ARGOVERSE', argoverse_validities_filepath)
-    argoverse_num_train_samples, argoverse_num_val_samples = argoverse_Dataset.getItemCount()
-
     # KITTI - Data Loading
     kitti_Dataset = LoadDataScene3D(kitti_labels_filepath, kitti_images_filepath, 
                                            'KITTI', kitti_validities_filepath)
@@ -55,15 +47,13 @@ def main():
     urbansyn_Dataset = LoadDataScene3D(urbansyn_labels_fileapath, urbansyn_images_fileapath, 'URBANSYN')
     urbansyn_num_train_samples, urbansyn_num_val_samples = urbansyn_Dataset.getItemCount()
 
-    # Total number of training samples
-    total_train_samples = argoverse_num_train_samples + \
-        kitti_num_train_samples + \
+    # Total training Samples
+    total_train_samples = kitti_num_train_samples + \
         ddad_num_train_samples + urbansyn_num_train_samples
     print(total_train_samples, ': total training samples')
 
-    # Total number of validation samples
-    total_val_samples = argoverse_num_val_samples + \
-        kitti_num_val_samples + \
+    # Total validation samples
+    total_val_samples = kitti_num_val_samples + \
         ddad_num_val_samples + urbansyn_num_val_samples
     print(total_val_samples, ': total validation samples')
 
@@ -72,14 +62,14 @@ def main():
     root_path = \
         '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
     pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
-    
+
     # Trainer Class
-    trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
+    trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path))
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 50
-    batch_size = 8
+    num_epochs = 25
+    batch_size = 6
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -87,18 +77,15 @@ def main():
         print('Epoch: ', epoch + 1)
 
         # Iterators for datasets
-        argoverse_count = 0
         kitti_count = 0
         ddad_count = 0
         urbansyn_count = 0
 
-        is_argoverse_complete = False
         is_kitti_complete = False
         is_ddad_complete = False
         is_urbansyn_complete = False
         
         data_list = []
-        data_list.append('ARGOVERSE')
         data_list.append('KITTI')
         data_list.append('DDAD')
         data_list.append('URBANSYN')
@@ -106,22 +93,14 @@ def main():
         data_list_count = 0
 
         # Batch schedule
-        if(epoch == 15):
-            batch_size = 4
+        if(epoch == 10):
+            batch_size = 3
         
 
         # Loop through data
-        #for count in range(0, total_train_samples):
-        for count in range(0, urbansyn_num_train_samples):
+        for count in range(0, total_train_samples):
 
-            #log_count = count + total_train_samples*epoch
-            log_count = count + urbansyn_num_train_samples*epoch
-
-            # Reset iterators
-            if(argoverse_count == argoverse_num_train_samples and \
-                is_argoverse_complete == False):
-                is_argoverse_complete =  True
-                data_list.remove("ARGOVERSE")
+            log_count = count + total_train_samples*epoch
 
             if(kitti_count == kitti_num_train_samples and \
                 is_kitti_complete == False):
@@ -135,42 +114,34 @@ def main():
             
             if(urbansyn_count == urbansyn_num_train_samples and \
                 is_urbansyn_complete == False):
-                is_urbansyn_complete = True
-                data_list.remove("URBANSYN")
+                # Overfitting on  Urbansyn Simulation dataset
+                urbansyn_count = 0
 
             if(data_list_count >= len(data_list)):
                 data_list_count = 0
 
-            # Flag for whether dataset is simulated or not
-            is_sim = False
-
-            # Read images, apply augmentation, run prediction, calculate
-            # loss for iterated image from each dataset, and increment
-            # dataset iterators
-
-            if(data_list[data_list_count] == 'ARGOVERSE' and \
-                is_argoverse_complete == False):
-                randomlist = random.sample(range(0, argoverse_num_train_samples), argoverse_num_train_samples)
-                image, gt, validity = argoverse_Dataset.getItemTrain(randomlist[argoverse_count])
-                argoverse_count += 1
+            # Dataset sample 
+            data_sample = ''
 
             if(data_list[data_list_count] == 'KITTI' and \
                 is_kitti_complete == False):
                 randomlist = random.sample(range(0, kitti_num_train_samples), kitti_num_train_samples)
                 image, gt, validity = kitti_Dataset.getItemTrain(randomlist[kitti_count])
+                data_sample = 'KITTI'
                 kitti_count += 1
 
             if(data_list[data_list_count] == 'DDAD' and \
                 is_ddad_complete == False):
                 randomlist = random.sample(range(0, ddad_num_train_samples), ddad_num_train_samples)
                 image, gt, validity = ddad_Dataset.getItemTrain(randomlist[ddad_count])
+                data_sample = 'DDAD'
                 ddad_count += 1
             
             if(data_list[data_list_count] == 'URBANSYN' and \
                is_urbansyn_complete == False):
                 randomlist = random.sample(range(0, urbansyn_num_train_samples), urbansyn_num_train_samples)
                 image, gt, validity = urbansyn_Dataset.getItemTrain(randomlist[urbansyn_count])
-                is_sim = True      
+                data_sample = 'URBANSYN'      
                 urbansyn_count += 1
 
             # Assign Data
@@ -183,7 +154,7 @@ def main():
             trainer.load_data(is_train=True)
 
             # Run model and calculate loss
-            trainer.run_model(is_sim)
+            trainer.run_model(data_sample)
 
             # Gradient accumulation
             trainer.loss_backward()
@@ -202,7 +173,7 @@ def main():
             
             # Save model and run validation on entire validation 
             # dataset after 5000 steps
-            if((count+1) % 5000 == 0):
+            if((count+1) % 4490 == 0):
                 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
@@ -210,7 +181,12 @@ def main():
                     + '_epoch_' +  str(epoch) + '_step_' + \
                     str(count) + '.pth'
                 
-                trainer.save_model(model_save_path)
+                optim_save_path = optim_save_root_path + 'iter_' + \
+                    str(count + total_train_samples*epoch) \
+                    + '_epoch_' +  str(epoch) + '_step_' + \
+                    str(count) + '.pth'
+                
+                trainer.save_model(epoch, model_save_path, optim_save_path)
                 
                 # Validate
                 print('Validating')
@@ -220,24 +196,12 @@ def main():
 
                 # Error
                 running_mAE_overall = 0
-                running_mAE_argoverse = 0
                 running_mAE_kitti = 0
                 running_mAE_ddad = 0
                 running_mAE_urbansyn = 0
                 
                 # No gradient calculation
                 with torch.no_grad():
-
-                    # ARGOVERSE
-                    for val_count in range(0, argoverse_num_val_samples):
-                        image_val, gt_val, validity_val = argoverse_Dataset.getItemVal(val_count)
-
-                        # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val, validity_val)
-
-                        # Accumulating mAE score
-                        running_mAE_argoverse += mAE
-                        running_mAE_overall += mAE
 
                     # KITTI
                     for val_count in range(0, kitti_num_val_samples):
@@ -276,20 +240,18 @@ def main():
                     # Calculating average loss of complete validation set for
                     # each specific dataset as well as the overall combined dataset
                     avg_mAE_overall = running_mAE_overall/total_val_samples
-                    avg_mAE_argoverse = running_mAE_argoverse/argoverse_num_val_samples
                     avg_mAE_kitti = running_mAE_kitti/kitti_num_val_samples
                     avg_mAE_ddad = running_mAE_ddad/ddad_num_val_samples
                     avg_mAE_urbansyn = running_mAE_urbansyn/urbansyn_num_val_samples
 
                     print('--- Validation Scores ---')
                     print('Overall: ', avg_mAE_overall)
-                    print('ARGOVERSE: ', avg_mAE_argoverse)
                     print('KITTI: ', avg_mAE_kitti)
                     print('DDAD:', avg_mAE_ddad)
                     print('URBANSYN: ', avg_mAE_urbansyn)
                     
                     # Logging average validation loss to TensorBoard
-                    trainer.log_val_mAE(avg_mAE_overall, avg_mAE_argoverse, avg_mAE_kitti, 
+                    trainer.log_val_mAE(avg_mAE_overall, avg_mAE_kitti, 
                        avg_mAE_ddad, avg_mAE_urbansyn, log_count)
 
                 # Resetting model back to training
