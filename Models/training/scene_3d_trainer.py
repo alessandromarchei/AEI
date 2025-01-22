@@ -4,6 +4,7 @@ from torchvision import transforms
 from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
+from typing import Literal
 import numpy as np
 import sys
 sys.path.append('..')
@@ -191,19 +192,20 @@ class Scene3DTrainer():
         return edge_loss
         
     # Run Model
-    def run_model(self, is_sim):     
+    def run_model(self, dataset: Literal['URBANSYN', 'KITTI', 'DDAD']):     
         
         self.prediction = self.model(self.image_tensor)
         mAE_loss = self.mAE_validity_loss()
         
         total_loss = 0
 
-        if(is_sim):
+        if(dataset == 'URBANSYN'):
             edge_loss = self.edge_validity_loss()
-            combined_loss = mAE_loss + edge_loss*1.5
-            #combined_loss = mAE_loss + edge_loss
-            total_loss = combined_loss
-        else:
+            combined_loss = mAE_loss + edge_loss*2
+            total_loss = combined_loss*4
+        elif(dataset == 'DDAD'):
+            total_loss = mAE_loss*2
+        elif(dataset == 'KITTI'):
             total_loss = mAE_loss
             
         self.calc_loss = total_loss
