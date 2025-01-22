@@ -64,7 +64,7 @@ def main():
     pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
 
     # Trainer Class
-    trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path))
+    trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
     trainer.zero_grad()
     
     # Total training epochs
