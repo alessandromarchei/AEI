@@ -305,14 +305,19 @@ class Scene3DTrainer():
         self.optimizer.zero_grad()
 
     # Save Model
-    def save_model(self, epoch, model_save_path, optimizer_save_path):
+    def save_model(self, epoch, step, model_save_path, optimizer_save_path):
         print('Saving model')
         torch.save(self.model.state_dict(), model_save_path)
         torch.save({
             'epoch': epoch,
+            'step:': step,
             'optimizer_state_dict': self.optimizer.state_dict(),
             'loss': self.calc_loss
             }, optimizer_save_path)
+        
+    def load_optimizer(self, optimizer_save_path):
+        checkpoint = torch.load(optimizer_save_path)
+        self.optimizer = checkpoint['optimizer']
     
     # Run Validation and calculate metrics
     def validate(self, image_val, gt_val, validity_val):
