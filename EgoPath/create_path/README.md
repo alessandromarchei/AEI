@@ -1,7 +1,7 @@
-## PathDet Dataset
-To train the PathDet neural network, a multi-modal dataset will be created with ground truth driving path labels, covering a variety of road types, driving conditions and weather conditions. Existing open-source lane detection datasets can be leveraged as well as datasets designed for path prediction related tasks.
+## EgoPath Dataset
+To train the EgoPath neural network, a multi-modal dataset will be created with ground truth driving path labels, covering a variety of road types, driving conditions and weather conditions. Existing open-source lane detection datasets can be leveraged as well as datasets designed for path prediction related tasks.
 
-The datasets used to train PathDet include:
+The datasets used to train EgoPath include:
 - [TuSimple] (https://www.kaggle.com/datasets/manideep1108/tusimple?resource=download)
 - [CULane] (https://xingangpan.github.io/projects/CULane.html)
 - [CurveLanes] (https://github.com/SoulmateB/CurveLanes)
