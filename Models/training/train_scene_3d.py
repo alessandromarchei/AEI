@@ -71,6 +71,7 @@ def main():
     num_epochs = 25
     batch_size = 6
 
+
     # Epochs
     for epoch in range(0, num_epochs):
 
@@ -173,20 +174,20 @@ def main():
             
             # Save model and run validation on entire validation 
             # dataset after 5000 steps
-            if((count+1) % 4490 == 0):
+            if((count+1) % 9900 == 0):
                 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
-                    str(count + total_train_samples*epoch) \
+                    str(log_count) \
                     + '_epoch_' +  str(epoch) + '_step_' + \
                     str(count) + '.pth'
                 
                 optim_save_path = optim_save_root_path + 'iter_' + \
-                    str(count + total_train_samples*epoch) \
+                    str(log_count) \
                     + '_epoch_' +  str(epoch) + '_step_' + \
                     str(count) + '.pth'
                 
-                trainer.save_model(epoch, model_save_path, optim_save_path)
+                trainer.save_model(epoch, log_count, model_save_path, optim_save_path)
                 
                 # Validate
                 print('Validating')
