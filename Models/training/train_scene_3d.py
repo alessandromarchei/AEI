@@ -14,8 +14,8 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_22/model/'
-    optim_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_22/optim/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_27/model/'
+    optim_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_27/optim/'
 
     # Data paths
 
@@ -63,12 +63,13 @@ def main():
         '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
     pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
 
+    
     # Trainer Class
     trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 25
+    num_epochs = 30
     batch_size = 6
 
 
@@ -94,7 +95,7 @@ def main():
         data_list_count = 0
 
         # Batch schedule
-        if(epoch == 10):
+        if(epoch >= 10):
             batch_size = 3
         
 
@@ -155,7 +156,7 @@ def main():
             trainer.load_data(is_train=True)
 
             # Run model and calculate loss
-            trainer.run_model(data_sample)
+            trainer.run_model(epoch, data_sample)
 
             # Gradient accumulation
             trainer.loss_backward()
@@ -187,7 +188,7 @@ def main():
                     + '_epoch_' +  str(epoch) + '_step_' + \
                     str(count) + '.pth'
                 
-                trainer.save_model(epoch, log_count, model_save_path, optim_save_path)
+                trainer.save_model(model_save_path)
                 
                 # Validate
                 print('Validating')

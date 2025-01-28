@@ -192,7 +192,7 @@ class Scene3DTrainer():
         return edge_loss
         
     # Run Model
-    def run_model(self, dataset: Literal['URBANSYN', 'KITTI', 'DDAD']):     
+    def run_model(self, epoch, dataset: Literal['URBANSYN', 'KITTI', 'DDAD']):     
         
         self.prediction = self.model(self.image_tensor)
         mAE_loss = self.mAE_validity_loss()
@@ -201,10 +201,18 @@ class Scene3DTrainer():
 
         if(dataset == 'URBANSYN'):
             edge_loss = self.edge_validity_loss()
-            combined_loss = mAE_loss + edge_loss*2
-            total_loss = combined_loss*4
+            if(epoch < 20):
+                combined_loss = mAE_loss + edge_loss*2
+                total_loss = combined_loss*4
+            else:
+                total_loss = mAE_loss + edge_loss
+          
         elif(dataset == 'DDAD'):
-            total_loss = mAE_loss*2
+            if(epoch < 20):
+                total_loss = mAE_loss*2
+            else:
+                total_loss = mAE_loss
+                
         elif(dataset == 'KITTI'):
             total_loss = mAE_loss
             
@@ -305,22 +313,10 @@ class Scene3DTrainer():
         self.optimizer.zero_grad()
 
     # Save Model
-    def save_model(self, epoch, step, model_save_path, optimizer_save_path):
+    def save_model(self, model_save_path):
         print('Saving model')
         torch.save(self.model.state_dict(), model_save_path)
-        torch.save({
-            'epoch': epoch,
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'loss': self.calc_loss
-            }, optimizer_save_path)
-        
-    def load_optimizer(self, optimizer_save_path):
-        checkpoint = torch.load(optimizer_save_path)
-        self.optimizer.state_dict = checkpoint['optimizer_state_dict']
-        self.calc_loss = checkpoint['loss']
-        epoch = checkpoint['epoch']
-        return epoch
-    
+
     # Run Validation and calculate metrics
     def validate(self, image_val, gt_val, validity_val):
 
