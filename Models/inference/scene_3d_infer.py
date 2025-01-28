@@ -53,8 +53,7 @@ class Scene3DNetworkInfer():
         # Get output, find max class probability and convert to numpy array
         prediction = prediction.squeeze(0).cpu().detach()
         prediction = prediction.permute(1, 2, 0)
-        _, output = torch.max(prediction, dim=2)
-        output = output.numpy()
+        output = prediction.numpy()
 
         return output
         
