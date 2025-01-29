@@ -113,7 +113,7 @@ class LoadDataScene3D():
         return validity_path
     
     def getItemVal(self, index):
-        val_image = Image.open(str(self.val_images[index]))
+        val_image = Image.open(str(self.val_images[index])).convert('RGB')
         val_ground_truth = self.getGroundTruth(str(self.val_labels[index]))
         val_validity = self.getValidity(val_ground_truth, index, is_train=False) 
 
