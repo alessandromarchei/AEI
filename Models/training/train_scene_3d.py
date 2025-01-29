@@ -2,6 +2,7 @@
 # Comment above is for Jupyter execution in VSCode
 #! /usr/bin/env python3
 import torch
+import matplotlib.pyplot as plt
 import random
 import sys
 sys.path.append('..')
@@ -14,24 +15,36 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_27/model/'
-    optim_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_27/optim/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_29/model/'
 
     # Data paths
 
     # KITTI
-    kitti_labels_filepath = root + 'KITTI/height/'
+    kitti_labels_filepath = root + 'KITTI/depth/'
     kitti_images_filepath = root + 'KITTI/image/'
     kitti_validities_filepath = root + 'KITTI/validity/'
 
     # DDAD
-    ddad_labels_filepath = root + 'DDAD/height/'
+    ddad_labels_filepath = root + 'DDAD/depth/'
     ddad_images_filepath = root + 'DDAD/image/'
     ddad_validities_filepath = root + 'DDAD/validity/'
 
+    # MUSES
+    muses_labels_filepath = root + 'MUSES/depth/'
+    muses_images_filepath = root + 'MUSES/image/'
+    muses_validities_filepath = root + 'MUSES/validity/'
+
     # URBANSYN
-    urbansyn_labels_fileapath = root + 'UrbanSyn/height/'
+    urbansyn_labels_fileapath = root + 'UrbanSyn/depth/'
     urbansyn_images_fileapath = root + 'UrbanSyn/image/'
+
+    # MUAD
+    muad_labels_fileapath = root + 'MUAD/depth/'
+    muad_images_fileapath = root + 'MUAD/image/'
+
+    # GTA
+    gta_labels_fileapath = root + 'GTAV/depth/'
+    gta_images_fileapath = root + 'GTAV/image/'
 
     # KITTI - Data Loading
     kitti_Dataset = LoadDataScene3D(kitti_labels_filepath, kitti_images_filepath, 
@@ -43,18 +56,36 @@ def main():
                                            'DDAD', ddad_validities_filepath)
     ddad_num_train_samples, ddad_num_val_samples = ddad_Dataset.getItemCount()
 
+    # MUSES - Data Loading
+    muses_Dataset = LoadDataScene3D(muses_labels_filepath, muses_images_filepath, 
+                                           'MUSES', muses_validities_filepath)
+    muses_num_train_samples, muses_num_val_samples = muses_Dataset.getItemCount()
+
     # URBANSYN - Data Loading
     urbansyn_Dataset = LoadDataScene3D(urbansyn_labels_fileapath, urbansyn_images_fileapath, 'URBANSYN')
     urbansyn_num_train_samples, urbansyn_num_val_samples = urbansyn_Dataset.getItemCount()
 
+    # MUAD - Data Loading
+    muad_Dataset = LoadDataScene3D(muad_labels_fileapath, muad_images_fileapath, 'MUAD')
+    muad_num_train_samples, muad_num_val_samples = muad_Dataset.getItemCount()
+
+    # GTA - Data Loading
+    gta_Dataset = LoadDataScene3D(gta_labels_fileapath, gta_images_fileapath, 'GTAV')
+    gta_num_train_samples, gta_num_val_samples = gta_Dataset.getItemCount()
+
+
     # Total training Samples
     total_train_samples = kitti_num_train_samples + \
-        ddad_num_train_samples + urbansyn_num_train_samples
+        ddad_num_train_samples + muses_num_train_samples + \
+        urbansyn_num_train_samples + muad_num_train_samples + \
+        gta_num_train_samples
     print(total_train_samples, ': total training samples')
 
     # Total validation samples
     total_val_samples = kitti_num_val_samples + \
-        ddad_num_val_samples + urbansyn_num_val_samples
+        ddad_num_val_samples + muses_num_val_samples + \
+        urbansyn_num_val_samples + muad_num_val_samples + \
+        gta_num_val_samples
     print(total_val_samples, ': total validation samples')
 
     
@@ -69,7 +100,7 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 30
+    num_epochs = 50
     batch_size = 6
 
 
@@ -81,21 +112,31 @@ def main():
         # Iterators for datasets
         kitti_count = 0
         ddad_count = 0
+        muses_count = 0
         urbansyn_count = 0
+        muad_count = 0
+        gta_count = 0
 
         is_kitti_complete = False
         is_ddad_complete = False
+        is_muses_complete = False
         is_urbansyn_complete = False
+        is_muad_complete = False
+        is_gta_complete = False
         
         data_list = []
         data_list.append('KITTI')
         data_list.append('DDAD')
+        data_list.append('MUSES')
         data_list.append('URBANSYN')
+        data_list.append('MUAD')
+        data_list.append('GTAV')
+
         random.shuffle(data_list)
         data_list_count = 0
 
         # Batch schedule
-        if(epoch >= 10):
+        if(epoch >= 20):
             batch_size = 3
         
 
@@ -113,17 +154,38 @@ def main():
                 is_ddad_complete == False):
                 is_ddad_complete =  True
                 data_list.remove("DDAD")
+
+            if(muses_count == muses_num_train_samples and \
+                is_muses_complete == False):
+                is_muses_complete =  True
+                data_list.remove("MUSES")
             
             if(urbansyn_count == urbansyn_num_train_samples and \
                 is_urbansyn_complete == False):
-                # Overfitting on  Urbansyn Simulation dataset
                 urbansyn_count = 0
+                if(epoch < 20):
+                    data_list.remove("URBANSYN")
+
+            if(muad_count == muad_num_train_samples and \
+                is_muad_complete == False):
+                muad_count = 0
+                if(epoch < 20):
+                    data_list.remove("MUAD")
+
+            if(gta_count == gta_num_train_samples and \
+                is_gta_complete == False):
+                gta_count = 0
+                if(epoch < 20):
+                    data_list.remove("GTAV")
 
             if(data_list_count >= len(data_list)):
                 data_list_count = 0
 
             # Dataset sample 
             data_sample = ''
+            image = 0
+            gt = 0
+            validity = 0
 
             if(data_list[data_list_count] == 'KITTI' and \
                 is_kitti_complete == False):
@@ -139,6 +201,13 @@ def main():
                 data_sample = 'DDAD'
                 ddad_count += 1
             
+            if(data_list[data_list_count] == 'MUSES' and \
+               is_muses_complete == False):
+                randomlist = random.sample(range(0, muses_num_train_samples), muses_num_train_samples)
+                image, gt, validity = muses_Dataset.getItemTrain(randomlist[muses_count])
+                data_sample = 'MUSES'      
+                muses_count += 1
+
             if(data_list[data_list_count] == 'URBANSYN' and \
                is_urbansyn_complete == False):
                 randomlist = random.sample(range(0, urbansyn_num_train_samples), urbansyn_num_train_samples)
@@ -146,7 +215,23 @@ def main():
                 data_sample = 'URBANSYN'      
                 urbansyn_count += 1
 
+            if(data_list[data_list_count] == 'MUAD' and \
+               is_muad_complete == False):
+                randomlist = random.sample(range(0, muad_num_train_samples), muad_num_train_samples)
+                image, gt, validity = muad_Dataset.getItemTrain(randomlist[muad_count])
+                data_sample = 'MUAD'      
+                muad_count += 1
+
+            if(data_list[data_list_count] == 'GTAV' and \
+               is_gta_complete == False):
+                randomlist = random.sample(range(0, gta_num_train_samples), gta_num_train_samples)
+                image, gt, validity = gta_Dataset.getItemTrain(randomlist[gta_count])
+                data_sample = 'GTAV'      
+                gta_count += 1
+
             # Assign Data
+            print(data_sample)
+            print(image.shape, gt.shape, validity.shape)
             trainer.set_data(image, gt, validity)
             
             # Augmenting Image
@@ -156,7 +241,7 @@ def main():
             trainer.load_data(is_train=True)
 
             # Run model and calculate loss
-            trainer.run_model(epoch, data_sample)
+            trainer.run_model(data_sample)
 
             # Gradient accumulation
             trainer.loss_backward()
@@ -174,8 +259,8 @@ def main():
                 trainer.save_visualization(log_count)
             
             # Save model and run validation on entire validation 
-            # dataset after 5000 steps
-            if((count+1) % 9900 == 0):
+            # dataset after 10500 steps
+            if((count+1) % 10500 == 0):
                 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
@@ -183,15 +268,7 @@ def main():
                     + '_epoch_' +  str(epoch) + '_step_' + \
                     str(count) + '.pth'
                 
-                optim_save_path = optim_save_root_path + 'iter_' + \
-                    str(log_count) \
-                    + '_epoch_' +  str(epoch) + '_step_' + \
-                    str(count) + '.pth'
-                
                 trainer.save_model(model_save_path)
-                
-                # Validate
-                print('Validating')
 
                 # Setting model to evaluation mode
                 trainer.set_eval_mode()
@@ -200,8 +277,11 @@ def main():
                 running_mAE_overall = 0
                 running_mAE_kitti = 0
                 running_mAE_ddad = 0
+                running_mAE_muses = 0
                 running_mAE_urbansyn = 0
-                
+                running_mAE_muad = 0
+                running_mAE_gta = 0
+
                 # No gradient calculation
                 with torch.no_grad():
 
@@ -227,6 +307,17 @@ def main():
                         running_mAE_ddad += mAE
                         running_mAE_overall += mAE
 
+                    # MUSES
+                    for val_count in range(0, muses_num_val_samples):
+                        image_val, gt_val, validity_val = muses_Dataset.getItemVal(val_count)
+
+                        # Run Validation and calculate mAE Score
+                        mAE = trainer.validate(image_val, gt_val, validity_val)
+
+                        # Accumulating mAE score
+                        running_mAE_muses += mAE
+                        running_mAE_overall += mAE
+
                     # URBANSYN
                     for val_count in range(0, urbansyn_num_val_samples):
                         image_val, gt_val, validity_val = urbansyn_Dataset.getItemVal(val_count)
@@ -238,23 +329,43 @@ def main():
                         running_mAE_urbansyn += mAE
                         running_mAE_overall += mAE
 
+                    # MUAD
+                    for val_count in range(0, muad_num_val_samples):
+                        image_val, gt_val, validity_val = muad_Dataset.getItemVal(val_count)
+                        
+                        # Run Validation and calculate mAE Score
+                        mAE = trainer.validate(image_val, gt_val, validity_val)
+
+                        # Accumulating mAE score
+                        running_mAE_muad += mAE
+                        running_mAE_overall += mAE
+
+                    # GTAV
+                    for val_count in range(0, gta_num_val_samples):
+                        image_val, gt_val, validity_val = gta_Dataset.getItemVal(val_count)
+                        
+                        # Run Validation and calculate mAE Score
+                        mAE = trainer.validate(image_val, gt_val, validity_val)
+
+                        # Accumulating mAE score
+                        running_mAE_gta += mAE
+                        running_mAE_overall += mAE
+
                     # LOGGING
                     # Calculating average loss of complete validation set for
                     # each specific dataset as well as the overall combined dataset
                     avg_mAE_overall = running_mAE_overall/total_val_samples
                     avg_mAE_kitti = running_mAE_kitti/kitti_num_val_samples
                     avg_mAE_ddad = running_mAE_ddad/ddad_num_val_samples
+                    avg_mAE_muses = running_mAE_muses/muses_num_val_samples
                     avg_mAE_urbansyn = running_mAE_urbansyn/urbansyn_num_val_samples
-
-                    print('--- Validation Scores ---')
-                    print('Overall: ', avg_mAE_overall)
-                    print('KITTI: ', avg_mAE_kitti)
-                    print('DDAD:', avg_mAE_ddad)
-                    print('URBANSYN: ', avg_mAE_urbansyn)
+                    avg_mAE_muad = running_mAE_muad/muad_num_val_samples
+                    avg_mAE_gta = running_mAE_gta/gta_num_val_samples
                     
                     # Logging average validation loss to TensorBoard
                     trainer.log_val_mAE(avg_mAE_overall, avg_mAE_kitti, 
-                       avg_mAE_ddad, avg_mAE_urbansyn, log_count)
+                       avg_mAE_ddad, avg_mAE_muses, avg_mAE_urbansyn, avg_mAE_muad,
+                       avg_mAE_gta, log_count)
 
                 # Resetting model back to training
                 trainer.set_train_mode()
