@@ -95,7 +95,7 @@ class LoadDataScene3D():
     
 
     def getItemTrain(self, index):
-        train_image = Image.open(str(self.train_images[index]))
+        train_image = Image.open(str(self.train_images[index])).convert('RGB')
         train_ground_truth = self.getGroundTruth(str(self.train_labels[index]))
         train_validity = self.getValidity(train_ground_truth, index, is_train=True)
 
