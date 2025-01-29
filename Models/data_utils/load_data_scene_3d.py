@@ -7,12 +7,13 @@ from .check_data import CheckData
 
 class LoadDataScene3D():
     def __init__(self, labels_filepath, images_filepath, \
-        dataset: Literal['URBANSYN', 'MUAD', 'KITTI', 'DDAD', 'ARGOVERSE', 'MUSES'], validity_filepath=''):
+        dataset: Literal['URBANSYN', 'MUAD', 'GTAV', 'KITTI', 'DDAD', 'ARGOVERSE', 'MUSES'], validity_filepath=''):
 
         self.dataset = dataset
 
         if(self.dataset != 'URBANSYN' and self.dataset != 'MUAD' and self.dataset != 'KITTI'
-           and self.dataset!= 'DDAD' and self.dataset!= 'ARGOVERSE' and self.dataset!= 'MUSES'):
+           and self.dataset!= 'DDAD' and self.dataset!= 'ARGOVERSE' and self.dataset!= 'MUSES'
+           and self.dataset!= 'GTAV'):
             raise ValueError('Dataset type is not correctly specified')
         
         self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.npy")])
@@ -71,6 +72,7 @@ class LoadDataScene3D():
     
     def getGroundTruth(self, input_label):
         ground_truth = np.load(input_label)
+        ground_truth = 1/(ground_truth[np.nonzero(ground_truth)])
         ground_truth = np.expand_dims(ground_truth, axis=-1)
         return ground_truth
     
