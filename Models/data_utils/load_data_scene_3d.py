@@ -72,7 +72,7 @@ class LoadDataScene3D():
     
     def getGroundTruth(self, input_label):
         ground_truth = np.load(input_label)
-        ground_truth = 1/(ground_truth[np.nonzero(ground_truth)])
+        ground_truth = np.divide(1, ground_truth, out=np.zeros_like(ground_truth), where=ground_truth!=0)
         ground_truth = np.expand_dims(ground_truth, axis=-1)
         return ground_truth
     
