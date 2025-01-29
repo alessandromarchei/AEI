@@ -192,28 +192,17 @@ class Scene3DTrainer():
         return edge_loss
         
     # Run Model
-    def run_model(self, epoch, dataset: Literal['URBANSYN', 'KITTI', 'DDAD']):     
+    def run_model(self, epoch, dataset: Literal['URBANSYN', 'GTAV', 'MUAD', 'KITTI', 'DDAD']):     
         
         self.prediction = self.model(self.image_tensor)
         mAE_loss = self.mAE_validity_loss()
         
         total_loss = 0
 
-        if(dataset == 'URBANSYN'):
+        if(dataset == 'URBANSYN' or dataset == 'GTAV' or dataset == 'MUAD'):
             edge_loss = self.edge_validity_loss()
-            if(epoch < 20):
-                combined_loss = mAE_loss + edge_loss*2
-                total_loss = combined_loss*4
-            else:
-                total_loss = mAE_loss + edge_loss
-          
-        elif(dataset == 'DDAD'):
-            if(epoch < 20):
-                total_loss = mAE_loss*2
-            else:
-                total_loss = mAE_loss
-                
-        elif(dataset == 'KITTI'):
+            total_loss = mAE_loss + edge_loss
+        else:
             total_loss = mAE_loss
             
         self.calc_loss = total_loss
@@ -238,11 +227,6 @@ class Scene3DTrainer():
     # Set evaluation mode
     def set_eval_mode(self):
         self.model = self.model.eval()
-
-    # Normalize ground truth value for visualization
-    def shift_height(self, height):
-        height = height + np.min(height)
-        return height
     
     # Save predicted visualization
     def save_visualization(self, log_count):
@@ -251,15 +235,11 @@ class Scene3DTrainer():
         prediction_vis = self.prediction.squeeze(0).cpu().detach()
         prediction_vis = prediction_vis.permute(1, 2, 0)
         prediction_vis = prediction_vis.numpy()
-        prediction_vis = self.shift_height(prediction_vis)
-
-        # Normalizing ground truth height to same range as predicition
-        augmented_vis = self.shift_height(self.augmented)/7
-
+  
         fig, axs = plt.subplots(1,3)
         axs[0].imshow(self.image)
         axs[0].set_title('Image',fontweight ="bold") 
-        axs[1].imshow(augmented_vis)
+        axs[1].imshow(self.augmented)
         axs[1].set_title('Ground Truth',fontweight ="bold") 
         axs[2].imshow(prediction_vis)
         axs[2].set_title('Prediction',fontweight ="bold") 
@@ -284,14 +264,12 @@ class Scene3DTrainer():
         if(is_train):
             gt_tensor = torch.from_numpy(self.augmented)
             gt_tensor = gt_tensor.permute(2, 0, 1)
-            gt_tensor = torch.div(gt_tensor, 7)
             gt_tensor = gt_tensor.unsqueeze(0)
             gt_tensor = gt_tensor.type(torch.FloatTensor)
             self.gt_tensor = gt_tensor.to(self.device)
         else:
             gt_val_tensor = torch.from_numpy(self.augmented_val)
             gt_val_tensor = gt_val_tensor.permute(2, 0, 1)
-            gt_val_tensor = torch.div(gt_val_tensor, 7)
             gt_val_tensor = gt_val_tensor.unsqueeze(0)
             gt_val_tensor = gt_val_tensor.type(torch.FloatTensor)
             self.gt_val_tensor = gt_val_tensor.to(self.device)
