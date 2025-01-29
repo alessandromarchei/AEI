@@ -10,9 +10,9 @@ from argparse import ArgumentParser
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
-from SuperDepth.create_depth.common.height_map import HeightMap
-from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
-from SuperDepth.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
+from Scene3D.create_depth.common.height_map import HeightMap
+from Scene3D.create_depth.common.depth_boundaries import DepthBoundaries
+from Scene3D.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
 
 def removeExtraSamples(depth_maps, images):
  

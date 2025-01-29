@@ -12,9 +12,9 @@ os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
-from SuperDepth.create_depth.common.height_map import HeightMap
-from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
-from SuperDepth.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
+from Scene3D.create_depth.common.height_map import HeightMap
+from Scene3D.create_depth.common.depth_boundaries import DepthBoundaries
+from Scene3D.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
 
 def createDepthMap(depth_data):
 
@@ -131,7 +131,7 @@ def main():
             # Height map plot for data auditing purposes
             height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
             plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
-        
+            
         print('----- Processing complete -----') 
     
 

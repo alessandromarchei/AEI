@@ -9,8 +9,8 @@ import json
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
-from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
-from SuperDepth.create_depth.common.height_map import HeightMap
+from Scene3D.create_depth.common.lidar_depth_fill import LidarDepthFill
+from Scene3D.create_depth.common.height_map import HeightMap
 
 def parseCalib(calib_files):
     

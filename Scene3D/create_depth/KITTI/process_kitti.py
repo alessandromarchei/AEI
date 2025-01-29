@@ -8,8 +8,8 @@ from argparse import ArgumentParser
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
-from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
-from SuperDepth.create_depth.common.height_map import HeightMap
+from Scene3D.create_depth.common.lidar_depth_fill import LidarDepthFill
+from Scene3D.create_depth.common.height_map import HeightMap
 
 def removeExtraSamples(image_folders):
     
@@ -126,7 +126,7 @@ def main():
             # Crop side regions where depth data is missing
             image_left, depth_map_fill_only, height_map_fill_only, validity_mask = \
                 cropData(image_left, depth_map_fill_only, height_map_fill_only, validity_mask)
-            
+
             # Save files
             # RGB Image as PNG
             image_save_path = root_save_path + '/image/' + str(counter) + '.png'
@@ -148,7 +148,7 @@ def main():
             # Height map plot for data auditing purposes
             height_plot_save_path = root_save_path + '/height_plot/' + str(counter) + '.png'
             plt.imsave(height_plot_save_path, height_map_fill_only, cmap='inferno_r')
-            
+
             counter += 1
 
         print('----- Processing complete -----') 
