@@ -113,6 +113,10 @@ class Scene3DTrainer():
         self.gy_filter = self.gy_filter.type(torch.cuda.FloatTensor)
         self.gy_filter.to(self.device)
 
+    # Learning Rate adjustment
+    def set_learning_rate(self, learning_rate):
+        self.learning_rate = learning_rate
+        
     # Logging Training Loss
     def log_loss(self, log_count):
         self.writer.add_scalar("Loss/train", self.get_loss(), (log_count))

@@ -137,6 +137,10 @@ def main():
         # Batch schedule
         if(epoch >= 20):
             batch_size = 3
+
+        # Learning rate schedule
+        if(epoch >= 35):
+            trainer.set_learning_rate(0.00001)
         
 
         # Loop through data
@@ -229,8 +233,6 @@ def main():
                 gta_count += 1
 
             # Assign Data
-            print(data_sample)
-            print(image.shape, gt.shape, validity.shape)
             trainer.set_data(image, gt, validity)
             
             # Augmenting Image
