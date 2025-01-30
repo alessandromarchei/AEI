@@ -78,7 +78,7 @@ class Scene3DTrainer():
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.00005
+        self.learning_rate = 0.00001
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -123,17 +123,13 @@ class Scene3DTrainer():
 
     # Logging Validation mAE overall
     def log_val_mAE(self, mAE_overall, mAE_kitti, 
-                       mAE_ddad, mAE_muses, mAE_urbansyn, mAE_muad,
-                       mAE_gta, log_count):
-        
-        print('Logging Validation')      
+                       mAE_ddad, mAE_muses, mAE_urbansyn, mAE_gta, log_count):
         
         self.writer.add_scalars("Val/mAE_dataset",{
             'mAE_kitti': mAE_kitti,
             'mAE_ddad': mAE_ddad,
             'mAE_muses': mAE_muses,
             'mAE_urbansyn': mAE_urbansyn,
-            'mAE_muad': mAE_muad,
             'mAE_gta': mAE_gta
         }, (log_count))
 
@@ -209,7 +205,7 @@ class Scene3DTrainer():
 
         if(dataset == 'URBANSYN' or dataset == 'GTAV' or dataset == 'MUAD'):
             edge_loss = self.edge_validity_loss()
-            total_loss = mAE_loss + edge_loss
+            total_loss = mAE_loss + edge_loss*2
         else:
             total_loss = mAE_loss
             
@@ -300,7 +296,6 @@ class Scene3DTrainer():
 
     # Save Model
     def save_model(self, model_save_path):
-        print('Saving model')
         torch.save(self.model.state_dict(), model_save_path)
 
     # Run Validation and calculate metrics

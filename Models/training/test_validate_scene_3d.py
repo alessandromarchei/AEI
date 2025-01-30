@@ -63,7 +63,7 @@ def main():
     # Pre-trained model checkpoint path
     root_path = \
         '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_27/model/'
-    checkpoint_path = root_path + 'iter_990791_epoch_24_step_19799.pth'
+    checkpoint_path = root_path + 'iter_1091507_epoch_26_step_39599.pth'
 
     
     # Trainer Class
