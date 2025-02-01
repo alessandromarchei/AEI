@@ -46,5 +46,5 @@ class Scene3DHead(nn.Module):
         output_upper = self.decode_layer_10(d10)
         output_lower = self.decode_layer_11(d10)
         output_bg = self.decode_layer_12(d10)
-        prediction = output_upper - output_lower - output_bg
+        prediction = output_upper + output_lower + output_bg
         return prediction
