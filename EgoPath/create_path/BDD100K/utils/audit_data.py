@@ -84,7 +84,7 @@ def extractRedMask(mask_dir, file_name):
 def main():
     parser = argparse.ArgumentParser(description="Process drivable path data.")
     parser.add_argument('--lane_json', type=str, required=True, help="Path to the lane JSON file.")
-    parser.add_argument('--mask_dir', type=str, required=True, help="Directory containing drivable path masks.")
+    parser.add_argument('--mask_dir', type=str, required=True, help="Directory containing drivable area masks (colormaps).")
     parser.add_argument('--output_dir', type=str, required=True, help="Directory to save filtered data and masks.")
     parser.add_argument('--max_files', type=int, required=False, help="Maximum number of files to process.")
     args = parser.parse_args()
