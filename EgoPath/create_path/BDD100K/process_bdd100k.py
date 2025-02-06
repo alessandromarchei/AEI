@@ -421,7 +421,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--mask_dir", 
         type = str, 
-        help = "BDD100k lane mark directory (right after extraction)"
+        help = "BDD100k drivable area directory (after auditing)"
     )
 
     parser.add_argument(

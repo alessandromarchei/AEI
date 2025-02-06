@@ -65,7 +65,7 @@ def reorder_files_and_json(base_dir, subdirs, json_mapping_path, json_metadata_p
         print(f"JSON metadata file not found: {json_metadata_path}")
 
 if __name__ == '__main__':
-    base_directory = "/mnt/c/Users/Sarun Mukdapitak/NoBackUpFile/privately_owned_vehicles/output"
+    base_directory = "path/to/processed/data"
     subdirectories = ["segmentation", "image","visualization"] 
     json_mapping_path = os.path.join(base_directory,'name.json')  # JSON containing file-name mapping
     json_metadata_path = os.path.join(base_directory,'drivable_path.json')  # JSON containing metadata

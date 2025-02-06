@@ -33,5 +33,5 @@ def divide_files_into_subdirs(directory: str, subdir_count: int = 10):
     print(f"Files successfully divided into {subdir_count} subdirectories.")
 
 # Usage
-directory = "/mnt/c/Users/Sarun Mukdapitak/NoBackUpFile/privately_owned_vehicles/bdd100k_drivable_labels_trainval/audit_divide"
+directory = "path/to/audited/data"
 divide_files_into_subdirs(directory)
