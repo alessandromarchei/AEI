@@ -59,6 +59,7 @@ class LoadDataScene3D():
 
                 if(self.is_validity):
                     self.all_validities.append(str(self.validities[count]))
+                self.num_all_samples += 1
 
                 if((count+1) % 10 == 0):
                     self.val_images.append(str(self.images[count]))
