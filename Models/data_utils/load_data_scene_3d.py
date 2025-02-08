@@ -123,7 +123,7 @@ class LoadDataScene3D():
     def getItemAll(self, index):
         image = Image.open(str(self.all_images[index])).convert('RGB')
         ground_truth = self.getGroundTruth(str(self.all_labels[index]))
-        validity = self.getValidity(ground_truth, index)
+        validity = self.getValidityAll(ground_truth, index)
 
         return  np.array(image), ground_truth, validity
 
