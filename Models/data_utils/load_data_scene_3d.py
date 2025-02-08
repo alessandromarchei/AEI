@@ -43,13 +43,23 @@ class LoadDataScene3D():
         self.val_images = []
         self.val_labels = []
         self.val_validities = []
+        self.all_images = []
+        self.all_labels = []
+        self.all_validities = []
 
         self.num_train_samples = 0
         self.num_val_samples = 0
+        self.num_all_samples = 0
 
         if (checkData.getCheck()):
             for count in range (0, self.num_images):
-        
+                
+                self.all_images.append(str(self.images[count]))
+                self.all_labels.append(str(self.labels[count]))
+
+                if(self.is_validity):
+                    self.all_validities.append(str(self.validities[count]))
+
                 if((count+1) % 10 == 0):
                     self.val_images.append(str(self.images[count]))
                     self.val_labels.append(str(self.labels[count]))
@@ -69,6 +79,9 @@ class LoadDataScene3D():
 
     def getItemCount(self):
         return self.num_train_samples, self.num_val_samples
+    
+    def getTotalCount(self):
+        return self.num_all_samples
     
     def getGroundTruth(self, input_label):
         ground_truth = np.load(input_label)
@@ -93,6 +106,25 @@ class LoadDataScene3D():
 
         return validity
     
+    def getValidityAll(self, gt, index):
+        
+        validity = 0
+
+        if(self.is_validity):
+            validity = Image.open(str(self.all_validities[index]))
+            validity = np.array(validity)
+            validity = np.expand_dims(validity, axis=-1)
+        else:
+            validity = np.full_like(gt, 255).astype('uint8') 
+
+        return validity
+    
+    def getItemAll(self, index):
+        image = Image.open(str(self.all_images[index])).convert('RGB')
+        ground_truth = self.getGroundTruth(str(self.all_labels[index]))
+        validity = self.getValidity(ground_truth, index)
+
+        return  np.array(image), ground_truth, validity
 
     def getItemTrain(self, index):
         train_image = Image.open(str(self.train_images[index])).convert('RGB')
