@@ -15,7 +15,7 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_07/model/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_08/model/'
 
     # Data paths
 
@@ -53,7 +53,7 @@ def main():
 
     # URBANSYN - Data Loading
     urbansyn_Dataset = LoadDataScene3D(urbansyn_labels_fileapath, urbansyn_images_fileapath, 'URBANSYN')
-    urbansyn_num_train_samples, urbansyn_num_val_samples = urbansyn_Dataset.getItemCount()
+    urbansyn_samples = urbansyn_Dataset.getTotalCount()
 
     # URBANSYN - Data Loading
     muad_Dataset = LoadDataScene3D(muad_labels_fileapath, muad_images_fileapath, 'MUAD')
@@ -65,36 +65,33 @@ def main():
 
     # Total training Samples
     total_train_samples = kitti_num_train_samples + \
-        ddad_num_train_samples + urbansyn_num_train_samples
+        ddad_num_train_samples + urbansyn_samples + muad_samples + gta_samples
          
         
     print(total_train_samples, ': total training samples')
 
     # Total validation samples
-    total_val_samples = kitti_num_val_samples + \
-        ddad_num_val_samples + urbansyn_num_val_samples
+    total_val_samples = kitti_num_val_samples + ddad_num_val_samples
     print(total_val_samples, ': total validation samples')
 
     
     # Pre-trained model checkpoint path
-    #root_path = \
-    #    '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
-    #pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
     root_path = \
-        '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_04/model/'
-    checkpoint_path = root_path + 'iter_1419999_epoch_35_step_3970.pth'
+        '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
+    pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
+    
     
     # Trainer Class
-    trainer = Scene3DTrainer(checkpoint_path=checkpoint_path, is_pretrained=True)
+    trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
     trainer.zero_grad()
     
     # Total training epochs
     num_epochs = 70
-    batch_size = 9
+    batch_size = 6
 
 
     # Epochs
-    for epoch in range(34, num_epochs):
+    for epoch in range(0, num_epochs):
 
         print('Epoch: ', epoch + 1)
 
@@ -115,27 +112,26 @@ def main():
         data_list.append('KITTI')
         data_list.append('DDAD')
         data_list.append('URBANSYN')
-        if(epoch > 45):
-            data_list.append('MUAD')
-            data_list.append('GTAV')
+        data_list.append('MUAD')
+        data_list.append('GTAV')
         
         random.shuffle(data_list)
 
         data_list_count = 0
 
         # Batch and Learning Rate schedule
-        
-        if(epoch >= 40 and epoch < 55):
-            batch_size = 6
-
-        if (epoch >= 55):
-            trainer.set_learning_rate(0.000001)
+        if(epoch > 20 and epoch < 40):
+            trainer.set_learning_rate(0.00005)
+        if(epoch >= 40 and epoch < 50):
+            trainer.set_learning_rate(0.000025)
+        if(epoch >= 50):
+            trainer.set_learning_rate(0.0000125)
+        if(epoch >= 40):
             batch_size = 3
-
         
         randomlist_kitti = random.sample(range(0, kitti_num_train_samples), kitti_num_train_samples)
         randomlist_ddad = random.sample(range(0, ddad_num_train_samples), ddad_num_train_samples)
-        randomlist_urbansyn = random.sample(range(0, urbansyn_num_train_samples), urbansyn_num_train_samples)
+        randomlist_urbansyn = random.sample(range(0, urbansyn_samples), urbansyn_samples)
         randomlist_muad = random.sample(range(0, muad_samples), muad_samples)
         randomlist_gta = random.sample(range(0, gta_samples), gta_samples)
 
@@ -155,23 +151,17 @@ def main():
                 is_ddad_complete = True
                 data_list.remove('DDAD')
             
-            if(urbansyn_count == urbansyn_num_train_samples and \
-                is_urbansyn_complete == False):
-                if(epoch >= 35):
-                    urbansyn_count = 0
-                    randomlist_urbansyn = random.sample(range(0, urbansyn_num_train_samples), urbansyn_num_train_samples)
-                else:
-                    is_urbansyn_complete = True
-                    data_list.remove('URBANSYN')
-
-            if(epoch > 45):
-                if(muad_count == muad_samples):
-                   muad_count = 0
-                   randomlist_muad = random.sample(range(0, muad_samples), muad_samples)
-                
-                if(gta_count == gta_samples):
-                   gta_count = 0
-                   randomlist_gta = random.sample(range(0, gta_samples), gta_samples)
+            if(urbansyn_count == urbansyn_samples):
+                urbansyn_count = 0
+                randomlist_urbansyn = random.sample(range(0, urbansyn_samples), urbansyn_samples)
+  
+            if(muad_count == muad_samples):
+                muad_count = 0
+                randomlist_muad = random.sample(range(0, muad_samples), muad_samples)
+            
+            if(gta_count == gta_samples):
+                gta_count = 0
+                randomlist_gta = random.sample(range(0, gta_samples), gta_samples)
 
             if(data_list_count >= len(data_list)):
                 data_list_count = 0
@@ -196,23 +186,21 @@ def main():
 
             if(data_list[data_list_count] == 'URBANSYN' and \
                is_urbansyn_complete == False):
-                image, gt, validity = urbansyn_Dataset.getItemTrain(randomlist_urbansyn[urbansyn_count])
+                image, gt, validity = urbansyn_Dataset.getItemAll(randomlist_urbansyn[urbansyn_count])
                 data_sample = 'URBANSYN'      
                 urbansyn_count += 1
 
-            if(epoch > 45):
+            if(data_list[data_list_count] == 'MUAD' and \
+                is_muad_complete == False):
+                image, gt, validity = muad_Dataset.getItemAll(randomlist_muad[muad_count])
+                data_sample = 'MUAD'
+                muad_count += 1
 
-                if(data_list[data_list_count] == 'MUAD' and \
-                    is_muad_complete == False):
-                    image, gt, validity = muad_Dataset.getItemAll(randomlist_muad[muad_count])
-                    data_sample = 'MUAD'
-                    muad_count += 1
-
-                if(data_list[data_list_count] == 'GTA' and \
-                    is_gta_complete == False):
-                    image, gt, validity = gta_Dataset.getItemAll(randomlist_gta[gta_count])
-                    data_sample = 'GTA'      
-                    gta_count += 1
+            if(data_list[data_list_count] == 'GTAV' and \
+                is_gta_complete == False):
+                image, gt, validity = gta_Dataset.getItemAll(randomlist_gta[gta_count])
+                data_sample = 'GTAV'      
+                gta_count += 1
 
             # Assign Data
             trainer.set_data(image, gt, validity)
@@ -224,7 +212,7 @@ def main():
             trainer.load_data(is_train=True)
 
             # Run model and calculate loss
-            trainer.run_model(epoch, data_sample)
+            trainer.run_model(data_sample)
 
             # Gradient accumulation
             trainer.loss_backward()
@@ -260,7 +248,6 @@ def main():
                 running_mAE_overall = 0
                 running_mAE_kitti = 0
                 running_mAE_ddad = 0
-                running_mAE_urbansyn = 0
 
                 # No gradient calculation
                 with torch.no_grad():
@@ -287,17 +274,6 @@ def main():
                         running_mAE_ddad += mAE
                         running_mAE_overall += mAE
 
-                    # URBANSYN
-                    for val_count in range(0, urbansyn_num_val_samples):
-                        image_val, gt_val, validity_val = urbansyn_Dataset.getItemVal(val_count)
-                        
-                        # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val, validity_val)
-
-                        # Accumulating mAE score
-                        running_mAE_urbansyn += mAE
-                        running_mAE_overall += mAE
-
 
                     # LOGGING
                     # Calculating average loss of complete validation set for
@@ -305,12 +281,11 @@ def main():
                     avg_mAE_overall = running_mAE_overall/total_val_samples
                     avg_mAE_kitti = running_mAE_kitti/kitti_num_val_samples
                     avg_mAE_ddad = running_mAE_ddad/ddad_num_val_samples
-                    avg_mAE_urbansyn = running_mAE_urbansyn/urbansyn_num_val_samples
 
                     
                     # Logging average validation loss to TensorBoard
                     trainer.log_val_mAE(avg_mAE_overall, avg_mAE_kitti, 
-                       avg_mAE_ddad, avg_mAE_urbansyn, log_count)
+                       avg_mAE_ddad, log_count)
 
                 # Resetting model back to training
                 trainer.set_train_mode()
