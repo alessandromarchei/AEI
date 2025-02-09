@@ -15,7 +15,7 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_08/model/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_09/model/'
 
     # Data paths
 
@@ -66,8 +66,6 @@ def main():
     # Total training Samples
     total_train_samples = kitti_num_train_samples + \
         ddad_num_train_samples + urbansyn_samples + muad_samples + gta_samples
-         
-        
     print(total_train_samples, ': total training samples')
 
     # Total validation samples
