@@ -33,6 +33,7 @@ class Scene3DTrainer():
         self.prediction = 0
         self.calc_loss = 0
         self.edge_loss = 0
+        self.mAE_loss = 0
         self.model = 0
 
         # Checking devices (GPU vs CPU)
@@ -120,8 +121,12 @@ class Scene3DTrainer():
         
     # Logging Training Loss
     def log_loss(self, log_count):
-        self.writer.add_scalar("mAE_Loss/train", self.get_loss(), (log_count))
-        self.writer.add_scalar("edge_Loss/train", self.get_edge_loss(), (log_count))
+
+        self.writer.add_scalars("Val/mAE_dataset",{
+            'total_loss': self.get_loss(),
+            'mAE_loss': self.get_mAE_loss(),
+            'edge_loss': self.get_edge_loss()
+        }, (log_count))
 
     # Logging Validation mAE overall
     def log_val_mAE(self, mAE_overall, mAE_kitti, 
@@ -199,7 +204,7 @@ class Scene3DTrainer():
         
         self.prediction = self.model(self.image_tensor)
         mAE_loss = self.mAE_validity_loss()
-        
+        self.mAE_loss = mAE_loss
         total_loss = 0
 
         if(dataset == 'URBANSYN' or dataset == 'GTAV' or dataset == 'MUAD'):
@@ -218,6 +223,10 @@ class Scene3DTrainer():
     # Get mAE loss value
     def get_loss(self):
         return self.calc_loss.item()
+    
+    # Get edge loss
+    def get_mAE_loss(self):
+        return self.mAE_loss.item()
     
     # Get edge loss
     def get_edge_loss(self):
