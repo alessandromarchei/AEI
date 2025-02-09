@@ -32,6 +32,7 @@ class Scene3DTrainer():
         self.loss = 0
         self.prediction = 0
         self.calc_loss = 0
+        self.edge_loss = 0
         self.model = 0
 
         # Checking devices (GPU vs CPU)
@@ -119,16 +120,16 @@ class Scene3DTrainer():
         
     # Logging Training Loss
     def log_loss(self, log_count):
-        self.writer.add_scalar("Loss/train", self.get_loss(), (log_count))
+        self.writer.add_scalar("mAE_Loss/train", self.get_loss(), (log_count))
+        self.writer.add_scalar("edge_Loss/train", self.get_edge_loss(), (log_count))
 
     # Logging Validation mAE overall
     def log_val_mAE(self, mAE_overall, mAE_kitti, 
-                       mAE_ddad, mAE_urbansyn, log_count):
+                       mAE_ddad, log_count):
         
         self.writer.add_scalars("Val/mAE_dataset",{
             'mAE_kitti': mAE_kitti,
             'mAE_ddad': mAE_ddad,
-            'mAE_urbansyn': mAE_urbansyn
         }, (log_count))
 
         self.writer.add_scalar("Val/mAE", mAE_overall, (log_count))        
@@ -194,7 +195,7 @@ class Scene3DTrainer():
         return edge_loss
         
     # Run Model
-    def run_model(self, epoch, dataset: Literal['URBANSYN', 'GTAV', 'MUAD', 'KITTI', 'DDAD', 'MUSES']):     
+    def run_model(self, dataset: Literal['URBANSYN', 'GTAV', 'MUAD', 'KITTI', 'DDAD', 'MUSES']):     
         
         self.prediction = self.model(self.image_tensor)
         mAE_loss = self.mAE_validity_loss()
@@ -203,20 +204,8 @@ class Scene3DTrainer():
 
         if(dataset == 'URBANSYN' or dataset == 'GTAV' or dataset == 'MUAD'):
             edge_loss = self.edge_validity_loss()
-            if(epoch < 35):
-                total_loss = 0.5*(mAE_loss + edge_loss)
-            else:
-                total_loss = 0.5*mAE_loss + 2*edge_loss
-        elif(dataset == 'DDAD'):
-            if(epoch < 35):
-                total_loss = mAE_loss
-            else:
-                total_loss = 2*mAE_loss
-        elif(dataset == 'KITTI'):
-            if(epoch < 35):
-                total_loss = mAE_loss
-            else:
-                total_loss = 1.5*mAE_loss
+            self.edge_loss = edge_loss
+            total_loss = 0.5*(mAE_loss + edge_loss)
         else:
             total_loss = mAE_loss
         
@@ -226,9 +215,13 @@ class Scene3DTrainer():
     def loss_backward(self): 
         self.calc_loss.backward()
 
-    # Get loss value
+    # Get mAE loss value
     def get_loss(self):
         return self.calc_loss.item()
+    
+    # Get edge loss
+    def get_edge_loss(self):
+        return self.edge_loss.item()
 
     # Run Optimizer
     def run_optimizer(self):
