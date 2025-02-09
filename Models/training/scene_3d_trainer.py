@@ -122,7 +122,7 @@ class Scene3DTrainer():
     # Logging Training Loss
     def log_loss(self, log_count):
 
-        self.writer.add_scalars("Val/mAE_dataset",{
+        self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
             'mAE_loss': self.get_mAE_loss(),
             'edge_loss': self.get_edge_loss()
