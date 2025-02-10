@@ -46,6 +46,8 @@ class LoadDataScene3D():
         self.all_images = []
         self.all_labels = []
         self.all_validities = []
+        self.ddad_train_cams = []
+        self.ddad_val_cams = []
 
         self.num_train_samples = 0
         self.num_val_samples = 0
@@ -53,7 +55,7 @@ class LoadDataScene3D():
 
         if (checkData.getCheck()):
             for count in range (0, self.num_images):
-                
+
                 self.all_images.append(str(self.images[count]))
                 self.all_labels.append(str(self.labels[count]))
 
@@ -67,6 +69,12 @@ class LoadDataScene3D():
 
                     if(self.is_validity):
                         self.val_validities.append(str(self.validities[count]))
+                                    
+                    if(dataset == 'DDAD'):
+                        if((count >=0 and count <= 6324) or (count >= 12650 and count <= 14624)):
+                            self.ddad_train_cams.append('back_camera')
+                        else:
+                            self.ddad_train_cams.append('front_camera')
 
                     self.num_val_samples += 1 
                 else:
@@ -75,6 +83,12 @@ class LoadDataScene3D():
 
                     if(self.is_validity):
                         self.train_validities.append(str(self.validities[count]))
+
+                    if(dataset == 'DDAD'):
+                        if((count >=0 and count <= 6324) or (count >= 12650 and count <= 14624)):
+                            self.ddad_val_cams.append('back_camera')
+                        else:
+                            self.ddad_val_cams.append('front_camera')
 
                     self.num_train_samples += 1
 
@@ -89,6 +103,9 @@ class LoadDataScene3D():
         ground_truth = np.divide(1, ground_truth, out=np.zeros_like(ground_truth), where=ground_truth!=0)
         ground_truth = np.expand_dims(ground_truth, axis=-1)
         return ground_truth
+    
+    def getDDADCameras(self):
+        return self.ddad_train_cams, self.ddad_val_cams
     
     def getValidity(self, gt, index, is_train):
 
