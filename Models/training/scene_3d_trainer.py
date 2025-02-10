@@ -35,6 +35,8 @@ class Scene3DTrainer():
         self.edge_loss = 0
         self.mAE_loss = 0
         self.model = 0
+        self.scale_factor = 0
+        self.scale_factor_tensor = 0
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -80,7 +82,7 @@ class Scene3DTrainer():
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.000025
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -140,15 +142,17 @@ class Scene3DTrainer():
         self.writer.add_scalar("Val/mAE", mAE_overall, (log_count))        
 
     # Assign input variables
-    def set_data(self, image, gt, validity):
+    def set_data(self, image, gt, validity, scale_factor):
         self.image = image
         self.gt = gt
         self.validity = validity
+        self.scale_factor = scale_factor
 
-    def set_val_data(self, image_val, gt_val, validity_val):
+    def set_val_data(self, image_val, gt_val, validity_val, scale_factor):
         self.image_val = image_val
         self.gt_val = gt_val
         self.validity_val = validity_val
+        self.scale_factor = scale_factor
     
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -173,6 +177,7 @@ class Scene3DTrainer():
         self.load_image_tensor(is_train)
         self.load_gt_tensor(is_train)
         self.load_validity_tensor(is_train)
+        self.load_scale_tensor()
 
 
     def mAE_validity_loss(self):
@@ -202,7 +207,7 @@ class Scene3DTrainer():
     # Run Model
     def run_model(self, dataset: Literal['URBANSYN', 'GTAV', 'MUAD', 'KITTI', 'DDAD', 'MUSES']):     
         
-        self.prediction = self.model(self.image_tensor)
+        self.prediction = self.model(self.image_tensor)*self.scale_factor_tensor
         mAE_loss = self.mAE_validity_loss()
         self.mAE_loss = mAE_loss
         total_loss = 0
@@ -290,6 +295,11 @@ class Scene3DTrainer():
             gt_val_tensor = gt_val_tensor.unsqueeze(0)
             gt_val_tensor = gt_val_tensor.type(torch.FloatTensor)
             self.gt_val_tensor = gt_val_tensor.to(self.device)
+
+    def load_scale_tensor(self):
+        scale_factor_tensor = torch.from_numpy(self.scale_factor)
+        scale_factor_tensor = scale_factor_tensor.type(torch.FloatTensor)
+        self.scale_factor_tensor = scale_factor_tensor.to(self.device)
 
     # Load Image as Tensor
     def load_validity_tensor(self, is_train):
