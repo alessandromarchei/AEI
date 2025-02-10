@@ -23,23 +23,29 @@ def main():
     kitti_labels_filepath = root + 'KITTI/depth/'
     kitti_images_filepath = root + 'KITTI/image/'
     kitti_validities_filepath = root + 'KITTI/validity/'
+    s_kitti = 1.556
 
     # DDAD
     ddad_labels_filepath = root + 'DDAD/depth/'
     ddad_images_filepath = root + 'DDAD/image/'
     ddad_validities_filepath = root + 'DDAD/validity/'
+    s_ddad_f = 0.805
+    s_ddad_b = 1.452
 
     # URBANSYN
     urbansyn_labels_fileapath = root + 'UrbanSyn/depth/'
     urbansyn_images_fileapath = root + 'UrbanSyn/image/'
+    s_urbansyn = 1.068
 
     # MUAD
-    muad_labels_fileapath = root + 'MUAD/depth/'
-    muad_images_fileapath = root + 'MUAD/image/'
+    muad_labels_fileapath = root + 'MUAD/Audited/depth/'
+    muad_images_fileapath = root + 'MUAD/Audited/image/'
+    s_muad = 1.068
 
     # GTAV
     gta_labels_fileapath = root + 'GTAV/depth/'
     gta_images_fileapath = root + 'GTAV/image/'
+    s_gta = 1.5708
 
     # KITTI - Data Loading
     kitti_Dataset = LoadDataScene3D(kitti_labels_filepath, kitti_images_filepath, 
@@ -50,7 +56,8 @@ def main():
     ddad_Dataset = LoadDataScene3D(ddad_labels_filepath, ddad_images_filepath, 
                                            'DDAD', ddad_validities_filepath)
     ddad_num_train_samples, ddad_num_val_samples = ddad_Dataset.getItemCount()
-
+    ddad_train_cams, ddad_val_cams = ddad_Dataset.getDDADCameras()
+   
     # URBANSYN - Data Loading
     urbansyn_Dataset = LoadDataScene3D(urbansyn_labels_fileapath, urbansyn_images_fileapath, 'URBANSYN')
     urbansyn_samples = urbansyn_Dataset.getTotalCount()
@@ -64,9 +71,9 @@ def main():
     gta_samples = gta_Dataset.getTotalCount()
 
     # Total training Samples
-    total_train_samples = kitti_num_train_samples + \
-        ddad_num_train_samples + urbansyn_samples + muad_samples + gta_samples
-    print(total_train_samples, ': total training samples')
+    total_train_samples = kitti_num_train_samples + ddad_num_train_samples + \
+        urbansyn_samples + muad_samples + gta_samples
+    print(total_train_samples, ': Total training samples')
 
     # Total validation samples
     total_val_samples = kitti_num_val_samples + ddad_num_val_samples
@@ -85,7 +92,7 @@ def main():
     
     # Total training epochs
     num_epochs = 70
-    batch_size = 6
+    batch_size = 5
 
 
     # Epochs
@@ -106,26 +113,24 @@ def main():
         is_muad_complete = False
         is_gta_complete = False
 
-        data_list = []
-        data_list.append('KITTI')
-        data_list.append('DDAD')
+        data_list = [] 
+        
         data_list.append('URBANSYN')
         data_list.append('MUAD')
         data_list.append('GTAV')
+        data_list.append('KITTI')
+        data_list.append('DDAD')
         
         random.shuffle(data_list)
 
         data_list_count = 0
 
-        # Batch and Learning Rate schedule
-        if(epoch > 20 and epoch < 40):
-            trainer.set_learning_rate(0.00005)
-        if(epoch >= 40 and epoch < 50):
-            trainer.set_learning_rate(0.000025)
-        if(epoch >= 50):
+        # Learning Rate schedule            
+        if(epoch >= 30 and epoch < 50):
             trainer.set_learning_rate(0.0000125)
-        if(epoch >= 40):
-            batch_size = 3
+            
+        if(epoch >= 50):
+            trainer.set_learning_rate(0.000006)
         
         randomlist_kitti = random.sample(range(0, kitti_num_train_samples), kitti_num_train_samples)
         randomlist_ddad = random.sample(range(0, ddad_num_train_samples), ddad_num_train_samples)
@@ -141,13 +146,13 @@ def main():
 
             if(kitti_count == kitti_num_train_samples and \
                 is_kitti_complete == False):
-                is_kitti_complete = True
-                data_list.remove('KITTI')
+                kitti_count = 0
+                randomlist_kitti = random.sample(range(0, kitti_num_train_samples), kitti_num_train_samples)
             
             if(ddad_count == ddad_num_train_samples and \
                 is_ddad_complete == False):
-                is_ddad_complete = True
-                data_list.remove('DDAD')
+                ddad_count = 0
+                randomlist_ddad = random.sample(range(0, ddad_num_train_samples), ddad_num_train_samples)
             
             if(urbansyn_count == urbansyn_samples):
                 urbansyn_count = 0
@@ -169,28 +174,38 @@ def main():
             image = 0
             gt = 0
             validity = 0
+            scale_factor = 0
 
             if(data_list[data_list_count] == 'KITTI' and \
                 is_kitti_complete == False):
                 image, gt, validity = kitti_Dataset.getItemTrain(randomlist_kitti[kitti_count])
                 data_sample = 'KITTI'
+                scale_factor = s_kitti
                 kitti_count += 1
 
             if(data_list[data_list_count] == 'DDAD' and \
                 is_ddad_complete == False):
                 image, gt, validity = ddad_Dataset.getItemTrain(randomlist_ddad[ddad_count])
                 data_sample = 'DDAD'
+                
+                if(ddad_train_cams[ddad_count] == 'back_camera'):
+                    scale_factor = s_ddad_b
+                elif(ddad_train_cams[ddad_count] == 'front_camera'):
+                    scale_factor = s_ddad_f
+
                 ddad_count += 1
 
             if(data_list[data_list_count] == 'URBANSYN' and \
                is_urbansyn_complete == False):
                 image, gt, validity = urbansyn_Dataset.getItemAll(randomlist_urbansyn[urbansyn_count])
-                data_sample = 'URBANSYN'      
+                data_sample = 'URBANSYN'
+                scale_factor = s_urbansyn      
                 urbansyn_count += 1
 
             if(data_list[data_list_count] == 'MUAD' and \
                 is_muad_complete == False):
                 image, gt, validity = muad_Dataset.getItemAll(randomlist_muad[muad_count])
+                scale_factor = s_muad
                 data_sample = 'MUAD'
                 muad_count += 1
 
@@ -198,10 +213,13 @@ def main():
                 is_gta_complete == False):
                 image, gt, validity = gta_Dataset.getItemAll(randomlist_gta[gta_count])
                 data_sample = 'GTAV'      
+                scale_factor = s_gta
                 gta_count += 1
+            
+            print(data_sample, scale_factor)
 
             # Assign Data
-            trainer.set_data(image, gt, validity)
+            trainer.set_data(image, gt, validity, scale_factor)
             
             # Augmenting Image
             trainer.apply_augmentations(is_train=True)
@@ -246,6 +264,7 @@ def main():
                 running_mAE_overall = 0
                 running_mAE_kitti = 0
                 running_mAE_ddad = 0
+                scale_factor_val = 0
 
                 # No gradient calculation
                 with torch.no_grad():
@@ -255,7 +274,8 @@ def main():
                         image_val, gt_val, validity_val = kitti_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val, validity_val)
+                        scale_factor_val = s_kitti
+                        mAE = trainer.validate(image_val, gt_val, validity_val, scale_factor_val)
 
                         # Accumulating mAE score
                         running_mAE_kitti += mAE
@@ -265,8 +285,13 @@ def main():
                     for val_count in range(0, ddad_num_val_samples):
                         image_val, gt_val, validity_val = ddad_Dataset.getItemVal(val_count)
 
+                        if(ddad_val_cams[val_count] == 'back_camera'):
+                            scale_factor_val = s_ddad_b
+                        elif(ddad_val_cams[val_count] == 'front_camera'):
+                            scale_factor_val = s_ddad_f
+
                         # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val, validity_val)
+                        mAE = trainer.validate(image_val, gt_val, validity_val, scale_factor_val)
 
                         # Accumulating mAE score
                         running_mAE_ddad += mAE
