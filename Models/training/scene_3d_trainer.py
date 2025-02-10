@@ -322,10 +322,10 @@ class Scene3DTrainer():
         torch.save(self.model.state_dict(), model_save_path)
 
     # Run Validation and calculate metrics
-    def validate(self, image_val, gt_val, validity_val):
+    def validate(self, image_val, gt_val, validity_val, scale_factor):
 
         # Set Data
-        self.set_val_data(image_val, gt_val, validity_val)
+        self.set_val_data(image_val, gt_val, validity_val, scale_factor)
 
         # Augmenting Image
         self.apply_augmentations(is_train=False)
@@ -334,7 +334,7 @@ class Scene3DTrainer():
         self.load_data(is_train=False)
 
         # Running model
-        output_val = self.model(self.image_val_tensor)
+        output_val = self.model(self.image_val_tensor)*self.scale_factor_tensor
 
         # Calculate loss
         abs_diff = torch.abs(output_val - self.gt_val_tensor)*(self.validity_val_tensor)
