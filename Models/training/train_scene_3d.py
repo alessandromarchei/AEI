@@ -215,8 +215,6 @@ def main():
                 data_sample = 'GTAV'      
                 scale_factor = s_gta
                 gta_count += 1
-            
-            print(data_sample, scale_factor)
 
             # Assign Data
             trainer.set_data(image, gt, validity, scale_factor)
