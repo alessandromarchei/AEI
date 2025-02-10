@@ -72,9 +72,9 @@ class LoadDataScene3D():
                                     
                     if(dataset == 'DDAD'):
                         if((count >=0 and count <= 6324) or (count >= 12650 and count <= 14624)):
-                            self.ddad_train_cams.append('back_camera')
+                            self.ddad_val_cams.append('back_camera')
                         else:
-                            self.ddad_train_cams.append('front_camera')
+                            self.ddad_val_cams.append('front_camera')
 
                     self.num_val_samples += 1 
                 else:
@@ -86,9 +86,9 @@ class LoadDataScene3D():
 
                     if(dataset == 'DDAD'):
                         if((count >=0 and count <= 6324) or (count >= 12650 and count <= 14624)):
-                            self.ddad_val_cams.append('back_camera')
+                            self.ddad_train_cams.append('back_camera')
                         else:
-                            self.ddad_val_cams.append('front_camera')
+                            self.ddad_train_cams.append('front_camera')
 
                     self.num_train_samples += 1
 
