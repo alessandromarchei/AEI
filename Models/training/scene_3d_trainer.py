@@ -122,13 +122,18 @@ class Scene3DTrainer():
         self.learning_rate = learning_rate
         
     # Logging Training Loss
-    def log_loss(self, log_count):
+    def log_loss(self, log_count, is_finetuned = False):
 
-        self.writer.add_scalars("Train",{
+        if(is_finetuned == True):
+            self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
-            'mAE_loss': self.get_mAE_loss(),
-            'edge_loss': self.get_edge_loss()
         }, (log_count))
+        else:
+            self.writer.add_scalars("Train",{
+                'total_loss': self.get_loss(),
+                'mAE_loss': self.get_mAE_loss(),
+                'edge_loss': self.get_edge_loss()
+            }, (log_count))
 
     # Logging Validation mAE overall
     def log_val_mAE(self, mAE_overall, mAE_kitti, 
@@ -297,8 +302,8 @@ class Scene3DTrainer():
             self.gt_val_tensor = gt_val_tensor.to(self.device)
 
     def load_scale_tensor(self):
-        scale_factor_tensor = torch.from_numpy(self.scale_factor)
-        scale_factor_tensor = scale_factor_tensor.type(torch.FloatTensor)
+        scale_factor_tensor = torch.tensor(self.scale_factor, dtype=torch.float32)
+        scale_factor_tensor.requires_grad = False
         self.scale_factor_tensor = scale_factor_tensor.to(self.device)
 
     # Load Image as Tensor
