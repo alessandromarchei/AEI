@@ -4,7 +4,6 @@
 import torch
 import random
 import sys
-import matplotlib.pyplot as plt
 sys.path.append('..')
 from data_utils.load_data_scene_3d import LoadDataScene3D
 from training.scene_3d_trainer import Scene3DTrainer
@@ -15,7 +14,7 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_09/model/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_16/model/'
 
     # Data paths
 
@@ -83,20 +82,19 @@ def main():
     # Pre-trained model checkpoint path
     root_path = \
         '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
-    pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
-    
+    pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'    
     
     # Trainer Class
     trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 70
+    num_epochs = 40
     batch_size = 5
 
 
     # Epochs
-    for epoch in range(0, num_epochs):
+    for epoch in range(38, num_epochs):
 
         print('Epoch: ', epoch + 1)
 
@@ -113,11 +111,16 @@ def main():
         is_muad_complete = False
         is_gta_complete = False
 
+        is_finetuned = False
         data_list = [] 
         
-        data_list.append('URBANSYN')
-        data_list.append('MUAD')
-        data_list.append('GTAV')
+        if(epoch <= 35):
+            data_list.append('URBANSYN')
+            data_list.append('MUAD')
+            data_list.append('GTAV')
+        else:
+            is_finetuned = True
+
         data_list.append('KITTI')
         data_list.append('DDAD')
         
@@ -126,11 +129,9 @@ def main():
         data_list_count = 0
 
         # Learning Rate schedule            
-        if(epoch >= 30 and epoch < 50):
+        if(epoch >= 30):
             trainer.set_learning_rate(0.0000125)
-            
-        if(epoch >= 50):
-            trainer.set_learning_rate(0.000006)
+
         
         randomlist_kitti = random.sample(range(0, kitti_num_train_samples), kitti_num_train_samples)
         randomlist_ddad = random.sample(range(0, ddad_num_train_samples), ddad_num_train_samples)
@@ -154,17 +155,32 @@ def main():
                 ddad_count = 0
                 randomlist_ddad = random.sample(range(0, ddad_num_train_samples), ddad_num_train_samples)
             
-            if(urbansyn_count == urbansyn_samples):
-                urbansyn_count = 0
-                randomlist_urbansyn = random.sample(range(0, urbansyn_samples), urbansyn_samples)
+            if(urbansyn_count == urbansyn_samples and \
+                is_urbansyn_complete == False):
+                if(epoch < 16):
+                    urbansyn_count = 0
+                    randomlist_urbansyn = random.sample(range(0, urbansyn_samples), urbansyn_samples)
+                else:
+                    is_urbansyn_complete = True
+                    data_list.remove('URBANSYN')
   
-            if(muad_count == muad_samples):
-                muad_count = 0
-                randomlist_muad = random.sample(range(0, muad_samples), muad_samples)
+            if(muad_count == muad_samples and \
+                is_muad_complete == False):
+                if(epoch < 16):
+                    muad_count = 0
+                    randomlist_muad = random.sample(range(0, muad_samples), muad_samples)
+                else:
+                    is_muad_complete = True
+                    data_list.remove('MUAD')
             
-            if(gta_count == gta_samples):
-                gta_count = 0
-                randomlist_gta = random.sample(range(0, gta_samples), gta_samples)
+            if(gta_count == gta_samples and \
+                is_gta_complete == False):
+                if(epoch < 16):
+                    gta_count = 0
+                    randomlist_gta = random.sample(range(0, gta_samples), gta_samples)
+                else:
+                    is_gta_complete =  True
+                    data_list.remove('GTAV')
 
             if(data_list_count >= len(data_list)):
                 data_list_count = 0
@@ -188,9 +204,9 @@ def main():
                 image, gt, validity = ddad_Dataset.getItemTrain(randomlist_ddad[ddad_count])
                 data_sample = 'DDAD'
                 
-                if(ddad_train_cams[ddad_count] == 'back_camera'):
+                if(ddad_train_cams[randomlist_ddad[ddad_count]] == 'back_camera'):
                     scale_factor = s_ddad_b
-                elif(ddad_train_cams[ddad_count] == 'front_camera'):
+                elif(ddad_train_cams[randomlist_ddad[ddad_count]] == 'front_camera'):
                     scale_factor = s_ddad_f
 
                 ddad_count += 1
@@ -236,11 +252,11 @@ def main():
                 trainer.run_optimizer()
 
             # Logging loss to Tensor Board every 250 steps
-            if((count+1) % 250 == 0):
-                trainer.log_loss(log_count)
+            if((count+1) % 252 == 0):
+                trainer.log_loss(log_count, is_finetuned=is_finetuned)
             
             # Logging Image to Tensor Board every 1000 steps
-            if((count+1) % 1000 == 0):  
+            if((count+1) % 1002 == 0):  
                 trainer.save_visualization(log_count)
             
             # Save model and run validation on entire validation 
