@@ -12,6 +12,62 @@ def custom_warning_format(message, category, filename, lineno, line=None):
 
 warnings.formatwarning = custom_warning_format
 
+def crop_data(data, args, IMG_HEIGHT, IMG_WIDTH):
+    # Parse crop
+    if (args.crop):
+        print(f"Cropping image set with sizes:")
+        print(f"\nTOP: {args.crop[0]},\tRIGHT: {args.crop[1]},\tBOTTOM: {args.crop[2]},\tLEFT: {args.crop[3]}")
+        if (args.crop[0] + args.crop[2] >=IMG_HEIGHT):
+            warnings.warn(f"Cropping size: TOP = {args.crop[0]} and BOTTOM = {args.crop[2]} exceeds image height of {IMG_HEIGHT}. Not cropping.")
+            crop = None
+        elif (args.crop[1] + args.crop[3] >= IMG_WIDTH):
+            warnings.warn(f"Cropping size: LEFT = {args.crop[3]} and RIGHT = {args.crop[1]} exceeds image width of {IMG_HEIGHT}. No cropping.")
+            crop = None
+        else:
+            crop = {
+                "TOP" : args.crop[0],
+                "RIGHT" : args.crop[1],
+                "BOTTOM" : args.crop[2],
+                "LEFT" : args.crop[3],
+            }
+            FORMER_IMG_HEIGHT = IMG_HEIGHT
+            FORMER_IMG_WIDTH = IMG_WIDTH
+            IMG_HEIGHT -= crop["TOP"] + crop["BOTTOM"]
+            IMG_WIDTH -= crop["LEFT"] + crop["RIGHT"]
+            print(f"New image size: {IMG_WIDTH}W x {IMG_HEIGHT}H.\n")
+    else:
+        crop = None
+
+    cropped_data = data
+
+    if(crop):
+        CROP_TOP = crop["TOP"]
+        CROP_RIGHT = crop["RIGHT"]
+        CROP_BOTTOM = crop["BOTTOM"]
+        CROP_LEFT = crop["LEFT"]
+        # Process each image entry
+        for entry in cropped_data:
+            image_name = entry["name"]
+            lanes = []
+            for label in entry.get("labels", []):
+                if "poly2d" in label:
+                    for poly in label["poly2d"]:
+                        new_vertices = []
+                        for x, y in poly["vertices"]:
+                            if (CROP_LEFT <= x <= (FORMER_IMG_WIDTH - CROP_RIGHT)) and (CROP_TOP <= y <= (FORMER_IMG_HEIGHT - CROP_BOTTOM)):
+                                new_x = x - CROP_LEFT
+                                new_y = y - CROP_TOP
+                                new_vertices.append([new_x, new_y])
+                        
+                        # Update the list in place
+                        if(new_vertices): poly["vertices"] = new_vertices
+
+
+    return cropped_data
+
+    
+
+
 def annotateGT(classified_lanes, gt_images_path, output_dir="visualization"):
     """
     Draws lane lines on images and saves them in the 'visualization' directory.
@@ -241,34 +297,15 @@ if __name__ == "__main__":
     print("Size of data is ", len(data))
 
     # Check Data
-    # print(json.dumps(data[:1], indent=4))
+    print(json.dumps(data[:1], indent=4))
 
 
     # ============================== Crop image ============================== #
-    # Parse crop
-    if (args.crop):
-        print(f"Cropping image set with sizes:")
-        print(f"\nTOP: {args.crop[0]},\tRIGHT: {args.crop[1]},\tBOTTOM: {args.crop[2]},\tLEFT: {args.crop[3]}")
-        if (args.crop[0] + args.crop[2] >=IMG_HEIGHT):
-            warnings.warn(f"Cropping size: TOP = {args.crop[0]} and BOTTOM = {args.crop[2]} exceeds image height of {IMG_HEIGHT}. Not cropping.")
-            crop = None
-        elif (args.crop[1] + args.crop[3] >= IMG_WIDTH):
-            warnings.warn(f"Cropping size: LEFT = {args.crop[3]} and RIGHT = {args.crop[1]} exceeds image width of {IMG_HEIGHT}. No cropping.")
-            crop = None
-        else:
-            crop = {
-                "TOP" : args.crop[0],
-                "RIGHT" : args.crop[1],
-                "BOTTOM" : args.crop[2],
-                "LEFT" : args.crop[3],
-            }
-            FORMER_IMG_HEIGHT = IMG_HEIGHT
-            FORMER_IMG_WIDTH = IMG_WIDTH
-            IMG_HEIGHT -= crop["TOP"] + crop["BOTTOM"]
-            IMG_WIDTH -= crop["LEFT"] + crop["RIGHT"]
-            print(f"New image size: {IMG_WIDTH}W x {IMG_HEIGHT}H.\n")
-    else:
-        crop = None
+
+    cropped_data = crop_data(data, args, IMG_HEIGHT, IMG_WIDTH)
+    # Check Data
+    print("Cropped Data", json.dumps(cropped_data[:1], indent=4))
+
 
     # ============================== Normalize lane keypoints ============================== #
 
@@ -309,18 +346,18 @@ if __name__ == "__main__":
     #         print(f"Skipped: {image_name} (Not a valid image)")
 
     # ============================== Identify EgoLanes ============================== #
-    classified_lanes = classify_lanes(normalized_lane_keypoints, IMG_WIDTH, IMG_HEIGHT)
-    # Check Data
-    # Assuming classified_lanes is a dictionary
-    print("The length of classified_lanes is", len(classified_lanes))
-    first_three_items = dict(
-        list(classified_lanes.items())[:3]
-    )  # Get first 13key-value pairs
-    # Pretty print
-    print("Classfied_lanes", json.dumps(first_three_items, indent=4))
+    # classified_lanes = classify_lanes(normalized_lane_keypoints, IMG_WIDTH, IMG_HEIGHT)
+    # # Check Data
+    # # Assuming classified_lanes is a dictionary
+    # print("The length of classified_lanes is", len(classified_lanes))
+    # first_three_items = dict(
+    #     list(classified_lanes.items())[:3]
+    # )  # Get first 13key-value pairs
+    # # Pretty print
+    # print("Classfied_lanes", json.dumps(first_three_items, indent=4))
 
     # ============================== AnnotateGT ====================================== #
 
-    gt_images_path = os.path.join(args.image_dir, "train")
-    annotateGT(classified_lanes, gt_images_path, output_dir=args.output_dir)
+    # gt_images_path = os.path.join(args.image_dir, "train")
+    # annotateGT(classified_lanes, gt_images_path, output_dir=args.output_dir)
 
