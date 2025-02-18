@@ -1,4 +1,4 @@
-# deploy_libtorch
+# deploy_onnx_rt
 Use ONNX Runtime to load model and deploy.
 
 ## Build Instructions
