@@ -81,20 +81,21 @@ def main():
     
     # Pre-trained model checkpoint path
     root_path = \
-        '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
-    pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'    
+        '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_09/model/'
+    checkpoint_path = root_path + 'iter_759999_epoch_16_step_28048.pth'    
     
     # Trainer Class
-    trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
+    trainer = Scene3DTrainer(checkpoint_path = checkpoint_path, is_pretrained=True)
     trainer.zero_grad()
     
     # Total training epochs
     num_epochs = 40
     batch_size = 5
 
+    # Test images
 
     # Epochs
-    for epoch in range(38, num_epochs):
+    for epoch in range(16, num_epochs):
 
         print('Epoch: ', epoch + 1)
 
@@ -114,13 +115,9 @@ def main():
         is_finetuned = False
         data_list = [] 
         
-        if(epoch <= 35):
-            data_list.append('URBANSYN')
-            data_list.append('MUAD')
-            data_list.append('GTAV')
-        else:
-            is_finetuned = True
-
+        data_list.append('URBANSYN')
+        data_list.append('MUAD')
+        data_list.append('GTAV')
         data_list.append('KITTI')
         data_list.append('DDAD')
         
@@ -157,30 +154,21 @@ def main():
             
             if(urbansyn_count == urbansyn_samples and \
                 is_urbansyn_complete == False):
-                if(epoch < 16):
-                    urbansyn_count = 0
-                    randomlist_urbansyn = random.sample(range(0, urbansyn_samples), urbansyn_samples)
-                else:
-                    is_urbansyn_complete = True
-                    data_list.remove('URBANSYN')
+                urbansyn_count = 0
+                randomlist_urbansyn = random.sample(range(0, urbansyn_samples), urbansyn_samples)
+      
   
             if(muad_count == muad_samples and \
                 is_muad_complete == False):
-                if(epoch < 16):
-                    muad_count = 0
-                    randomlist_muad = random.sample(range(0, muad_samples), muad_samples)
-                else:
-                    is_muad_complete = True
-                    data_list.remove('MUAD')
+                muad_count = 0
+                randomlist_muad = random.sample(range(0, muad_samples), muad_samples)
+
             
             if(gta_count == gta_samples and \
-                is_gta_complete == False):
-                if(epoch < 16):
-                    gta_count = 0
-                    randomlist_gta = random.sample(range(0, gta_samples), gta_samples)
-                else:
-                    is_gta_complete =  True
-                    data_list.remove('GTAV')
+                is_gta_complete == False): 
+                gta_count = 0
+                randomlist_gta = random.sample(range(0, gta_samples), gta_samples)
+
 
             if(data_list_count >= len(data_list)):
                 data_list_count = 0
@@ -258,6 +246,8 @@ def main():
             # Logging Image to Tensor Board every 1000 steps
             if((count+1) % 1002 == 0):  
                 trainer.save_visualization(log_count)
+
+            
             
             # Save model and run validation on entire validation 
             # dataset after 20000 steps
@@ -278,7 +268,6 @@ def main():
                 running_mAE_overall = 0
                 running_mAE_kitti = 0
                 running_mAE_ddad = 0
-                scale_factor_val = 0
 
                 # No gradient calculation
                 with torch.no_grad():
@@ -288,8 +277,7 @@ def main():
                         image_val, gt_val, validity_val = kitti_Dataset.getItemVal(val_count)
 
                         # Run Validation and calculate mAE Score
-                        scale_factor_val = s_kitti
-                        mAE = trainer.validate(image_val, gt_val, validity_val, scale_factor_val)
+                        mAE = trainer.validate(image_val, gt_val, validity_val, s_kitti)
 
                         # Accumulating mAE score
                         running_mAE_kitti += mAE
@@ -299,13 +287,14 @@ def main():
                     for val_count in range(0, ddad_num_val_samples):
                         image_val, gt_val, validity_val = ddad_Dataset.getItemVal(val_count)
 
+                        s_ddad = 0
                         if(ddad_val_cams[val_count] == 'back_camera'):
-                            scale_factor_val = s_ddad_b
+                            s_ddad = s_ddad_b
                         elif(ddad_val_cams[val_count] == 'front_camera'):
-                            scale_factor_val = s_ddad_f
+                            s_ddad = s_ddad_f
 
                         # Run Validation and calculate mAE Score
-                        mAE = trainer.validate(image_val, gt_val, validity_val, scale_factor_val)
+                        mAE = trainer.validate(image_val, gt_val, validity_val, s_ddad)
 
                         # Accumulating mAE score
                         running_mAE_ddad += mAE
