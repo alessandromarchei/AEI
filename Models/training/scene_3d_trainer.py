@@ -6,6 +6,8 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 from typing import Literal
 import numpy as np
+import cv2
+from PIL import Image
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
@@ -347,6 +349,32 @@ class Scene3DTrainer():
         accuracy_val = accuracy.detach().cpu().numpy()
 
         return accuracy_val
+    
+    # Run network on test image and visualize result
+    def test(self, image_test, save_path, scale_factor = 1.50):
+
+        frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image_pil = Image.fromarray(frame)
+        image_pil = image_pil.resize((640, 320))
+
+        test_image_tensor = self.image_loader(image_pil)
+        test_image_tensor = test_image_tensor.unsqueeze(0)
+        test_image_tensor = test_image_tensor.to(self.device)
+
+           
+        test_scale_factor_tensor = torch.tensor(scale_factor, dtype=torch.float32)
+        test_scale_factor_tensor.requires_grad = False
+        test_scale_factor_tensor = test_scale_factor_tensor.to(self.device)
+
+        test_output = self.model(test_image_tensor)*test_scale_factor_tensor
+
+        test_output = test_output.squeeze(0).cpu().detach()
+        test_output = test_output.permute(1, 2, 0)
+        test_output = test_output.numpy()
+        test_output = cv2.resize(test_output, (frame.shape[1], frame.shape[0]))
+
+        plt.imsave(save_path, test_output, cmap='viridis')
 
     def cleanup(self):
         self.writer.flush()
