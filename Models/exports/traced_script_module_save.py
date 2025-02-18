@@ -25,7 +25,8 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("-p", "--model_checkpoint_path", dest="model_checkpoint_path", help="path to pytorch checkpoint file to load model dict")
     parser.add_argument("-i", "--input_image_filepath", dest="input_image_filepath", help="path to input image which will be processed by SceneSeg")
-    parser.add_argument("-o", "--output_trace_filepath", dest="output_trace_filepath", help="path to ouput trace file generated")
+    parser.add_argument("-o1", "--output_pt_trace_filepath", dest="output_pt_trace_filepath", help="path to *.pt output trace file generated")
+    parser.add_argument("-o2", "--output_onnx_trace_filepath", dest="output_onnx_trace_filepath", help="path to *.onnx output trace file generated")
     args = parser.parse_args() 
 
     # Saved model checkpoint path
@@ -69,12 +70,16 @@ def main():
     image_tensor = image_tensor.unsqueeze(0)
     image_tensor = image_tensor.to(device)
 
+    # Torch Export
     # Run and Trace the model with input image
     traced_script_module = torch.jit.trace(model, image_tensor)
-    traced_script_module.save(args.output_trace_filepath) 
+    traced_script_module.save(args.output_pt_trace_filepath) 
+    print("INFO: Torch Trace Export file generated successfully.")
 
-    print("INFO: Trace file generated successfully.")
-
+    # ONNX export
+    onnx_program = torch.onnx.dynamo_export(model, image_tensor)
+    onnx_program.save(args.output_onnx_trace_filepath)
+    print("INFO: ONNX Export file generated successfully.")
 
 if __name__ == '__main__':
     main()
