@@ -11,12 +11,6 @@ class Scene3DUpstream(nn.Module):
         for param in self.pretrainedBackBone.parameters():
             param.requires_grad = False
 
-        self.pretrainedContext = pretrainedModel.SceneContext
-        for param in self.pretrainedContext.parameters():
-            param.requires_grad = False
-
     def forward(self, image):
         features = self.pretrainedBackBone(image)
-        deep_features = features[4]
-        context = self.pretrainedContext(deep_features)
-        return features, context
+        return features
