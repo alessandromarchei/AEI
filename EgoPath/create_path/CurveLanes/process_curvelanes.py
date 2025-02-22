@@ -64,9 +64,6 @@ def getDrivablePath(left_ego, right_ego, new_img_height, y_coords_interp = False
     """
     Computes drivable path as midpoint between 2 ego lanes, basically the main point of this task.
     """
-    pprint(f"Left ego: {left_ego}")
-    pprint(f"Right ego: {right_ego}")
-    i, j = 0, 0
     drivable_path = []
 
     # When it's CurveLanes and we need interpolation among non-uniform y-coords
@@ -170,11 +167,10 @@ def annotateGT(
 
     # Define save name
     # Also save in PNG (EXTREMELY SLOW compared to jpg, for lossless quality)
-    save_name = str(img_id_counter).zfill(6) + ".jpg"
+    save_name = str(img_id_counter).zfill(6) + ".png"
 
     # Load img
     raw_img = raw_img
-    raw_img.save(os.path.join(visualization_dir, f"original_{save_name}"))
     new_img_height = init_img_height
     new_img_width = init_img_width
     
@@ -186,7 +182,6 @@ def annotateGT(
             new_img_width, 
             new_img_height
         ))
-    raw_img.save(os.path.join(visualization_dir, f"resize_{save_name}"))
 
     # Handle image cropping
     if (crop):
@@ -202,7 +197,6 @@ def annotateGT(
         ))
         new_img_height -= (CROP_TOP + CROP_BOTTOM)
         new_img_width -= (CROP_LEFT + CROP_RIGHT)
-    raw_img.save(os.path.join(visualization_dir, f"resizeandcrop_{save_name}"))
 
     # Copy raw img and put it in raw dir.
     raw_img.save(os.path.join(raw_dir, save_name))
@@ -261,7 +255,6 @@ def parseAnnotations(
     # Read each line of GT text file as JSON
     with open(anno_path, "r") as f:
         read_data = json.load(f)["Lines"]
-        pprint(read_data)
         if (len(read_data) < 2):    # Some files are empty, or having less than 2 lines
             warnings.warn(f"Parsing {anno_path} : insufficient lane amount: {len(read_data)}")
             return None
@@ -271,8 +264,6 @@ def parseAnnotations(
                 [(float(point["x"]), float(point["y"])) for point in line]
                 for line in read_data
             ]
-
-            pprint(f"Lanes right after parsed : {lanes}")
 
             new_img_height = init_img_height
             new_img_width = init_img_width
@@ -309,19 +300,15 @@ def parseAnnotations(
                 warnings.warn(f"Parsing {anno_path}: insufficient lane amount after cropping: {len(lanes)}")
                 return None
             
-            pprint(f"Lanes after resize/crop, before all the logics : {lanes}")
-
             # Determine 2 ego lanes via lane anchors
 
             # First get the anchors
             # Here I attach index i before each anchor to support retracking after sort by x-coord)
-            pprint(f"Lane anchors (before sorted) : {[(i, getLaneAnchor(lane, new_img_height)) for i, lane in enumerate(lanes)]}")
             lane_anchors = sorted(
                 [(i, getLaneAnchor(lane, new_img_height)) for i, lane in enumerate(lanes)],
                 key = lambda x : x[1][0],
                 reverse = False
             )
-            pprint(f"Lane anchors (sorted) : {lane_anchors}")
                 
             # Sort the lanes by order of their corresponding anchors (which is also sorted)
             lanes_sortedBy_anchor = [
@@ -329,15 +316,10 @@ def parseAnnotations(
                 for anchor in lane_anchors
             ]
 
-            pprint(f"Lanes after sorted : {lanes_sortedBy_anchor}")
-
-            pprint(f"Lane anchors decoupled : {[anchor[1] for anchor in lane_anchors]}")
-
             ego_indexes = getEgoIndexes(
                 [anchor[1] for anchor in lane_anchors],
                 new_img_width
             )
-            pprint(f"Ego indexes: {ego_indexes}")
 
             if (type(ego_indexes) is str):
                 if (ego_indexes.startswith("NO")):
@@ -384,10 +366,25 @@ if __name__ == "__main__":
         "half_beeg" : (1280, 720),
         "weird" : (1570, 660),
     }
-    beeg_y_crop = 240
-    beeg_x_crop = 160
+
+    beeg_y_crop_sum = 320
+    beeg_x_crop = 240
+    beeg_y_crop_top_ratio = 0.75
+    crop_beeg = {
+        "TOP" : int(beeg_y_crop_sum * beeg_y_crop_top_ratio),
+        "RIGHT" : beeg_x_crop,
+        "BOTTOM" : int(beeg_y_crop_sum * (1 - beeg_y_crop_top_ratio)),
+        "LEFT" : beeg_x_crop
+    }
+    
     weird_y_crop = 130
     weird_x_crop = 385
+    crop_weird = {
+        "TOP" : weird_y_crop,
+        "RIGHT" : weird_x_crop,
+        "BOTTOM" : weird_y_crop,
+        "LEFT" : weird_x_crop
+    }
 
     # ============================== Parsing args ============================== #
 
@@ -481,44 +478,24 @@ if __name__ == "__main__":
             for i in range(0, len(list_raw_files), sampling_step):
                 img_path = os.path.join(dataset_dir, root_dir, split, list_raw_files[i]).strip()
                 img_id_counter += 1
-                print(f"\n{img_id_counter}\n")
                 # Preload image file for multiple uses later
                 raw_img = Image.open(img_path).convert("RGB")
                 img_width, img_height = raw_img.size
 
                 init_img_size = raw_img.size
-                pprint(init_img_size)
 
                 resize = None
                 crop = None
 
                 if (init_img_size == size_dict["beeg"]):
-                    print("Beeg size detected!")
                     resize = 0.5
-                    crop = {
-                        "TOP" : beeg_y_crop,
-                        "RIGHT" : beeg_x_crop,
-                        "BOTTOM" : beeg_y_crop,
-                        "LEFT" : beeg_x_crop
-                    }
+                    crop = crop_beeg
                 elif (init_img_size == size_dict["half_beeg"]):
-                    print("Half-beeg size detected!")
                     resize = None
-                    crop = {
-                        "TOP" : beeg_y_crop,
-                        "RIGHT" : beeg_x_crop,
-                        "BOTTOM" : beeg_y_crop,
-                        "LEFT" : beeg_x_crop
-                    }
+                    crop = crop_beeg
                 elif (init_img_size == size_dict["weird"]):
-                    print("Weird size detected!")
                     resize = None
-                    crop = {
-                        "TOP" : weird_y_crop,
-                        "RIGHT" : weird_x_crop,
-                        "BOTTOM" : weird_y_crop,
-                        "LEFT" : weird_x_crop
-                    }
+                    crop = crop_weird
 
                 anno_path = img_path.replace(".jpg", ".lines.json").replace(img_dir, label_dir)
 
@@ -529,10 +506,8 @@ if __name__ == "__main__":
                     resize = resize,
                     crop = crop
                 )
-                pprint(this_data)
                 if (this_data is not None):
 
-                    pprint(f"Processing data in label file {anno_path}, with index {img_id_counter}")
                     annotateGT(
                         raw_img = raw_img,
                         anno_entry = this_data,
