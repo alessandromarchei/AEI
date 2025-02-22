@@ -32,13 +32,20 @@ def getLaneAnchor(lane, new_img_height):
     """
     (x2, y2) = lane[0]
     (x1, y1) = lane[1]
+
     for i in range(1, len(lane) - 1, 1):
-        if (lane[i][0] != x2):
+        if (lane[i][0] != x2) & (lane[i][1] != y2):
             (x1, y1) = lane[i]
             break
-    if (x1 == x2):
-        warnings.warn(f"Vertical lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
+
+    if (x1 == x2) or (y1 == y2):
+        if (x1 == x2):
+            error_lane = "Vertical"
+        elif (y1 == y2):
+            error_lane = "Horizontal"
+        warnings.warn(f"{error_lane} lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
         return (x1, None, None)
+    
     a = (y2 - y1) / (x2 - x1)
     b = y1 - a * x1
     x0 = (new_img_height - b) / a
