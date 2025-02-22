@@ -6,8 +6,8 @@ from argparse import ArgumentParser
 from dgp.datasets import SynchronizedSceneDataset
 import sys
 sys.path.append('../../../../')
-from SuperDepth.create_depth.common.lidar_depth_fill import LidarDepthFill
-from SuperDepth.create_depth.common.height_map import HeightMap
+from Scene3D.create_depth.common.lidar_depth_fill import LidarDepthFill
+from Scene3D.create_depth.common.height_map import HeightMap
 
 def cropData(image, depth_map_fill_only, height_map_fill_only, validity_mask):
 

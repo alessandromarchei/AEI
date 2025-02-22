@@ -6,6 +6,8 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 from typing import Literal
 import numpy as np
+import cv2
+from PIL import Image
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
@@ -32,7 +34,11 @@ class Scene3DTrainer():
         self.loss = 0
         self.prediction = 0
         self.calc_loss = 0
+        self.edge_loss = 0
+        self.mAE_loss = 0
         self.model = 0
+        self.scale_factor = 0
+        self.scale_factor_tensor = 0
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -78,7 +84,7 @@ class Scene3DTrainer():
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.00001
+        self.learning_rate = 0.000025
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -113,34 +119,47 @@ class Scene3DTrainer():
         self.gy_filter = self.gy_filter.type(torch.cuda.FloatTensor)
         self.gy_filter.to(self.device)
 
+    # Learning Rate adjustment
+    def set_learning_rate(self, learning_rate):
+        self.learning_rate = learning_rate
+        
     # Logging Training Loss
-    def log_loss(self, log_count):
-        self.writer.add_scalar("Loss/train", self.get_loss(), (log_count))
+    def log_loss(self, log_count, is_finetuned = False):
+
+        if(is_finetuned == True):
+            self.writer.add_scalars("Train",{
+            'total_loss': self.get_loss(),
+        }, (log_count))
+        else:
+            self.writer.add_scalars("Train",{
+                'total_loss': self.get_loss(),
+                'mAE_loss': self.get_mAE_loss(),
+                'edge_loss': self.get_edge_loss()
+            }, (log_count))
 
     # Logging Validation mAE overall
     def log_val_mAE(self, mAE_overall, mAE_kitti, 
-                        mAE_ddad, mAE_urbansyn, log_count):
-        
-        print('Logging Validation')      
+                       mAE_ddad, log_count):
         
         self.writer.add_scalars("Val/mAE_dataset",{
             'mAE_kitti': mAE_kitti,
             'mAE_ddad': mAE_ddad,
-            'mAE_urbansyn': mAE_urbansyn
         }, (log_count))
 
         self.writer.add_scalar("Val/mAE", mAE_overall, (log_count))        
 
     # Assign input variables
-    def set_data(self, image, gt, validity):
+    def set_data(self, image, gt, validity, scale_factor):
         self.image = image
         self.gt = gt
         self.validity = validity
+        self.scale_factor = scale_factor
 
-    def set_val_data(self, image_val, gt_val, validity_val):
+    def set_val_data(self, image_val, gt_val, validity_val, scale_factor):
         self.image_val = image_val
         self.gt_val = gt_val
         self.validity_val = validity_val
+        self.scale_factor = scale_factor
     
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -165,6 +184,7 @@ class Scene3DTrainer():
         self.load_image_tensor(is_train)
         self.load_gt_tensor(is_train)
         self.load_validity_tensor(is_train)
+        self.load_scale_tensor()
 
 
     def mAE_validity_loss(self):
@@ -192,31 +212,37 @@ class Scene3DTrainer():
         return edge_loss
         
     # Run Model
-    def run_model(self, dataset: Literal['URBANSYN', 'KITTI', 'DDAD']):     
+    def run_model(self, dataset: Literal['URBANSYN', 'GTAV', 'MUAD', 'KITTI', 'DDAD', 'MUSES']):     
         
-        self.prediction = self.model(self.image_tensor)
+        self.prediction = self.model(self.image_tensor)*self.scale_factor_tensor
         mAE_loss = self.mAE_validity_loss()
-        
+        self.mAE_loss = mAE_loss
         total_loss = 0
 
-        if(dataset == 'URBANSYN'):
+        if(dataset == 'URBANSYN' or dataset == 'GTAV' or dataset == 'MUAD'):
             edge_loss = self.edge_validity_loss()
-            combined_loss = mAE_loss + edge_loss*2
-            total_loss = combined_loss*4
-        elif(dataset == 'DDAD'):
-            total_loss = mAE_loss*2
-        elif(dataset == 'KITTI'):
+            self.edge_loss = edge_loss
+            total_loss = 0.5*(mAE_loss + edge_loss)
+        else:
             total_loss = mAE_loss
-            
+        
         self.calc_loss = total_loss
 
     # Loss Backward Pass
     def loss_backward(self): 
         self.calc_loss.backward()
 
-    # Get loss value
+    # Get mAE loss value
     def get_loss(self):
         return self.calc_loss.item()
+    
+    # Get edge loss
+    def get_mAE_loss(self):
+        return self.mAE_loss.item()
+    
+    # Get edge loss
+    def get_edge_loss(self):
+        return self.edge_loss.item()
 
     # Run Optimizer
     def run_optimizer(self):
@@ -230,11 +256,6 @@ class Scene3DTrainer():
     # Set evaluation mode
     def set_eval_mode(self):
         self.model = self.model.eval()
-
-    # Normalize ground truth value for visualization
-    def shift_height(self, height):
-        height = height + np.min(height)
-        return height
     
     # Save predicted visualization
     def save_visualization(self, log_count):
@@ -243,15 +264,11 @@ class Scene3DTrainer():
         prediction_vis = self.prediction.squeeze(0).cpu().detach()
         prediction_vis = prediction_vis.permute(1, 2, 0)
         prediction_vis = prediction_vis.numpy()
-        prediction_vis = self.shift_height(prediction_vis)
-
-        # Normalizing ground truth height to same range as predicition
-        augmented_vis = self.shift_height(self.augmented)/7
-
+  
         fig, axs = plt.subplots(1,3)
         axs[0].imshow(self.image)
         axs[0].set_title('Image',fontweight ="bold") 
-        axs[1].imshow(augmented_vis)
+        axs[1].imshow(self.augmented)
         axs[1].set_title('Ground Truth',fontweight ="bold") 
         axs[2].imshow(prediction_vis)
         axs[2].set_title('Prediction',fontweight ="bold") 
@@ -276,17 +293,20 @@ class Scene3DTrainer():
         if(is_train):
             gt_tensor = torch.from_numpy(self.augmented)
             gt_tensor = gt_tensor.permute(2, 0, 1)
-            gt_tensor = torch.div(gt_tensor, 7)
             gt_tensor = gt_tensor.unsqueeze(0)
             gt_tensor = gt_tensor.type(torch.FloatTensor)
             self.gt_tensor = gt_tensor.to(self.device)
         else:
             gt_val_tensor = torch.from_numpy(self.augmented_val)
             gt_val_tensor = gt_val_tensor.permute(2, 0, 1)
-            gt_val_tensor = torch.div(gt_val_tensor, 7)
             gt_val_tensor = gt_val_tensor.unsqueeze(0)
             gt_val_tensor = gt_val_tensor.type(torch.FloatTensor)
             self.gt_val_tensor = gt_val_tensor.to(self.device)
+
+    def load_scale_tensor(self):
+        scale_factor_tensor = torch.tensor(self.scale_factor, dtype=torch.float32)
+        scale_factor_tensor.requires_grad = False
+        self.scale_factor_tensor = scale_factor_tensor.to(self.device)
 
     # Load Image as Tensor
     def load_validity_tensor(self, is_train):
@@ -305,27 +325,14 @@ class Scene3DTrainer():
         self.optimizer.zero_grad()
 
     # Save Model
-    def save_model(self, epoch, step, model_save_path, optimizer_save_path):
-        print('Saving model')
+    def save_model(self, model_save_path):
         torch.save(self.model.state_dict(), model_save_path)
-        torch.save({
-            'epoch': epoch,
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'loss': self.calc_loss
-            }, optimizer_save_path)
-        
-    def load_optimizer(self, optimizer_save_path):
-        checkpoint = torch.load(optimizer_save_path)
-        self.optimizer.state_dict = checkpoint['optimizer_state_dict']
-        self.calc_loss = checkpoint['loss']
-        epoch = checkpoint['epoch']
-        return epoch
-    
+
     # Run Validation and calculate metrics
-    def validate(self, image_val, gt_val, validity_val):
+    def validate(self, image_val, gt_val, validity_val, scale_factor):
 
         # Set Data
-        self.set_val_data(image_val, gt_val, validity_val)
+        self.set_val_data(image_val, gt_val, validity_val, scale_factor)
 
         # Augmenting Image
         self.apply_augmentations(is_train=False)
@@ -334,7 +341,7 @@ class Scene3DTrainer():
         self.load_data(is_train=False)
 
         # Running model
-        output_val = self.model(self.image_val_tensor)
+        output_val = self.model(self.image_val_tensor)*self.scale_factor_tensor
 
         # Calculate loss
         abs_diff = torch.abs(output_val - self.gt_val_tensor)*(self.validity_val_tensor)
@@ -342,6 +349,32 @@ class Scene3DTrainer():
         accuracy_val = accuracy.detach().cpu().numpy()
 
         return accuracy_val
+    
+    # Run network on test image and visualize result
+    def test(self, image_test, save_path, scale_factor = 1.50):
+
+        frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image_pil = Image.fromarray(frame)
+        image_pil = image_pil.resize((640, 320))
+
+        test_image_tensor = self.image_loader(image_pil)
+        test_image_tensor = test_image_tensor.unsqueeze(0)
+        test_image_tensor = test_image_tensor.to(self.device)
+
+           
+        test_scale_factor_tensor = torch.tensor(scale_factor, dtype=torch.float32)
+        test_scale_factor_tensor.requires_grad = False
+        test_scale_factor_tensor = test_scale_factor_tensor.to(self.device)
+
+        test_output = self.model(test_image_tensor)*test_scale_factor_tensor
+
+        test_output = test_output.squeeze(0).cpu().detach()
+        test_output = test_output.permute(1, 2, 0)
+        test_output = test_output.numpy()
+        test_output = cv2.resize(test_output, (frame.shape[1], frame.shape[0]))
+
+        plt.imsave(save_path, test_output, cmap='viridis')
 
     def cleanup(self):
         self.writer.flush()

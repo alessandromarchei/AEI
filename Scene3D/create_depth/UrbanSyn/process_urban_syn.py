@@ -11,9 +11,9 @@ os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
-from SuperDepth.create_depth.common.height_map import HeightMap
-from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
-from SuperDepth.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
+from Scene3D.create_depth.common.height_map import HeightMap
+from Scene3D.create_depth.common.depth_boundaries import DepthBoundaries
+from Scene3D.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
 
 def removeExtraSamples(depth_filepath, depth_maps, images_filepath, images):
     
@@ -70,7 +70,7 @@ def main():
     args = parser.parse_args()
 
     # Filepaths for data loading and savind
-    root_data_path = args.root_data_path
+    root_data_path = '/mnt/media/UrbanSyn/'#args.root_data_path
     root_save_path = args.root_save_path
 
     # Paths to read ground truth depth and input images from training data
@@ -110,7 +110,8 @@ def main():
         min_height = -2
 
         # Looping through data
-        for index in range(0, num_images):
+        #for index in range(0, num_images):
+        for index in range(1500, 1501):
 
             print(f'Processing image {index} of {num_images-1}')
             
@@ -123,7 +124,7 @@ def main():
                 
                 # Create metric depth map and height map
                 depth_map = createDepthMap(depth_data)
-
+ 
                 # Depth boundaries
                 boundary_threshold = 10
                 depthBoundaries = DepthBoundaries(depth_map, boundary_threshold)

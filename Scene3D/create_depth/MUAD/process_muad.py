@@ -12,9 +12,9 @@ os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
-from SuperDepth.create_depth.common.height_map import HeightMap
-from SuperDepth.create_depth.common.depth_boundaries import DepthBoundaries
-from SuperDepth.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
+from Scene3D.create_depth.common.height_map import HeightMap
+from Scene3D.create_depth.common.depth_boundaries import DepthBoundaries
+from Scene3D.create_depth.common.depth_sparse_supervision import DepthSparseSupervision
 
 def createDepthMap(depth_data):
 
@@ -105,33 +105,34 @@ def main():
             supervision_threshold = 25
             depthSparseSupervision = DepthSparseSupervision(image, height_map, max_height, min_height, supervision_threshold)
             sparse_supervision = depthSparseSupervision.getSparseSupervision()
+      
+            if(np.min(depth_map) > 1):
+                # Save files
+                # RGB Image as PNG
+                image_save_path = root_save_path + '/image/' + str(index) + '.png'
+                image.save(image_save_path, "PNG")
+
+                # Depth map as binary file in .npy format
+                depth_save_path = root_save_path + '/depth/' + str(index) + '.npy'
+                np.save(depth_save_path, depth_map)
             
-            # Save files
-            # RGB Image as PNG
-            image_save_path = root_save_path + '/image/' + str(index) + '.png'
-            image.save(image_save_path, "PNG")
+                # Height map as binary file in .npy format
+                height_save_path = root_save_path + '/height/' + str(index) + '.npy'
+                np.save(height_save_path, height_map)
 
-            # Depth map as binary file in .npy format
-            depth_save_path = root_save_path + '/depth/' + str(index) + '.npy'
-            np.save(depth_save_path, depth_map)
+                # Sparse supervision map as binary file in .npy format
+                supervision_save_path = root_save_path + '/supervision/' + str(index) + '.npy'
+                np.save(supervision_save_path, sparse_supervision)
 
-            # Height map as binary file in .npy format
-            height_save_path = root_save_path + '/height/' + str(index) + '.npy'
-            np.save(height_save_path, height_map)
+                # Boundary mask as PNG
+                boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
+                boundary_mask = Image.fromarray(depth_boundaries)
+                boundary_mask.save(boundary_save_path, "PNG")
 
-            # Sparse supervision map as binary file in .npy format
-            supervision_save_path = root_save_path + '/supervision/' + str(index) + '.npy'
-            np.save(supervision_save_path, sparse_supervision)
-
-            # Boundary mask as PNG
-            boundary_save_path = root_save_path + '/boundary/' + str(index) + '.png'
-            boundary_mask = Image.fromarray(depth_boundaries)
-            boundary_mask.save(boundary_save_path, "PNG")
-
-            # Height map plot for data auditing purposes
-            height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
-            plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
-        
+                # Height map plot for data auditing purposes
+                height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
+                plt.imsave(height_plot_save_path, height_map, cmap='inferno_r')
+            
         print('----- Processing complete -----') 
     
 

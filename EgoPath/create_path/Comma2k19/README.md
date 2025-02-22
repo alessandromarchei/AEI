@@ -2,7 +2,6 @@
 ## comma2k19 dataset
 [comma.ai](https://comma.ai) presents comma2k19, a dataset of over 33 hours of commute in California's 280 highway. This means 2019 segments, 1 minute long each, on a 20km section of highway driving between California's San Jose and San Francisco. comma2k19 is a fully reproducible and scalable dataset. The data was collected using comma [EONs](https://comma.ai/shop/products/eon-gold-dashcam-devkit/) that has sensors similar to those of any modern smartphone including a road-facing camera, phone GPS, thermometers and 9-axis IMU. Additionally, the EON captures raw GNSS measurements and all CAN data sent by the car with a comma [grey panda](https://comma.ai/shop/products/panda-obd-ii-dongle/). 
 
-![Alt](assets/testmesh3d.png "Path and lanes projected onto image")
 
 ## Downloads
 Original link: The total dataset is ~100GB and can be downloaded [here](http://academictorrents.com/details/65a2fbc964078aff62076ff4e103f18b951c5ddb) It is divided into ~10GB chunks.
