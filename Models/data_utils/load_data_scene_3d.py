@@ -7,19 +7,19 @@ from .check_data import CheckData
 
 class LoadDataScene3D():
     def __init__(self, labels_filepath, images_filepath, \
-        dataset: Literal['URBANSYN', 'MUAD', 'GTAV', 'KITTI', 'DDAD', 'ARGOVERSE', 'MUSES'], validity_filepath=''):
+        dataset: Literal['URBANSYN', 'MUAD', 'GTAV', 'KITTI', 'DDAD', 'ARGOVERSE', 'MUSES', 'DIVERSE'], validity_filepath=''):
 
         self.dataset = dataset
 
         if(self.dataset != 'URBANSYN' and self.dataset != 'MUAD' and self.dataset != 'KITTI'
            and self.dataset!= 'DDAD' and self.dataset!= 'ARGOVERSE' and self.dataset!= 'MUSES'
-           and self.dataset!= 'GTAV'):
+           and self.dataset!= 'GTAV' and self.dataset!= 'DIVERSE'):
             raise ValueError('Dataset type is not correctly specified')
         
         self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.npy")])
         self.num_labels = len(self.labels)
 
-        self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
+        self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*")])
         self.num_images = len(self.images)
 
         checkData = CheckData(self.num_images, self.num_labels)
@@ -71,7 +71,7 @@ class LoadDataScene3D():
                         self.val_validities.append(str(self.validities[count]))
                                     
                     if(dataset == 'DDAD'):
-                        if((count >=0 and count <= 6324) or (count >= 12650 and count <= 14624)):
+                        if(count >= 16000):
                             self.ddad_val_cams.append('back_camera')
                         else:
                             self.ddad_val_cams.append('front_camera')
@@ -85,7 +85,7 @@ class LoadDataScene3D():
                         self.train_validities.append(str(self.validities[count]))
 
                     if(dataset == 'DDAD'):
-                        if((count >=0 and count <= 6324) or (count >= 12650 and count <= 14624)):
+                        if(count >= 16000):
                             self.ddad_train_cams.append('back_camera')
                         else:
                             self.ddad_train_cams.append('front_camera')
