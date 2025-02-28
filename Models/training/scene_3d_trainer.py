@@ -186,22 +186,23 @@ class Scene3DTrainer():
         return self.edge_loss.item()
 
     # Logging Loss
-    def log_loss(self, log_count, is_train = True):
+    def log_loss(self, log_count):
 
-        if(is_train):
-            self.writer.add_scalars("Train",{
-                'total_loss': self.get_loss(),
-                'mAE_loss': self.get_mAE_loss(),
-                'edge_loss': self.get_edge_loss()
-            }, (log_count))
-        else:
-            self.writer.add_scalars("Validation",{
-                'total_loss': self.get_loss(),
-                'mAE_loss': self.get_mAE_loss(),
-                'edge_loss': self.get_edge_loss()
-            }, (log_count))
-
-
+        self.writer.add_scalars("Train",{
+            'total_loss': self.get_loss(),
+            'mAE_loss': self.get_mAE_loss(),
+            'edge_loss': self.get_edge_loss()
+        }, (log_count))
+           
+        
+    # Logging Loss
+    def log_val_loss(self, total_loss, mAE_loss, edge_loss, log_count):
+        self.writer.add_scalars("Validation",{
+            'total_loss': total_loss,
+            'mAE_loss': mAE_loss,
+            'edge_loss': edge_loss
+        }, (log_count))
+         
     # Run Optimizer
     def run_optimizer(self):
         self.optimizer.step()
