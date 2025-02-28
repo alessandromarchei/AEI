@@ -8,10 +8,8 @@ class Augmentations():
         # Data
         self.image = 0
         self.ground_truth = 0
-        self.validity = 0
         self.augmented_data = 0
         self.augmented_image = 0     
-        self.augmented_validity = 0
 
         # Train vs Test/Val mode
         self.is_train = is_train
@@ -33,21 +31,6 @@ class Augmentations():
                 A.Resize(width = 640, height = 320),   
             ]
         )
-        
-        self.transform_shape_with_validity = A.Compose(
-            [
-                A.Resize(width = 640, height = 320),   
-                A.HorizontalFlip(p = 0.5),   
-            ],
-            additional_targets={'validity': 'image'}
-        )
-
-        self.transform_shape_test_with_validity = A.Compose(
-            [
-                A.Resize(width = 640, height = 320),   
-            ],
-            additional_targets={'validity': 'image'}
-        )
 
         self.transform_noise = A.Compose(
             [      
@@ -68,7 +51,7 @@ class Augmentations():
 
     # SEMANTIC SEGMENTATION
     # Set data values
-    def setDataSeg(self, image, ground_truth):
+    def setData(self, image, ground_truth):
 
         self.image = image
         self.ground_truth = ground_truth
@@ -77,12 +60,12 @@ class Augmentations():
         self.augmented_image = image  
 
     # Apply augmentations transform
-    def applyTransformSeg(self, image, ground_truth):
+    def applyTransform(self, image, ground_truth):
 
         if(self.data_type != 'SEGMENTATION'):
             raise ValueError('Please set dataset type to SEGMENTATION in intialization of class')
         
-        self.setDataSeg(image, ground_truth)
+        self.setData(image, ground_truth)
 
         if(self.is_train):
 
@@ -106,53 +89,3 @@ class Augmentations():
             self.augmented_image = self.adjust_shape["image"]
 
         return self.augmented_image, self.augmented_data
-
-    # DEPTH ESTIMATION
-    # Set data values
-    def setDataDepth(self, image, ground_truth, validity):
-
-        self.image = image
-        self.ground_truth = ground_truth
-        self.validity = validity
-
-        self.augmented_validity = validity
-        self.augmented_data = ground_truth
-        self.augmented_image = image  
-
-    # Apply augmentations transform
-    def applyTransformDepth(self, image, ground_truth, validity):
-
-        if(self.data_type != 'DEPTH'):
-            raise ValueError('Please set dataset type to DEPTH in intialization of class')
-
-        self.setDataDepth(image, ground_truth, validity)
-
-        if(self.is_train):
-
-            # Resize and random horiztonal flip
-            self.adjust_shape = self.transform_shape_with_validity(image=self.image, \
-                validity=self.validity, mask=self.ground_truth)
-            
-            self.augmented_data = self.adjust_shape["mask"]
-            self.augmented_image = self.adjust_shape["image"]
-            self.augmented_validity = self.adjust_shape["validity"]
-
-            # Random image augmentations
-            if (random.random() >= 0.25 and self.is_train):
-        
-                self.add_noise = self.transform_noise(image=self.augmented_image)
-                self.augmented_image = self.add_noise["image"]
-
-        else:
-
-            # Only resize in test/validation mode
-            self.adjust_shape = self.transform_shape_test_with_validity(image=self.image, \
-                validity=self.validity, mask = self.ground_truth)
-            self.augmented_data = self.adjust_shape["mask"]
-            self.augmented_image = self.adjust_shape["image"]
-            self.augmented_validity = self.adjust_shape["validity"]
-
-        return self.augmented_image, self.augmented_data, self.augmented_validity
-
-
-    
