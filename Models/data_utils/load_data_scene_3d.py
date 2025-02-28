@@ -63,7 +63,7 @@ class LoadDataScene3D():
                     self.all_validities.append(str(self.validities[count]))
                 self.num_all_samples += 1
 
-                if((count+1) % 10 == 0):
+                if((count+1) % 5 == 0):
                     self.val_images.append(str(self.images[count]))
                     self.val_labels.append(str(self.labels[count]))
 
@@ -100,7 +100,8 @@ class LoadDataScene3D():
     
     def getGroundTruth(self, input_label):
         ground_truth = np.load(input_label)
-        ground_truth = np.divide(1, ground_truth, out=np.zeros_like(ground_truth), where=ground_truth!=0)
+        if (self.dataset != 'DIVERSE'):
+            ground_truth = np.divide(1, ground_truth, out=np.zeros_like(ground_truth), where=ground_truth!=0)
         ground_truth = np.expand_dims(ground_truth, axis=-1)
         return ground_truth
     
