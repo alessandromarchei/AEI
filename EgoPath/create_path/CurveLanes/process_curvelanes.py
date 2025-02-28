@@ -94,7 +94,11 @@ def getDrivablePath(left_ego, right_ego, new_img_height, y_coords_interp = False
             right_ego[:, 0][::-1]
         )
         mid_x = (left_x_interp + right_x_interp) / 2
-        drivable_path = list(zip(mid_x, y_coords_ASSEMBLE))
+        # Filter out those points that are not in the common vertical zone between 2 egos
+        drivable_path = [
+            [x, y] for x, y in list(zip(mid_x, y_coords_ASSEMBLE))
+            if y <= min(left_ego[0][1], right_ego[0][1])
+        ]
     else:
         # Get the normal drivable path from the longest common y-coords
         while (i <= len(left_ego) - 1 and j <= len(right_ego) - 1):
@@ -112,14 +116,18 @@ def getDrivablePath(left_ego, right_ego, new_img_height, y_coords_interp = False
 
     # Extend drivable path to bottom edge of the frame
     if ((len(drivable_path) >= 2) and (drivable_path[0][1] < new_img_height)):
+        # print(f"Current drivable path: {drivable_path}")
         x1, y1 = drivable_path[1]
         x2, y2 = drivable_path[0]
         if (x2 == x1):
             x_bottom = x2
         else:
             a = (y2 - y1) / (x2 - x1)
+            # print(f"a = {a}")
             x_bottom = x2 + (new_img_height - y2) / a
+            # print(f"x_bottom = {x_bottom}")
         drivable_path.insert(0, (x_bottom, new_img_height))
+        # print(f"Bottom-extended drivable path: {drivable_path}")
 
     # Extend drivable path to be on par with longest ego lane
     # By making it parallel with longer ego lane
@@ -410,15 +418,6 @@ if __name__ == "__main__":
         help = "Output directory",
         required = True
     )
-    # parser.add_argument(
-    #     "--crop",
-    #     type = int,
-    #     nargs = 4,
-    #     help = "Crop image: [TOP, RIGHT, BOTTOM, LEFT]. Must always be 4 ints. Non-cropped sizes are 0.",
-    #     metavar = ("TOP", "RIGHT", "BOTTOM", "LEFT"),
-    #     default = [0, 390, 160, 390],    # 2 plus 2 is 4 minus 1 that's 3, quick maths
-    #     required = False
-    # )
     parser.add_argument(
         "--sampling_step",
         type = int,
@@ -485,6 +484,7 @@ if __name__ == "__main__":
             for i in range(0, len(list_raw_files), sampling_step):
                 img_path = os.path.join(dataset_dir, root_dir, split, list_raw_files[i]).strip()
                 img_id_counter += 1
+                # print(img_id_counter)
                 # Preload image file for multiple uses later
                 raw_img = Image.open(img_path).convert("RGB")
                 img_width, img_height = raw_img.size

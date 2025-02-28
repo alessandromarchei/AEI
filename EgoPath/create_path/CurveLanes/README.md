@@ -49,8 +49,3 @@ Each image, upon being parsed into those functions, will have 2 params of `origi
 # Process first 100 images, then stop
 python EgoPath/create_path/CurveLanes/process_curvelanes.py --dataset_dir ../pov_datasets --output_dir ../pov_datasets/Output --sampling_step 5 --early_stopping 100
 ```
-
-# Dev log on flight
-
-- All logics are good, but there are bugs in the resize/crop
-- I expect resize error. When Internet is available, make sure to check the `crop()` function params.
