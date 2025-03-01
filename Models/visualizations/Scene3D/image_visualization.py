@@ -6,7 +6,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-sys.path.append('..')
+sys.path.append('../..')
 from inference.scene_3d_infer import Scene3DNetworkInfer
 
 def make_visualization(prediction):
@@ -37,12 +37,12 @@ def make_visualization(prediction):
 def main(): 
 
     # Saved model checkpoint path
-    model_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_01_27/model/iter_990791_epoch_24_step_19799.pth'
+    model_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_07/model/iter_1779999_epoch_43_step_40306.pth'
     model = Scene3DNetworkInfer(checkpoint_path=model_checkpoint_path)
   
 
     # Reading input image
-    input_image_filepath = '/mnt/media/Scene3D/KITTI/image/380.png'
+    input_image_filepath = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/test_image_2.jpg'
     frame = cv2.imread(input_image_filepath, cv2.IMREAD_COLOR)
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     image_pil = Image.fromarray(image)
@@ -51,18 +51,11 @@ def main():
     # Transparency factor
     alpha = 0.5
 
+
     # Run inference and create visualization
-    prediction = model.inference(image_pil)
+    prediction = model.inference(image_pil, scale_factor=1.5)
     prediction = cv2.resize(prediction, (frame.shape[1], frame.shape[0]))
-    prediction_metric = prediction*7
-
-
-    obstacle_mask = make_visualization(prediction_metric)  
-    image_vis_obj = cv2.addWeighted(obstacle_mask, alpha, frame, 1 - alpha, 0)
-    plt.figure()
-    plt.imshow(prediction_metric)
-    plt.figure()
-    plt.imshow(image_vis_obj)
+    plt.imshow(prediction)
 
 
 if __name__ == '__main__':

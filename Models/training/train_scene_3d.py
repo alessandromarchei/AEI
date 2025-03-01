@@ -24,8 +24,8 @@ def main():
     num_test_images = len(test_images)
 
     # Data path
-    diverse_labels_filepath = root + 'DIVERSE/relative-depth'
-    diverse_images_filepath = root + 'DIVERSE/images'
+    diverse_labels_filepath = root + 'Diverse/images-full-relative-depth/'
+    diverse_images_filepath = root + 'Diverse/images-full/'
 
     # Data Loading
     Dataset = LoadDataScene3D(diverse_labels_filepath, diverse_images_filepath)
@@ -60,7 +60,7 @@ def main():
         randomlist_train_data = random.sample(range(0, total_train_samples), total_train_samples)
 
         # Learning Rate schedule            
-        if(epoch >= 15):
+        if(epoch >= 10):
             trainer.set_learning_rate(0.0000125)
 
         for count in range(0, total_train_samples):
@@ -70,7 +70,7 @@ def main():
 
             # Dataset sample 
             image, gt = Dataset.getItemTrain(randomlist_train_data[count])
-
+            
             # Assign Data
             trainer.set_data(image, gt)
             
@@ -99,8 +99,8 @@ def main():
                 trainer.save_visualization(log_count)
            
             # Save model and run validation on entire validation 
-            # dataset after 20000 steps
-            if((log_count+1) % 40000 == 0):
+            # dataset after 400000 steps
+            if((log_count+1) % 500 == 0):
                 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
