@@ -51,7 +51,7 @@ class Augmentations():
 
     # SEMANTIC SEGMENTATION
     # Set data values
-    def setData(self, image, ground_truth):
+    def setDataSeg(self, image, ground_truth):
 
         self.image = image
         self.ground_truth = ground_truth
@@ -60,12 +60,12 @@ class Augmentations():
         self.augmented_image = image  
 
     # Apply augmentations transform
-    def applyTransform(self, image, ground_truth):
+    def applyTransformSeg(self, image, ground_truth):
 
         if(self.data_type != 'SEGMENTATION'):
             raise ValueError('Please set dataset type to SEGMENTATION in intialization of class')
         
-        self.setData(image, ground_truth)
+        self.setDataSeg(image, ground_truth)
 
         if(self.is_train):
 
@@ -89,3 +89,47 @@ class Augmentations():
             self.augmented_image = self.adjust_shape["image"]
 
         return self.augmented_image, self.augmented_data
+
+    # DEPTH ESTIMATION
+    # Set data values
+    def setDataDepth(self, image, ground_truth):
+
+        self.image = image
+        self.ground_truth = ground_truth
+        self.augmented_data = ground_truth
+        self.augmented_image = image  
+
+    # Apply augmentations transform
+    def applyTransformDepth(self, image, ground_truth):
+
+        if(self.data_type != 'DEPTH'):
+            raise ValueError('Please set dataset type to DEPTH in intialization of class')
+
+        self.setDataDepth(image, ground_truth)
+
+        if(self.is_train):
+
+            # Resize and random horiztonal flip
+            self.adjust_shape = self.transform_shape(image=self.image, \
+                mask=self.ground_truth)
+            
+            self.augmented_data = self.adjust_shape["mask"]
+            self.augmented_image = self.adjust_shape["image"]
+
+            # Random image augmentations
+            if (random.random() >= 0.25 and self.is_train):
+        
+                self.add_noise = self.transform_noise(image=self.augmented_image)
+                self.augmented_image = self.add_noise["image"]
+
+        else:
+
+            # Only resize in test/validation mode
+            self.adjust_shape = self.transform_shape_test(image=self.image, \
+                mask = self.ground_truth)
+            self.augmented_data = self.adjust_shape["mask"]
+            self.augmented_image = self.adjust_shape["image"]
+        return self.augmented_image, self.augmented_data
+
+
+    
