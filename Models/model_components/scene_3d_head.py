@@ -17,8 +17,6 @@ class Scene3DHead(nn.Module):
         self.decode_layer_8 = nn.Conv2d(128, 128, 3, 1, 1)
         self.decode_layer_9 = nn.Conv2d(128, 64, 3, 1, 1)
         self.decode_layer_10 = nn.Conv2d(64, 1, 3, 1, 1)
-        #self.decode_layer_11 = nn.Conv2d(64, 1, 3, 1, 1)
-        #self.decode_layer_12 = nn.Conv2d(64, 1, 3, 1, 1)
 
     def forward(self, neck, features):
 
@@ -43,9 +41,5 @@ class Scene3DHead(nn.Module):
         d10 = self.GeLU(d9)
 
         # Output
-        #output_upper = self.decode_layer_10(d10)
-        #output_lower = self.decode_layer_11(d10)
-        #output_bg = self.decode_layer_12(d10)
-        #prediction = output_upper + output_lower + output_bg
         prediction = self.decode_layer_10(d10)
         return prediction
