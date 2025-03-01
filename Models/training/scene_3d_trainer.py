@@ -120,15 +120,18 @@ class Scene3DTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='DEPTH')
-            augTrain.setData(self.image, self.gt)
+            augTrain.setDataDepth(self.image, self.gt)
+            self.image, self.gt = \
+                augTrain.applyTransformDepth(image=self.image,ground_truth=self.gt)
             
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='DEPTH')
-            augVal.setData(self.image, self.gt)
+            augVal.setDataDepth(self.image, self.gt)
+            self.image, self.gt = \
+                augVal.applyTransformDepth(image=self.image,ground_truth=self.gt)
             
-        self.image, self.gt = \
-                augTrain.applyTransform(image=self.image,ground_truth=self.gt)
+        
         
     # Load Data
     def load_data(self):
@@ -227,7 +230,7 @@ class Scene3DTrainer():
         fig, axs = plt.subplots(1,3)
         axs[0].imshow(self.image)
         axs[0].set_title('Image',fontweight ="bold") 
-        axs[1].imshow(self.augmented)
+        axs[1].imshow(self.gt)
         axs[1].set_title('Ground Truth',fontweight ="bold") 
         axs[2].imshow(prediction_vis)
         axs[2].set_title('Prediction',fontweight ="bold") 
