@@ -31,7 +31,7 @@ class LoadDataScene3D():
         if (checkData.getCheck()):
             for count in range (0, self.num_images):
 
-                if((count+1) % 5 == 0):
+                if((count+1) % 20 == 0):
                     self.val_images.append(str(self.images[count]))
                     self.val_labels.append(str(self.labels[count]))
                     self.num_val_samples += 1 
@@ -48,6 +48,10 @@ class LoadDataScene3D():
     def getItemTrain(self, index):
         train_image = Image.open(str(self.train_images[index])).convert('RGB')
         train_ground_truth = np.load(str(self.train_labels[index]))
+        train_ground_truth =  \
+            (train_ground_truth - np.min(train_ground_truth)) \
+            / (np.max(train_ground_truth) - np.min(train_ground_truth)) 
+
         train_ground_truth = np.expand_dims(train_ground_truth, axis=-1)
         return  np.array(train_image), train_ground_truth
     
