@@ -59,6 +59,9 @@ class LoadDataScene3D():
     def getItemVal(self, index):
         val_image = Image.open(str(self.val_images[index])).convert('RGB')
         val_ground_truth = np.load(str(self.val_labels[index]))
+        val_ground_truth =  \
+            (val_ground_truth - np.min(val_ground_truth)) \
+            / (np.max(val_ground_truth) - np.min(val_ground_truth)) 
         val_ground_truth = np.expand_dims(val_ground_truth, axis=-1)
         return  np.array(val_image), val_ground_truth
 
