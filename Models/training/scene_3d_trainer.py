@@ -150,21 +150,32 @@ class Scene3DTrainer():
     def run_model(self):     
             
         self.prediction = self.model(self.image_tensor)
-        self.mAE_loss = self.calc_mAE_loss()
-        self.edge_loss = self.calc_edge_loss()
+        prediction_ssi = self.apply_scale_shift(self.prediction)
+        gt_ssi = self.apply_scale_shift(self.gt_tensor)
+        self.mAE_loss = self.calc_mAE_loss(prediction_ssi, gt_ssi)
+        self.edge_loss = self.calc_edge_loss(prediction_ssi, gt_ssi)
         self.loss = self.mAE_loss + self.edge_loss
 
-    def calc_mAE_loss(self):
-        mAE = torch.abs(self.prediction - self.gt_tensor)
+    def calc_mAE_loss(self, prediction_ssi, gt_ssi):
+        mAE = torch.abs(prediction_ssi - gt_ssi)
         mAE_loss = torch.mean(mAE)
         return mAE_loss
-    
-    def calc_edge_loss(self):
-        G_x_pred = nn.functional.conv2d(self.prediction, self.gx_filter, padding=1)
-        G_y_pred = nn.functional.conv2d(self.prediction, self.gy_filter, padding=1)
 
-        G_x_gt = nn.functional.conv2d(self.gt_tensor, self.gx_filter, padding=1)
-        G_y_gt = nn.functional.conv2d(self.gt_tensor, self.gy_filter, padding=1)
+    def apply_scale_shift(self, tensor):
+        median = torch.median(tensor)
+        median_scalar = torch.mean(torch.abs(tensor - median))
+
+        shift_tensor = tensor - median
+        shift_scale_tensor = shift_tensor/median_scalar
+        return shift_scale_tensor
+    
+    def calc_edge_loss(self, prediction_ssi, gt_ssi):
+    
+        G_x_pred = nn.functional.conv2d(prediction_ssi, self.gx_filter, padding=1)
+        G_y_pred = nn.functional.conv2d(prediction_ssi, self.gy_filter, padding=1)
+
+        G_x_gt = nn.functional.conv2d(gt_ssi, self.gx_filter, padding=1)
+        G_y_gt = nn.functional.conv2d(gt_ssi, self.gy_filter, padding=1)
 
         edge_diff_mAE = torch.abs(G_x_pred - G_x_gt) + \
                             torch.abs(G_y_pred - G_y_gt)
