@@ -65,8 +65,8 @@ def main():
 
         for count in range(0, total_train_samples):
 
+            # Log value of iterator
             log_count = count + total_train_samples*epoch
-            count += 1
 
             # Dataset sample 
             image, gt = Dataset.getItemTrain(randomlist_train_data[count])
@@ -99,8 +99,8 @@ def main():
                 trainer.save_visualization(log_count)
            
             # Save model and run validation on entire validation 
-            # dataset after 400000 steps
-            if((log_count+1) % 500 == 0):
+            # dataset after 40000 steps
+            if((log_count+1) % 40000 == 0):
                 
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
