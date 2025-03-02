@@ -273,8 +273,10 @@ class Scene3DTrainer():
         self.prediction = self.model(self.image_tensor)
 
         # Calculate loss
-        val_mAE_loss = self.calc_mAE_loss()
-        val_mEL_loss = self.calc_edge_loss()
+        prediction_ssi = self.apply_scale_shift(self.prediction)
+        gt_ssi = self.apply_scale_shift(self.gt_tensor)
+        val_mAE_loss = self.calc_mAE_loss(prediction_ssi, gt_ssi)
+        val_mEL_loss = self.calc_edge_loss(prediction_ssi, gt_ssi)
 
         val_maE = val_mAE_loss.detach().cpu().numpy()
         val_mEL = val_mEL_loss.detach().cpu().numpy()
