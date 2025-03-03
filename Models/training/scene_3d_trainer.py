@@ -148,15 +148,20 @@ class Scene3DTrainer():
     # Run Model
     def run_model(self):     
         self.prediction = self.model(self.image_tensor)
-        self.mAE_loss = self.calc_mAE_loss()
+        self.mAE_loss = self.calc_mAE_loss_robust()
         self.edge_loss = self.calc_edge_loss()
         self.loss = self.mAE_loss + self.edge_loss
 
-    def calc_mAE_loss(self):
+    def calc_mAE_loss_robust(self):
         mAE = torch.abs(self.prediction - self.gt_tensor)
         mAE_robust_val = torch.quantile(mAE, 0.9, interpolation='linear')
         mAE_robust = mAE[mAE < mAE_robust_val]
         mAE_loss = torch.mean(mAE_robust)
+        return mAE_loss
+    
+    def calc_mAE_loss(self):
+        mAE = torch.abs(self.prediction - self.gt_tensor)
+        mAE_loss = torch.mean(mAE)
         return mAE_loss
     
     def calc_edge_loss(self):
