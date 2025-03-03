@@ -154,7 +154,7 @@ class Scene3DTrainer():
 
     def calc_mAE_loss(self):
         mAE = torch.abs(self.prediction - self.gt_tensor)
-        mAE_robust_val = torch.quantile(mAE, 0.8, interpolation='linear')
+        mAE_robust_val = torch.quantile(mAE, 0.9, interpolation='linear')
         mAE_robust = mAE[mAE < mAE_robust_val]
         mAE_loss = torch.mean(mAE_robust)
         return mAE_loss
