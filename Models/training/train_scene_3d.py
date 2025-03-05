@@ -24,8 +24,8 @@ def main():
     num_test_images = len(test_images)
 
     # Data path
-    diverse_labels_filepath = root + 'Diverse/images-full-relative-depth/'
-    diverse_images_filepath = root + 'Diverse/images-full/'
+    diverse_labels_filepath = root + 'Diverse/relative-depth/'
+    diverse_images_filepath = root + 'Diverse/image/'
 
     # Data Loading
     Dataset = LoadDataScene3D(diverse_labels_filepath, diverse_images_filepath)
@@ -145,9 +145,9 @@ def main():
                     # LOGGING
                     # Calculating average loss of complete validation set for
                     # each specific dataset as well as the overall combined dataset
-                    avg_mAE = mAE/total_val_samples
                     avg_mEL = mEL/total_val_samples
-                    avg_overall = avg_mAE + avg_mEL
+                    avg_mAE = mAE/total_val_samples
+                    avg_overall = avg_mEL + avg_mAE
                     
                     # Logging average validation loss to TensorBoard
                     trainer.log_val_loss(avg_overall, avg_mAE, avg_mEL, log_count)
