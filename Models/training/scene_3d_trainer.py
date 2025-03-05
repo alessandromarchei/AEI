@@ -31,7 +31,9 @@ class Scene3DTrainer():
         self.loss = 0
         self.edge_loss = 0
         self.mAE_loss = 0
-        
+        self.gram_loss = 0
+        self.statistics_loss = 0
+
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print(f'Using {self.device} for inference')
@@ -90,17 +92,17 @@ class Scene3DTrainer():
 
         # Gradient filters
         # Gradient - x
-        self.gx_filter = torch.Tensor([[1, 0, -1],
-        [2, 0, -2],
-        [1, 0, -1]])
+        self.gx_filter = torch.Tensor([[0.125, 0, -0.125],
+        [0.25, 0, -0.25],
+        [0.125, 0, -0.125]])
         self.gx_filter = self.gx_filter.view((1,1,3,3))
         self.gx_filter = self.gx_filter.type(torch.cuda.FloatTensor)
         self.gx_filter.to(self.device)
         
         # Gradient - y
-        self.gy_filter = torch.Tensor([[1, 2, 1],
+        self.gy_filter = torch.Tensor([[0.125, 0.25, 0.125],
         [0, 0, 0],
-        [-1, -2, -1]])
+        [-0.125, -0.25, -0.125]])
         self.gy_filter = self.gy_filter.view((1,1,3,3))
         self.gy_filter = self.gy_filter.type(torch.cuda.FloatTensor)
         self.gy_filter.to(self.device)
@@ -131,8 +133,7 @@ class Scene3DTrainer():
             self.image, self.gt = \
                 augVal.applyTransformDepth(image=self.image,ground_truth=self.gt)
             
-        
-        
+
     # Load Data
     def load_data(self):
         image_tensor = self.image_loader(self.image)
@@ -148,12 +149,66 @@ class Scene3DTrainer():
     # Run Model
     def run_model(self):     
         self.prediction = self.model(self.image_tensor)
-        self.mAE_loss = self.calc_mAE_loss_robust()
-        self.edge_loss = self.calc_edge_loss()
-        self.loss = self.mAE_loss + self.edge_loss
+        gt_ssi = self.get_ssi_tensor(self.gt_tensor)
+        prediction_ssi = self.get_ssi_tensor(self.prediction)
+        
+        self.mAE_loss = self.calc_mAE_ssi_loss_robust(prediction_ssi, gt_ssi)
+        self.edge_loss = self.calc_multi_scale_ssi_edge_loss(prediction_ssi, gt_ssi)
+        self.loss = self.mAE_loss + 2*self.edge_loss
+
+
+    def calc_statistics_loss(self):
+        prediction_median = torch.quantile(self.prediction, 0.5, interpolation='linear')
+        gt_median = torch.quantile(self.gt_tensor, 0.5, interpolation='linear')
+
+        running_statisitcs_loss = 0
+        sample_list = range(5,95,1)
+        num_vals = len(sample_list)
+
+        for i in sample_list:
+
+            sample_val = i/100
+
+            prediction_val = torch.quantile(self.prediction, sample_val, interpolation='linear')
+            gt_val = torch.quantile(self.gt_tensor, sample_val, interpolation='linear')
+
+            delta_prediction = prediction_median - prediction_val
+            delta_gt = gt_median - gt_val
+            delta_val = torch.abs(delta_gt - delta_prediction)
+
+            running_statisitcs_loss = running_statisitcs_loss + delta_val
+
+        statisitcs_loss = running_statisitcs_loss/num_vals
+        return statisitcs_loss
+            
+    def get_ssi_tensor(self, tensor):
+        median_val = torch.median(tensor)
+        shifted_tensor = tensor - median_val
+        scale_val = torch.mean(torch.abs(shifted_tensor))
+        ssi_tensor = shifted_tensor/scale_val
+        return ssi_tensor
+
+    def gram_matrix(self, input):
+        a, b, c, d = input.size() 
+        features = input.view(a * b, c * d)  
+        G = torch.mm(features, features.t())  
+        return G.div(a * b * c * d)
+    
+    def calc_gram_loss(self):
+        gram_gt = self.gram_matrix(self.gt_tensor)
+        gram_prediction = self.gram_matrix(self.prediction)
+        gram_loss = torch.mean(torch.abs(gram_gt - gram_prediction))
+        return gram_loss
 
     def calc_mAE_loss_robust(self):
         mAE = torch.abs(self.prediction - self.gt_tensor)
+        mAE_robust_val = torch.quantile(mAE, 0.9, interpolation='linear')
+        mAE_robust = mAE[mAE < mAE_robust_val]
+        mAE_loss = torch.mean(mAE_robust)
+        return mAE_loss
+    
+    def calc_mAE_ssi_loss_robust(self, prediction_ssi, gt_ssi):
+        mAE = torch.abs(prediction_ssi - gt_ssi)
         mAE_robust_val = torch.quantile(mAE, 0.9, interpolation='linear')
         mAE_robust = mAE[mAE < mAE_robust_val]
         mAE_loss = torch.mean(mAE_robust)
@@ -176,6 +231,38 @@ class Scene3DTrainer():
         edge_loss = torch.mean(edge_diff_mAE)
 
         return edge_loss
+    
+        
+    def calc_multi_scale_ssi_edge_loss(self, prediction_ssi, gt_ssi):
+        downsample = nn.AvgPool2d(2, stride=2)
+
+        prediction_ssi_d1 = downsample(prediction_ssi)
+        prediction_ssi_d2 = downsample(prediction_ssi_d2)
+        gt_ssi_d1 = downsample(gt_ssi)
+        gt_ssi_d2 = downsample(gt_ssi_d1)
+
+        edge_loss_d0 = self.calc_edge_ssi_loss(prediction_ssi, gt_ssi)
+        edge_loss_d1 = self.calc_edge_ssi_loss(prediction_ssi_d1, gt_ssi_d1)
+        edge_loss_d2 = self.calc_edge_ssi_loss(prediction_ssi_d2, gt_ssi_d2)
+
+        multi_scale_edge_loss = (edge_loss_d0 + edge_loss_d1 + edge_loss_d2)/3
+
+        return multi_scale_edge_loss
+
+    
+    def calc_edge_ssi_loss(self, prediction_ssi, gt_ssi):
+        G_x_pred = nn.functional.conv2d(prediction_ssi, self.gx_filter, padding=1)
+        G_y_pred = nn.functional.conv2d(prediction_ssi, self.gy_filter, padding=1)
+
+        G_x_gt = nn.functional.conv2d(gt_ssi, self.gx_filter, padding=1)
+        G_y_gt = nn.functional.conv2d(gt_ssi, self.gy_filter, padding=1)
+
+        edge_diff_mAE = torch.abs(G_x_pred - G_x_gt) + \
+                            torch.abs(G_y_pred - G_y_gt)
+        edge_loss = torch.mean(edge_diff_mAE)
+
+        return edge_loss
+    
 
     # Loss Backward Pass
     def loss_backward(self): 
@@ -192,14 +279,22 @@ class Scene3DTrainer():
     # Get edge loss
     def get_edge_loss(self):
         return self.edge_loss.item()
+    
+    # Get gram loss
+    def get_gram_loss(self):
+        return self.gram_loss.item()
+    
+    # Get statistics loss
+    def get_statistics_loss(self):
+        return self.statistics_loss.item()
 
     # Logging Loss
     def log_loss(self, log_count):
 
         self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
-            'mAE_loss': self.get_mAE_loss(),
-            'edge_loss': self.get_edge_loss()
+            'edge_loss': self.get_edge_loss(),
+            'mAE_loss': self.get_mAE_loss()
         }, (log_count))
            
         
@@ -267,13 +362,16 @@ class Scene3DTrainer():
         self.prediction = self.model(self.image_tensor)
 
         # Calculate loss
-        val_mAE_loss = self.calc_mAE_loss()
-        val_mEL_loss = self.calc_edge_loss()
+        gt_ssi = self.get_ssi_tensor(self.gt_tensor)
+        prediction_ssi = self.get_ssi_tensor(self.prediction)
+        
+        val_mAE_loss = self.calc_mAE_ssi_loss_robust(prediction_ssi, gt_ssi)
+        val_mEL_loss = self.calc_multi_scale_ssi_edge_loss(prediction_ssi, gt_ssi)
 
-        val_maE = val_mAE_loss.detach().cpu().numpy()
+        val_mAE = val_mAE_loss.detach().cpu().numpy()
         val_mEL = val_mEL_loss.detach().cpu().numpy()
 
-        return val_maE, val_mEL
+        return val_mAE, val_mEL
     
     # Run network on test image and visualize result
     def test(self, image_test, save_path):
