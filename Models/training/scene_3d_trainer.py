@@ -4,8 +4,6 @@ from torchvision import transforms
 from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-from typing import Literal
-import numpy as np
 import cv2
 from PIL import Image
 import sys
@@ -17,28 +15,24 @@ from data_utils.augmentations import Augmentations
 class Scene3DTrainer():
     def __init__(self,  checkpoint_path = '', pretrained_checkpoint_path = '', is_pretrained = False):
 
+        # Image and Ground Truth
         self.image = 0
-        self.image_val = 0
         self.gt = 0
-        self.gt_val = 0
-        self.validity = 0
-        self.validity_val = 0
-        self.validity_tensor = 0
-        self.validity_val_tensor = 0
-        self.augmented = 0
-        self.augmented_val = 0
+
+        # Tensors
         self.image_tensor = 0
-        self.image_val_tensor = 0
         self.gt_tensor = 0
-        self.gt_val_tensor = 0
-        self.loss = 0
+        
+        # Model and Predictions
+        self.model = 0
         self.prediction = 0
-        self.calc_loss = 0
+        
+        # Losses
+        self.loss = 0
         self.edge_loss = 0
         self.mAE_loss = 0
-        self.model = 0
-        self.scale_factor = 0
-        self.scale_factor_tensor = 0
+        self.gram_loss = 0
+        self.statistics_loss = 0
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -84,7 +78,8 @@ class Scene3DTrainer():
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.000025
+        self.learning_rate = 0.0001
+        
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -95,26 +90,19 @@ class Scene3DTrainer():
             ]
         )
 
-        # Loaders
-        self.validity_loader = transforms.Compose(
-            [
-                transforms.ToTensor()
-            ]
-        )
-
         # Gradient filters
         # Gradient - x
-        self.gx_filter = torch.Tensor([[1, 0, -1],
-        [2, 0, -2],
-        [1, 0, -1]])
+        self.gx_filter = torch.Tensor([[0.125, 0, -0.125],
+        [0.25, 0, -0.25],
+        [0.125, 0, -0.125]])
         self.gx_filter = self.gx_filter.view((1,1,3,3))
         self.gx_filter = self.gx_filter.type(torch.cuda.FloatTensor)
         self.gx_filter.to(self.device)
         
         # Gradient - y
-        self.gy_filter = torch.Tensor([[1, 2, 1],
+        self.gy_filter = torch.Tensor([[0.125, 0.25, 0.125],
         [0, 0, 0],
-        [-1, -2, -1]])
+        [-0.125, -0.25, -0.125]])
         self.gy_filter = self.gy_filter.view((1,1,3,3))
         self.gy_filter = self.gy_filter.type(torch.cuda.FloatTensor)
         self.gy_filter.to(self.device)
@@ -122,119 +110,167 @@ class Scene3DTrainer():
     # Learning Rate adjustment
     def set_learning_rate(self, learning_rate):
         self.learning_rate = learning_rate
-        
-    # Logging Training Loss
-    def log_loss(self, log_count, is_finetuned = False):
-
-        if(is_finetuned == True):
-            self.writer.add_scalars("Train",{
-            'total_loss': self.get_loss(),
-        }, (log_count))
-        else:
-            self.writer.add_scalars("Train",{
-                'total_loss': self.get_loss(),
-                'mAE_loss': self.get_mAE_loss(),
-                'edge_loss': self.get_edge_loss()
-            }, (log_count))
-
-    # Logging Validation mAE overall
-    def log_val_mAE(self, mAE_overall, mAE_kitti, 
-                       mAE_ddad, log_count):
-        
-        self.writer.add_scalars("Val/mAE_dataset",{
-            'mAE_kitti': mAE_kitti,
-            'mAE_ddad': mAE_ddad,
-        }, (log_count))
-
-        self.writer.add_scalar("Val/mAE", mAE_overall, (log_count))        
-
+    
     # Assign input variables
-    def set_data(self, image, gt, validity, scale_factor):
+    def set_data(self, image, gt):
         self.image = image
         self.gt = gt
-        self.validity = validity
-        self.scale_factor = scale_factor
 
-    def set_val_data(self, image_val, gt_val, validity_val, scale_factor):
-        self.image_val = image_val
-        self.gt_val = gt_val
-        self.validity_val = validity_val
-        self.scale_factor = scale_factor
-    
     # Image agumentations
     def apply_augmentations(self, is_train):
 
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='DEPTH')
-            augTrain.setDataDepth(self.image, self.gt, self.validity)
-            self.image, self.augmented, self.validity = \
-                augTrain.applyTransformDepth(image=self.image, 
-                                             ground_truth=self.gt, validity=self.validity)
+            augTrain.setDataDepth(self.image, self.gt)
+            self.image, self.gt = \
+                augTrain.applyTransformDepth(image=self.image,ground_truth=self.gt)
+            
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='DEPTH')
-            augVal.setDataDepth(self.image_val, self.gt_val, self.validity_val)
-            self.image_val, self.augmented_val, self.validity_val = \
-                augVal.applyTransformDepth(image=self.image_val, 
-                                           ground_truth=self.gt_val, validity=self.validity_val)
-    
+            augVal.setDataDepth(self.image, self.gt)
+            self.image, self.gt = \
+                augVal.applyTransformDepth(image=self.image,ground_truth=self.gt)
+            
+
     # Load Data
-    def load_data(self, is_train):
-        self.load_image_tensor(is_train)
-        self.load_gt_tensor(is_train)
-        self.load_validity_tensor(is_train)
-        self.load_scale_tensor()
+    def load_data(self):
+        image_tensor = self.image_loader(self.image)
+        image_tensor = image_tensor.unsqueeze(0)
+        self.image_tensor = image_tensor.to(self.device)
+
+        gt_tensor = torch.from_numpy(self.gt)
+        gt_tensor = gt_tensor.permute(2, 0, 1)
+        gt_tensor = gt_tensor.unsqueeze(0)
+        gt_tensor = gt_tensor.type(torch.FloatTensor)
+        self.gt_tensor = gt_tensor.to(self.device)
+
+    # Run Model
+    def run_model(self):     
+        self.prediction = self.model(self.image_tensor)
+        gt_ssi = self.get_ssi_tensor(self.gt_tensor)
+        prediction_ssi = self.get_ssi_tensor(self.prediction)
+        
+        self.mAE_loss = self.calc_mAE_ssi_loss_robust(prediction_ssi, gt_ssi)
+        self.edge_loss = self.calc_multi_scale_ssi_edge_loss(prediction_ssi, gt_ssi)
+        self.loss = self.mAE_loss + 2*self.edge_loss
 
 
-    def mAE_validity_loss(self):
+    def calc_statistics_loss(self):
+        prediction_median = torch.quantile(self.prediction, 0.5, interpolation='linear')
+        gt_median = torch.quantile(self.gt_tensor, 0.5, interpolation='linear')
 
-        mAE = torch.abs(self.prediction - self.gt_tensor)*(self.validity_tensor)
-        mAE_loss = torch.mean(mAE)
+        running_statisitcs_loss = 0
+        sample_list = range(5,95,1)
+        num_vals = len(sample_list)
 
+        for i in sample_list:
+
+            sample_val = i/100
+
+            prediction_val = torch.quantile(self.prediction, sample_val, interpolation='linear')
+            gt_val = torch.quantile(self.gt_tensor, sample_val, interpolation='linear')
+
+            delta_prediction = prediction_median - prediction_val
+            delta_gt = gt_median - gt_val
+            delta_val = torch.abs(delta_gt - delta_prediction)
+
+            running_statisitcs_loss = running_statisitcs_loss + delta_val
+
+        statisitcs_loss = running_statisitcs_loss/num_vals
+        return statisitcs_loss
+            
+    def get_ssi_tensor(self, tensor):
+        median_val = torch.median(tensor)
+        shifted_tensor = tensor - median_val
+        scale_val = torch.mean(torch.abs(shifted_tensor))
+        ssi_tensor = shifted_tensor/scale_val
+        return ssi_tensor
+
+    def gram_matrix(self, input):
+        a, b, c, d = input.size() 
+        features = input.view(a * b, c * d)  
+        G = torch.mm(features, features.t())  
+        return G.div(a * b * c * d)
+    
+    def calc_gram_loss(self):
+        gram_gt = self.gram_matrix(self.gt_tensor)
+        gram_prediction = self.gram_matrix(self.prediction)
+        gram_loss = torch.mean(torch.abs(gram_gt - gram_prediction))
+        return gram_loss
+
+    def calc_mAE_loss_robust(self):
+        mAE = torch.abs(self.prediction - self.gt_tensor)
+        mAE_robust_val = torch.quantile(mAE, 0.9, interpolation='linear')
+        mAE_robust = mAE[mAE < mAE_robust_val]
+        mAE_loss = torch.mean(mAE_robust)
         return mAE_loss
     
-    def edge_validity_loss(self):
-
+    def calc_mAE_ssi_loss_robust(self, prediction_ssi, gt_ssi):
+        mAE = torch.abs(prediction_ssi - gt_ssi)
+        mAE_robust_val = torch.quantile(mAE, 0.9, interpolation='linear')
+        mAE_robust = mAE[mAE < mAE_robust_val]
+        mAE_loss = torch.mean(mAE_robust)
+        return mAE_loss
+    
+    def calc_mAE_loss(self):
+        mAE = torch.abs(self.prediction - self.gt_tensor)
+        mAE_loss = torch.mean(mAE)
+        return mAE_loss
+    
+    def calc_edge_loss(self):
         G_x_pred = nn.functional.conv2d(self.prediction, self.gx_filter, padding=1)
         G_y_pred = nn.functional.conv2d(self.prediction, self.gy_filter, padding=1)
-        G_pred = torch.pow(G_x_pred,2)+ torch.pow(G_y_pred,2)
 
         G_x_gt = nn.functional.conv2d(self.gt_tensor, self.gx_filter, padding=1)
         G_y_gt = nn.functional.conv2d(self.gt_tensor, self.gy_filter, padding=1)
-        G_gt = torch.pow(G_x_gt,2)+ torch.pow(G_y_gt,2)
 
-        edge_diff_MSE = torch.abs(G_pred - G_gt)*(self.validity_tensor)
-        edge_diff_mAE = torch.abs(G_x_pred - G_x_gt)*(self.validity_tensor) + \
-                            torch.abs(G_y_pred - G_y_gt)*(self.validity_tensor)
-        edge_loss = torch.mean(edge_diff_MSE) + torch.mean(edge_diff_mAE)
+        edge_diff_mAE = torch.abs(G_x_pred - G_x_gt) + \
+                            torch.abs(G_y_pred - G_y_gt)
+        edge_loss = torch.mean(edge_diff_mAE)
 
         return edge_loss
+    
         
-    # Run Model
-    def run_model(self, dataset: Literal['URBANSYN', 'GTAV', 'MUAD', 'KITTI', 'DDAD', 'MUSES']):     
-        
-        self.prediction = self.model(self.image_tensor)*self.scale_factor_tensor
-        mAE_loss = self.mAE_validity_loss()
-        self.mAE_loss = mAE_loss
-        total_loss = 0
+    def calc_multi_scale_ssi_edge_loss(self, prediction_ssi, gt_ssi):
+        downsample = nn.AvgPool2d(2, stride=2)
 
-        if(dataset == 'URBANSYN' or dataset == 'GTAV' or dataset == 'MUAD'):
-            edge_loss = self.edge_validity_loss()
-            self.edge_loss = edge_loss
-            total_loss = 0.5*(mAE_loss + edge_loss)
-        else:
-            total_loss = mAE_loss
-        
-        self.calc_loss = total_loss
+        prediction_ssi_d1 = downsample(prediction_ssi)
+        prediction_ssi_d2 = downsample(prediction_ssi_d2)
+        gt_ssi_d1 = downsample(gt_ssi)
+        gt_ssi_d2 = downsample(gt_ssi_d1)
+
+        edge_loss_d0 = self.calc_edge_ssi_loss(prediction_ssi, gt_ssi)
+        edge_loss_d1 = self.calc_edge_ssi_loss(prediction_ssi_d1, gt_ssi_d1)
+        edge_loss_d2 = self.calc_edge_ssi_loss(prediction_ssi_d2, gt_ssi_d2)
+
+        multi_scale_edge_loss = (edge_loss_d0 + edge_loss_d1 + edge_loss_d2)/3
+
+        return multi_scale_edge_loss
+
+    
+    def calc_edge_ssi_loss(self, prediction_ssi, gt_ssi):
+        G_x_pred = nn.functional.conv2d(prediction_ssi, self.gx_filter, padding=1)
+        G_y_pred = nn.functional.conv2d(prediction_ssi, self.gy_filter, padding=1)
+
+        G_x_gt = nn.functional.conv2d(gt_ssi, self.gx_filter, padding=1)
+        G_y_gt = nn.functional.conv2d(gt_ssi, self.gy_filter, padding=1)
+
+        edge_diff_mAE = torch.abs(G_x_pred - G_x_gt) + \
+                            torch.abs(G_y_pred - G_y_gt)
+        edge_loss = torch.mean(edge_diff_mAE)
+
+        return edge_loss
+    
 
     # Loss Backward Pass
     def loss_backward(self): 
-        self.calc_loss.backward()
+        self.loss.backward()
 
     # Get mAE loss value
     def get_loss(self):
-        return self.calc_loss.item()
+        return self.loss.item()
     
     # Get edge loss
     def get_mAE_loss(self):
@@ -243,7 +279,33 @@ class Scene3DTrainer():
     # Get edge loss
     def get_edge_loss(self):
         return self.edge_loss.item()
+    
+    # Get gram loss
+    def get_gram_loss(self):
+        return self.gram_loss.item()
+    
+    # Get statistics loss
+    def get_statistics_loss(self):
+        return self.statistics_loss.item()
 
+    # Logging Loss
+    def log_loss(self, log_count):
+
+        self.writer.add_scalars("Train",{
+            'total_loss': self.get_loss(),
+            'edge_loss': self.get_edge_loss(),
+            'mAE_loss': self.get_mAE_loss()
+        }, (log_count))
+           
+        
+    # Logging Loss
+    def log_val_loss(self, total_loss, mAE_loss, edge_loss, log_count):
+        self.writer.add_scalars("Validation",{
+            'total_loss': total_loss,
+            'mAE_loss': mAE_loss,
+            'edge_loss': edge_loss
+        }, (log_count))
+         
     # Run Optimizer
     def run_optimizer(self):
         self.optimizer.step()
@@ -268,57 +330,13 @@ class Scene3DTrainer():
         fig, axs = plt.subplots(1,3)
         axs[0].imshow(self.image)
         axs[0].set_title('Image',fontweight ="bold") 
-        axs[1].imshow(self.augmented)
+        axs[1].imshow(self.gt)
         axs[1].set_title('Ground Truth',fontweight ="bold") 
         axs[2].imshow(prediction_vis)
         axs[2].set_title('Prediction',fontweight ="bold") 
         self.writer.add_figure('predictions vs. actuals', \
         fig, global_step=(log_count))
     
-    # Load Image as Tensor
-    def load_image_tensor(self, is_train):
-
-        if(is_train):
-            image_tensor = self.image_loader(self.image)
-            image_tensor = image_tensor.unsqueeze(0)
-            self.image_tensor = image_tensor.to(self.device)
-        else:
-            image_val_tensor = self.image_loader(self.image_val)
-            image_val_tensor = image_val_tensor.unsqueeze(0)
-            self.image_val_tensor = image_val_tensor.to(self.device)
-
-    # Load Ground Truth as Tensor
-    def load_gt_tensor(self, is_train):
-
-        if(is_train):
-            gt_tensor = torch.from_numpy(self.augmented)
-            gt_tensor = gt_tensor.permute(2, 0, 1)
-            gt_tensor = gt_tensor.unsqueeze(0)
-            gt_tensor = gt_tensor.type(torch.FloatTensor)
-            self.gt_tensor = gt_tensor.to(self.device)
-        else:
-            gt_val_tensor = torch.from_numpy(self.augmented_val)
-            gt_val_tensor = gt_val_tensor.permute(2, 0, 1)
-            gt_val_tensor = gt_val_tensor.unsqueeze(0)
-            gt_val_tensor = gt_val_tensor.type(torch.FloatTensor)
-            self.gt_val_tensor = gt_val_tensor.to(self.device)
-
-    def load_scale_tensor(self):
-        scale_factor_tensor = torch.tensor(self.scale_factor, dtype=torch.float32)
-        scale_factor_tensor.requires_grad = False
-        self.scale_factor_tensor = scale_factor_tensor.to(self.device)
-
-    # Load Image as Tensor
-    def load_validity_tensor(self, is_train):
-
-        if(is_train):
-            validity_tensor = self.validity_loader(self.validity)
-            validity_tensor = validity_tensor.unsqueeze(0)
-            self.validity_tensor = validity_tensor.to(self.device)
-        else:
-            validity_val_tensor = self.validity_loader(self.validity_val)
-            validity_val_tensor = validity_val_tensor.unsqueeze(0)
-            self.validity_val_tensor = validity_val_tensor.to(self.device)
     
     # Zero Gradient
     def zero_grad(self):
@@ -329,29 +347,34 @@ class Scene3DTrainer():
         torch.save(self.model.state_dict(), model_save_path)
 
     # Run Validation and calculate metrics
-    def validate(self, image_val, gt_val, validity_val, scale_factor):
+    def validate(self, image, gt):
 
         # Set Data
-        self.set_val_data(image_val, gt_val, validity_val, scale_factor)
+        self.set_data(image, gt)
 
         # Augmenting Image
         self.apply_augmentations(is_train=False)
         
         # Converting to tensor and loading
-        self.load_data(is_train=False)
+        self.load_data()
 
         # Running model
-        output_val = self.model(self.image_val_tensor)*self.scale_factor_tensor
+        self.prediction = self.model(self.image_tensor)
 
         # Calculate loss
-        abs_diff = torch.abs(output_val - self.gt_val_tensor)*(self.validity_val_tensor)
-        accuracy = torch.mean(abs_diff)
-        accuracy_val = accuracy.detach().cpu().numpy()
+        gt_ssi = self.get_ssi_tensor(self.gt_tensor)
+        prediction_ssi = self.get_ssi_tensor(self.prediction)
+        
+        val_mAE_loss = self.calc_mAE_ssi_loss_robust(prediction_ssi, gt_ssi)
+        val_mEL_loss = self.calc_multi_scale_ssi_edge_loss(prediction_ssi, gt_ssi)
 
-        return accuracy_val
+        val_mAE = val_mAE_loss.detach().cpu().numpy()
+        val_mEL = val_mEL_loss.detach().cpu().numpy()
+
+        return val_mAE, val_mEL
     
     # Run network on test image and visualize result
-    def test(self, image_test, save_path, scale_factor = 1.50):
+    def test(self, image_test, save_path):
 
         frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -361,13 +384,7 @@ class Scene3DTrainer():
         test_image_tensor = self.image_loader(image_pil)
         test_image_tensor = test_image_tensor.unsqueeze(0)
         test_image_tensor = test_image_tensor.to(self.device)
-
-           
-        test_scale_factor_tensor = torch.tensor(scale_factor, dtype=torch.float32)
-        test_scale_factor_tensor.requires_grad = False
-        test_scale_factor_tensor = test_scale_factor_tensor.to(self.device)
-
-        test_output = self.model(test_image_tensor)*test_scale_factor_tensor
+        test_output = self.model(test_image_tensor)
 
         test_output = test_output.squeeze(0).cpu().detach()
         test_output = test_output.permute(1, 2, 0)

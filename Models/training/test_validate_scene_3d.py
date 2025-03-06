@@ -77,7 +77,9 @@ def main():
     running_mAE_kitti = 0
     running_mAE_ddad = 0
     running_mAE_argoverse = 0
-    
+    scale_factor_val = 0
+    scale_factor_test = 0
+
     # No gradient calculation
     with torch.no_grad():
 
@@ -86,8 +88,9 @@ def main():
             image_val, gt_val, validity_val = kitti_Dataset.getItemVal(val_count)
 
             # Run Validation and calculate mAE Score
-            mAE = trainer.validate(image_val, gt_val, validity_val, s_kitti)
-
+            scale_factor_val = s_kitti
+            mAE = trainer.validate(image_val, gt_val, validity_val, scale_factor_val)
+            
             # Accumulating mAE score
             running_mAE_kitti += mAE
             running_mAE_overall += mAE
@@ -97,14 +100,13 @@ def main():
             image_val, gt_val, validity_val = ddad_Dataset.getItemVal(val_count)
 
             # Run Validation and calculate mAE Score
-            s_ddad = 1.0
             if(ddad_val_cams[val_count] == 'back_camera'):
-                s_ddad = s_ddad_b
+                scale_factor_val = s_ddad_b
             elif(ddad_val_cams[val_count] == 'front_camera'):
-                s_ddad = s_ddad_f
+                scale_factor_val = s_ddad_f
 
             # Run Validation and calculate mAE Score
-            mAE = trainer.validate(image_val, gt_val, validity_val, s_ddad)
+            mAE = trainer.validate(image_val, gt_val, validity_val, scale_factor_val)
 
             # Accumulating mAE score
             running_mAE_ddad += mAE
@@ -127,7 +129,8 @@ def main():
             image_test, gt_test, validity_test = argoverse_Dataset.getItemTrain(test_count)
             
             # Run Validation and calculate mAE Score
-            mAE = trainer.validate(image_test, gt_test, validity_test, s_argoverse)
+            scale_factor_test = s_argoverse
+            mAE = trainer.validate(image_test, gt_test, validity_test, scale_factor_test)
 
             # Accumulating mAE score
             running_mAE_argoverse += mAE
