@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 import shutil
-import pathlib
+import math
 from PIL import Image, ImageDraw
 import warnings
 from datetime import datetime
@@ -67,7 +67,11 @@ def getEgoIndexes(anchors, new_img_width):
     return "NO LANES on the RIGHT side of frame. Something's sussy out there!"
 
 
-def getDrivablePath(left_ego, right_ego, new_img_height, y_coords_interp = False):
+def getDrivablePath(
+        left_ego, right_ego, 
+        new_img_height, new_img_width, 
+        y_coords_interp = False
+):
     """
     Computes drivable path as midpoint between 2 ego lanes, basically the main point of this task.
     """
@@ -161,6 +165,20 @@ def getDrivablePath(left_ego, right_ego, new_img_height, y_coords_interp = False
                     x_top = x1 + (y_top - y1) / a
 
                 drivable_path.append((x_top, y_top))
+
+    # Now check drivable path's params for automatic auditting
+
+    drivable_path_angle_deg = math.degrees(math.atan(float(
+        abs(drivable_path[-1][1] - drivable_path[0][1]) / \
+        abs(drivable_path[-1][0] - drivable_path[0][0])
+    )))
+
+    if not (new_img_width * LEFT_ANCHOR_BOUNDARY <= drivable_path[0][0] <= new_img_width * (1 - RIGHT_ANCHOR_BOUNDARY)):
+        return f"Drivable path has anchor point out of heuristic boundary [{LEFT_ANCHOR_BOUNDARY} , {1 - RIGHT_ANCHOR_BOUNDARY}], ignoring this frame!"
+    elif not (drivable_path[-1][1] < new_img_height * (1 - HEIGHT_BOUNDARY)):
+        return f"Drivable path has length not exceeding heuristic length of {HEIGHT_BOUNDARY * 100}% frame height, ignoring this frame!"
+    elif not (drivable_path_angle_deg >= ANGLE_BOUNDARY):
+        return f"Drivable path has angle not exceeding heuristic angle of {ANGLE_BOUNDARY} degrees, ignoring this frame!"
 
     return drivable_path
 
@@ -347,59 +365,68 @@ def parseAnnotations(
             # Determine drivable path from 2 egos, and switch on interp cuz this is CurveLanes
             drivable_path = getDrivablePath(
                 left_ego, right_ego,
-                new_img_height,
+                new_img_height, new_img_width,
                 y_coords_interp = True
             )
 
-            # Parse processed data, all coords normalized
-            anno_data = {
-                "lanes" : [
-                    normalizeCoords(lane, new_img_width, new_img_height) 
-                    for lane in lanes_sortedBy_anchor
-                ],
-                "ego_indexes" : ego_indexes,
-                "drivable_path" : normalizeCoords(drivable_path, new_img_width, new_img_height),
-                "img_width" : new_img_width,
-                "img_height" : new_img_height,
-            }
+            if (type(drivable_path) is str):
+                warnings.warn(f"Parsing {anno_path}: {drivable_path}")
+            else:
+                # Parse processed data, all coords normalized
+                anno_data = {
+                    "lanes" : [
+                        normalizeCoords(lane, new_img_width, new_img_height) 
+                        for lane in lanes_sortedBy_anchor
+                    ],
+                    "ego_indexes" : ego_indexes,
+                    "drivable_path" : normalizeCoords(drivable_path, new_img_width, new_img_height),
+                    "img_width" : new_img_width,
+                    "img_height" : new_img_height,
+                }
 
-            return anno_data
+                return anno_data
 
 
 if __name__ == "__main__":
 
     # ============================== Dataset structure ============================== #
 
-    root_dir = "Curvelanes"
-    list_splits = ["train", "valid"]
-    img_dir = "images"
-    label_dir = "labels"
+    ROOT_DIR = "Curvelanes"
+    LIST_SPLITS = ["train", "valid"]
+    IMG_DIR = "images"
+    LABEL_DIR = "labels"
 
     # I got this result from `./EDA_imgsizes.ipynb`
-    size_dict = {
+    SIZE_DICT = {
         "beeg" : (2560, 1440),
         "half_beeg" : (1280, 720),
         "weird" : (1570, 660),
     }
 
-    beeg_y_crop_sum = 320
-    beeg_x_crop = 240
-    beeg_y_crop_top_ratio = 0.75
-    crop_beeg = {
-        "TOP" : int(beeg_y_crop_sum * beeg_y_crop_top_ratio),
-        "RIGHT" : beeg_x_crop,
-        "BOTTOM" : int(beeg_y_crop_sum * (1 - beeg_y_crop_top_ratio)),
-        "LEFT" : beeg_x_crop
+    BEEG_Y_CROP_SUM = 320
+    BEEG_X_CROP = 240
+    BEEG_Y_CROP_TOP_RATIO = 0.75
+    CROP_BEEG = {
+        "TOP" : int(BEEG_Y_CROP_SUM * BEEG_Y_CROP_TOP_RATIO),
+        "RIGHT" : BEEG_X_CROP,
+        "BOTTOM" : int(BEEG_Y_CROP_SUM * (1 - BEEG_Y_CROP_TOP_RATIO)),
+        "LEFT" : BEEG_X_CROP
     }
     
-    weird_y_crop = 130
-    weird_x_crop = 385
-    crop_weird = {
-        "TOP" : weird_y_crop,
-        "RIGHT" : weird_x_crop,
-        "BOTTOM" : weird_y_crop,
-        "LEFT" : weird_x_crop
+    WEIRD_Y_CROP = 130
+    WEIRD_X_CROP = 385
+    CROP_WEIRD = {
+        "TOP" : WEIRD_Y_CROP,
+        "RIGHT" : WEIRD_X_CROP,
+        "BOTTOM" : WEIRD_Y_CROP,
+        "LEFT" : WEIRD_X_CROP
     }
+
+    # ====== Heuristic boundaries of drivable path for automatic auditing ====== #
+
+    LEFT_ANCHOR_BOUNDARY = RIGHT_ANCHOR_BOUNDARY = 0.2
+    HEIGHT_BOUNDARY = 0.15
+    ANGLE_BOUNDARY = 30
 
     # ============================== Parsing args ============================== #
 
@@ -475,14 +502,14 @@ if __name__ == "__main__":
     data_master = {}
     img_id_counter = -1
 
-    for split in list_splits:
+    for split in LIST_SPLITS:
         print(f"\n==================== Processing {split} data ====================\n")
-        raw_img_book = os.path.join(dataset_dir, root_dir, split, f"{split}.txt")
+        raw_img_book = os.path.join(dataset_dir, ROOT_DIR, split, f"{split}.txt")
         with open(raw_img_book, "r") as f:
             list_raw_files = f.readlines()
 
             for i in range(0, len(list_raw_files), sampling_step):
-                img_path = os.path.join(dataset_dir, root_dir, split, list_raw_files[i]).strip()
+                img_path = os.path.join(dataset_dir, ROOT_DIR, split, list_raw_files[i]).strip()
                 img_id_counter += 1
                 # print(img_id_counter)
                 # Preload image file for multiple uses later
@@ -494,17 +521,17 @@ if __name__ == "__main__":
                 resize = None
                 crop = None
 
-                if (init_img_size == size_dict["beeg"]):
+                if (init_img_size == SIZE_DICT["beeg"]):
                     resize = 0.5
-                    crop = crop_beeg
-                elif (init_img_size == size_dict["half_beeg"]):
+                    crop = CROP_BEEG
+                elif (init_img_size == SIZE_DICT["half_beeg"]):
                     resize = None
-                    crop = crop_beeg
-                elif (init_img_size == size_dict["weird"]):
+                    crop = CROP_BEEG
+                elif (init_img_size == SIZE_DICT["weird"]):
                     resize = None
-                    crop = crop_weird
+                    crop = CROP_WEIRD
 
-                anno_path = img_path.replace(".jpg", ".lines.json").replace(img_dir, label_dir)
+                anno_path = img_path.replace(".jpg", ".lines.json").replace(IMG_DIR, LABEL_DIR)
 
                 this_data = parseAnnotations(
                     anno_path = anno_path,
