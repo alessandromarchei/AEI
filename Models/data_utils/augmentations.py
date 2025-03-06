@@ -26,6 +26,14 @@ class Augmentations():
             ]
         )
 
+        self.transform_shape_with_shuffle = A.Compose(
+            [
+                A.Resize(width = 640, height = 320),   
+                A.HorizontalFlip(p = 0.5),
+                A.RandomGridShuffle(grid=(1,4), p=0.25)   
+            ]
+        )
+
         self.transform_shape_test = A.Compose(
             [
                 A.Resize(width = 640, height = 320),   
@@ -109,8 +117,8 @@ class Augmentations():
 
         if(self.is_train):
 
-            # Resize and random horiztonal flip
-            self.adjust_shape = self.transform_shape(image=self.image, \
+            # Resize and random horiztonal flip/grid-shuffle
+            self.adjust_shape = self.transform_shape_with_shuffle(image=self.image, \
                 mask=self.ground_truth)
             
             self.augmented_data = self.adjust_shape["mask"]
