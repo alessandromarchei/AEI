@@ -237,15 +237,19 @@ class Scene3DTrainer():
         downsample = nn.AvgPool2d(2, stride=2)
 
         prediction_ssi_d1 = downsample(prediction_ssi)
-        prediction_ssi_d2 = downsample(prediction_ssi_d2)
+        prediction_ssi_d2 = downsample(prediction_ssi_d1)
+        prediction_ssi_d3 = downsample(prediction_ssi_d2)
         gt_ssi_d1 = downsample(gt_ssi)
         gt_ssi_d2 = downsample(gt_ssi_d1)
+        gt_ssi_d3 = downsample(gt_ssi_d2)
 
         edge_loss_d0 = self.calc_edge_ssi_loss(prediction_ssi, gt_ssi)
         edge_loss_d1 = self.calc_edge_ssi_loss(prediction_ssi_d1, gt_ssi_d1)
         edge_loss_d2 = self.calc_edge_ssi_loss(prediction_ssi_d2, gt_ssi_d2)
+        edge_loss_d3 = self.calc_edge_ssi_loss(prediction_ssi_d3, gt_ssi_d3)
 
-        multi_scale_edge_loss = (edge_loss_d0 + edge_loss_d1 + edge_loss_d2)/3
+        multi_scale_edge_loss = \
+            (edge_loss_d0 + edge_loss_d1 + edge_loss_d2 + edge_loss_d3)/4
 
         return multi_scale_edge_loss
 
