@@ -26,6 +26,9 @@ class Scene3DTrainer():
         # Model and Predictions
         self.model = 0
         self.prediction = 0
+        self.prediction_1 = 0
+        self.prediction_2 = 0
+        self.prediction_3 = 0
         
         # Losses
         self.loss = 0
@@ -148,7 +151,7 @@ class Scene3DTrainer():
 
     # Run Model
     def run_model(self):     
-        self.prediction = self.model(self.image_tensor)
+        self.prediction, self.prediction_1, self.prediction_2, self.prediction_3 = self.model(self.image_tensor)
         gt_ssi = self.get_ssi_tensor(self.gt_tensor)
         prediction_ssi = self.get_ssi_tensor(self.prediction)
         
@@ -294,7 +297,6 @@ class Scene3DTrainer():
 
     # Logging Loss
     def log_loss(self, log_count):
-
         self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
             'edge_loss': self.get_edge_loss(),
@@ -326,18 +328,36 @@ class Scene3DTrainer():
     # Save predicted visualization
     def save_visualization(self, log_count):
 
-        # Converting prediction output to visualization
+        # Converting prediction outputs to visualization
         prediction_vis = self.prediction.squeeze(0).cpu().detach()
         prediction_vis = prediction_vis.permute(1, 2, 0)
         prediction_vis = prediction_vis.numpy()
+
+        prediction_1_vis = self.prediction_1.squeeze(0).cpu().detach()
+        prediction_1_vis = prediction_1_vis.permute(1, 2, 0)
+        prediction_1_vis = prediction_1_vis.numpy()
+
+        prediction_2_vis = self.prediction_2.squeeze(0).cpu().detach()
+        prediction_2_vis = prediction_2_vis.permute(1, 2, 0)
+        prediction_2_vis = prediction_2_vis.numpy()
+
+        prediction_3_vis = self.prediction_3.squeeze(0).cpu().detach()
+        prediction_3_vis = prediction_3_vis.permute(1, 2, 0)
+        prediction_3_vis = prediction_3_vis.numpy()
   
-        fig, axs = plt.subplots(1,3)
-        axs[0].imshow(self.image)
-        axs[0].set_title('Image',fontweight ="bold") 
-        axs[1].imshow(self.gt)
-        axs[1].set_title('Ground Truth',fontweight ="bold") 
-        axs[2].imshow(prediction_vis)
-        axs[2].set_title('Prediction',fontweight ="bold") 
+        fig, axs = plt.subplots(2,3)
+        axs[0,0].imshow(self.image)
+        axs[0,0].set_title('Image',fontweight ="bold") 
+        axs[0,1].imshow(self.gt)
+        axs[0,1].set_title('Ground Truth',fontweight ="bold") 
+        axs[0,2].imshow(prediction_vis)
+        axs[0,2].set_title('Prediction',fontweight ="bold")
+        axs[1,0].imshow(prediction_1_vis)
+        axs[1,0].set_title('Prediction 1',fontweight ="bold") 
+        axs[1,1].imshow(prediction_2_vis)
+        axs[1,1].set_title('Prediction 2',fontweight ="bold") 
+        axs[1,2].imshow(prediction_3_vis)
+        axs[1,2].set_title('Prediction 3',fontweight ="bold")  
         self.writer.add_figure('predictions vs. actuals', \
         fig, global_step=(log_count))
     
@@ -363,7 +383,7 @@ class Scene3DTrainer():
         self.load_data()
 
         # Running model
-        self.prediction = self.model(self.image_tensor)
+        self.prediction, _, _, _ = self.model(self.image_tensor)
 
         # Calculate loss
         gt_ssi = self.get_ssi_tensor(self.gt_tensor)
@@ -388,7 +408,7 @@ class Scene3DTrainer():
         test_image_tensor = self.image_loader(image_pil)
         test_image_tensor = test_image_tensor.unsqueeze(0)
         test_image_tensor = test_image_tensor.to(self.device)
-        test_output = self.model(test_image_tensor)
+        test_output, _, _, _ = self.model(test_image_tensor)
 
         test_output = test_output.squeeze(0).cpu().detach()
         test_output = test_output.permute(1, 2, 0)
