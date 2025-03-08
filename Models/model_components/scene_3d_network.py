@@ -27,5 +27,5 @@ class Scene3DNetwork(nn.Module):
         deep_features = features[4]
         context = self.DepthContext(deep_features)
         neck = self.DepthNeck(context, features)
-        prediction = self.SuperDepthHead(neck, features)
-        return prediction
+        prediction, pred_1, pred_2, pred_3 = self.SuperDepthHead(neck, features)
+        return prediction, pred_1, pred_2, pred_3
