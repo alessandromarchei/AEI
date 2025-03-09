@@ -582,7 +582,20 @@ if __name__ == "__main__":
                     # Save as 6-digit incremental index
                     img_index = str(str(img_id_counter).zfill(6))
                     data_master[img_index] = {}
-                    data_master[img_index]["drivable_path"] = this_data["drivable_path"]
+                    #data_master[img_index]["drivable_path"] = this_data["drivable_path"]
+                    data_master[img_index]["egoleft_lane"] = this_data["lanes"][this_data["ego_indexes"][0]]
+                    data_master[img_index]["egoright_lane"] = this_data["lanes"][this_data["ego_indexes"][1]]
+                    data_master[img_index]["other_lanes"]=[]
+
+                    #identify other lanes and save in data master
+                    for idx,lane in enumerate(this_data["lanes"]):
+                        if idx in this_data["ego_indexes"]:
+                            continue
+                        else:
+                            data_master[img_index]["other_lanes"].append(lane)
+                    
+                    
+                    
                     data_master[img_index]["img_height"] = this_data["img_height"]
                     data_master[img_index]["img_width"] = this_data["img_width"]
 
