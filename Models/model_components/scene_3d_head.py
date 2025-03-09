@@ -12,14 +12,19 @@ class Scene3DHead(nn.Module):
         self.skip_link_layer_3 = nn.Conv2d(32, 256, 1)
         self.decode_layer_6 = nn.Conv2d(256, 256, 3, 1, 1)
         self.decode_layer_7 = nn.Conv2d(256, 128, 3, 1, 1)
-
         self.upsample_layer_4 = nn.ConvTranspose2d(128, 128, 2, 2)
+
+        # Prediction 1
         self.decode_layer_8 = nn.Conv2d(128, 128, 3, 1, 1)
         self.decode_layer_9 = nn.Conv2d(128, 64, 3, 1, 1)
         self.decode_layer_10 = nn.Conv2d(64, 1, 3, 1, 1)
+
+        # Prediction 2
         self.decode_layer_11 = nn.Conv2d(128, 128, 3, 1, 1)
         self.decode_layer_12 = nn.Conv2d(128, 64, 3, 1, 1)
         self.decode_layer_13 = nn.Conv2d(64, 1, 3, 1, 1)
+
+        # Prediction 3
         self.decode_layer_14 = nn.Conv2d(128, 128, 3, 1, 1)
         self.decode_layer_15 = nn.Conv2d(128, 64, 3, 1, 1)
         self.decode_layer_16 = nn.Conv2d(64, 1, 3, 1, 1)
