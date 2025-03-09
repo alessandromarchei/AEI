@@ -237,9 +237,12 @@ def annotateGT(
     # Draw all lanes & lines
     draw = ImageDraw.Draw(raw_img)
     lane_colors = {
-        "outer_red": (255, 0, 0), 
-        "ego_green": (0, 255, 0), 
-        "drive_path_yellow": (255, 255, 0)
+       # "outer_red": (255, 0, 0), 
+       # "ego_green": (0, 255, 0), 
+       # "drive_path_yellow": (255, 255, 0),
+       "egoLeft_Green" : (0,255,0),
+       "egoRight_Blue" : (0,0,255),
+       "otherlanes_Yellow": (255,255,0),        
     }
     lane_w = 5
     # Draw lanes
@@ -249,12 +252,20 @@ def annotateGT(
                 (x * new_img_width, y * new_img_height) 
                 for x, y in lane
             ]
-        if (idx in anno_entry["ego_indexes"]):
-            # Ego lanes, in green
-            draw.line(lane, fill = lane_colors["ego_green"], width = lane_w)
+        
+        # Draw Ego Left lane in Green
+        if idx == anno_entry["ego_indexes"][0]:
+            draw.line(lane, fill = lane_colors["egoLeft_Green"], width = lane_w)
+
+        # Draw Ego Right Lane in Blue
+        elif idx == anno_entry["ego_indexes"][1]:                
+            draw.line(lane, fill = lane_colors["egoRight_Blue"], width = lane_w)
+
+        # Other lanes in yellow
         else:
-            # Outer lanes, in red
-            draw.line(lane, fill = lane_colors["outer_red"], width = lane_w)
+            draw.line(lane, fill = lane_colors["otherlanes_Yellow"], width = lane_w)
+
+    """        
     # Drivable path, in yellow
     if (normalized):
         drivable_renormed = [
@@ -264,14 +275,28 @@ def annotateGT(
     else:
         drivable_renormed = anno_entry["drivable_path"]
     draw.line(drivable_renormed, fill = lane_colors["drive_path_yellow"], width = lane_w)
+    """
 
     # Save visualization img, same format with raw, just different dir
     raw_img.save(os.path.join(visualization_dir, save_name))
 
+
+    #renomalize all lanes
+    lanes_renormed=[]
+    for lane in anno_entry["lanes"]:
+
+        lane_renomred=[(x*new_img_width, y*new_img_height) for x,y in lane]
+        lanes_renormed.append(lane_renomred)
+
     # Working on binary mask
     mask = Image.new("L", (new_img_width, new_img_height), 0)
     mask_draw = ImageDraw.Draw(mask)
-    mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
+    
+
+    for lane in lanes_renormed:
+        mask_draw.line(lane,fill=255,width=lane_w)
+
+
     mask.save(os.path.join(mask_dir, save_name))
 
 
