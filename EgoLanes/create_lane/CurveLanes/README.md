@@ -75,6 +75,8 @@ python EgoPath/create_path/CurveLanes/process_curvelanes.py --dataset_dir ../pov
 - **Returns**: A tuple `(left_ego_idx, right_ego_idx)` with the indexes of the two ego lanes or an error message if lanes are missing.
 
 ### 4. `getDrivablePath(left_ego, right_ego, new_img_height, new_img_width, y_coords_interp=False)`
+> [!Note]
+> This function is not used, kept for future need.
 - **Description**: Computes the drivable path as the midpoint between two ego lanes.
 - **Parameters**:
     - `left_ego` (list of tuples): Points of the left ego lane.
