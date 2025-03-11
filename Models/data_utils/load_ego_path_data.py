@@ -64,3 +64,30 @@ class LoadDataEgoPath():
         
         if (self.N_images == 0):
             raise ValueError(f"No images found in specified path {self.image_dirpath}")
+        
+        # ================= Initiate data loading ================= #
+
+        self.train_images = []
+        self.train_labels = []
+        self.val_images = []
+        self.val_labels = []
+
+        self.num_train_samples = 0
+        self.num_val_samples = 0
+
+        if (self.random_seed):
+            random.seed(self.random_seed)
+
+        for img_idx in range (0, self.N_images):
+            current_gacha = random.random()
+            if (current_gacha <= val_set_fraction):
+                self.val_images.append(str(self.image_list[img_idx]))
+                self.val_labels.append(self.label_list[str(str(img_idx).zfill(6))])
+                self.num_val_samples += 1 
+            else:
+                self.train_images.append(str(self.image_list[img_idx]))
+                self.train_labels.append(self.label_list[str(str(img_idx).zfill(6))])
+                self.num_train_samples += 1
+
+        print(f"Dataset {self.dataset_name} loaded with {self.num_train_samples} trains and {self.num_val_samples} vals.")
+        print(f"Val/Total = {self.num_val_samples / self.num_train_samples + self.num_val_samples}")
