@@ -94,3 +94,14 @@ class LoadDataEgoPath():
 
     def getItemCount(self):
         return self.num_train_samples, self.num_val_samples
+    
+
+if __name__ == "__main__":
+    # Better write some unit tests to check this module
+    # Testing cases here
+    TuSimpleDataset = LoadDataEgoPath(
+        labels_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/drivable_path.json",
+        images_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/image",
+        dataset = "CULANE",
+        val_set_fraction = 0.1
+    )
