@@ -2,16 +2,21 @@
 Use ONNX Runtime to load model and deploy.
 
 ## Build Instructions
+Set up environment:
+
 ```
 export PATH=/usr/local/cuda-12.3/bin${PATH:+:${PATH}}
 
 export LD_LIBRARY_PATH=/usr/local/cuda-12.3/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
+Create build location:
+
+```
 mkdir build && cd build
 
 ```
 
-To build with CUDA Execution Provider:
+To configure project with CUDA Execution Provider (EP):
 
 ```
 
@@ -23,7 +28,7 @@ cmake   -DLIBTORCH_INSTALL_ROOT=<_libTorch_root_location_>
 
 ```
 
-To build with DNNL Execution Provider:
+To configure project with DNNL Execution Provider (EP):
 
 ```
 cmake   -DLIBTORCH_INSTALL_ROOT=<_libTorch_root_location_> 
@@ -32,7 +37,20 @@ cmake   -DLIBTORCH_INSTALL_ROOT=<_libTorch_root_location_>
         -DUSE_DNNL_BACKEND=True
         ..
 
-make
+```
 
+Build Project:
+
+```
+make
+```
+
+Run Network:
+```
 ./deploy_onnx_rt <_input_network_file.onnx_> <_input_image_file.png_>
 ```
+
+If this run's successfully it will produce two output files:
+
+1) Segmentation mask image file.
+2) Output image file consisting of segmentation mask overlayed onto the input image.
