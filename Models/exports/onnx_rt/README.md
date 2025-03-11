@@ -8,6 +8,7 @@ Set up environment:
 export PATH=/usr/local/cuda-12.3/bin${PATH:+:${PATH}}
 
 export LD_LIBRARY_PATH=/usr/local/cuda-12.3/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+```
 
 Create build location:
 
@@ -46,6 +47,7 @@ make
 ```
 
 Run Network:
+
 ```
 ./deploy_onnx_rt <_input_network_file.onnx_> <_input_image_file.png_>
 ```
