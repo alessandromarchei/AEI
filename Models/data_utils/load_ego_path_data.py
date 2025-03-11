@@ -30,7 +30,6 @@ class LoadDataEgoPath():
             images_filepath: str,
             dataset: VALID_DATASET_LITERALS,
             val_set_fraction: float = 0.1,
-            random_seed = 0
     ):
         
         # ================= Parsing param ================= #
@@ -39,7 +38,6 @@ class LoadDataEgoPath():
         self.image_dirpath = images_filepath
         self.dataset_name = dataset
         self.val_set_fraction = val_set_fraction
-        self.random_seed = random_seed
 
         # ================= Preliminary checks ================= #
 
@@ -57,3 +55,12 @@ class LoadDataEgoPath():
 
         self.N_labels = len(self.label_list)
         self.N_images = len(self.image_list)
+
+        if (self.N_labels != self.N_images):
+            raise ValueError(f"Number of images ({self.N_images}) does not match number of labels ({self.N_labels})")
+        
+        if (self.N_labels == 0):
+            raise ValueError(f"No labels found in specified path {self.label_filepath}")
+        
+        if (self.N_images == 0):
+            raise ValueError(f"No images found in specified path {self.image_dirpath}")
