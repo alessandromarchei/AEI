@@ -26,6 +26,10 @@ DESC:   C++ Deployment of SceneSeg Network
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/dnn.hpp>
 
+#if USE_EP_DNNL
+    #include <dnnl_provider_options.h> 
+#endif
+
 using namespace cv; 
 using namespace std; 
 
@@ -88,7 +92,6 @@ int main(int argc, ORTCHAR_T* argv[])
 
     // Structures for options
     Ort::SessionOptions session_options;
-    OrtCUDAProviderOptions cuda_options;
 
     // Single CPU thread only
     session_options.SetInterOpNumThreads(1);
@@ -97,17 +100,40 @@ int main(int argc, ORTCHAR_T* argv[])
     // Optimization will take time and memory during startup
     session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
 
-    // Use CUDA
-    if (true /* Use Cuda */)
-    {
-        cuda_options.device_id = 0;
-        cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive; // Algo to search for Cudnn
-        cuda_options.arena_extend_strategy = 0;
+    // Use CUDA Execution Provider
+#if USE_EP_CUDA
 
-        // May cause data race in some condition
-        cuda_options.do_copy_in_default_stream = 0;
-        session_options.AppendExecutionProvider_CUDA(cuda_options); // Add CUDA options to session options
-    }
+    OrtCUDAProviderOptions cuda_options;
+    
+    cuda_options.device_id = 0;
+    cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive; // Algo to search for Cudnn
+    cuda_options.arena_extend_strategy = 0;
+
+    // May cause data race in some condition
+    cuda_options.do_copy_in_default_stream = 0;
+    session_options.AppendExecutionProvider_CUDA(cuda_options); // Add CUDA options to session options
+
+    std::cout << "INFO: Intialised CUDA Execution Provider Ok.\n" << std::endl;
+    
+#endif
+
+#if USE_EP_DNNL
+
+    int threadNum = 4;
+    bool enable_cpu_mem_arena = true;
+
+    OrtDnnlProviderOptions dnnl_option = { enable_cpu_mem_arena, static_cast<void*>(&threadNum)};
+
+    // Single CPU thread only
+    session_options.SetInterOpNumThreads(1);
+
+    // Optimization will take time and memory during startup
+    session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
+    session_options.AppendExecutionProvider_Dnnl(dnnl_option);
+
+    std::cout << "INFO: Intialised DNNL Execution Provider Ok." << std::endl;
+
+#endif
 
     // Create ONNX Session
     Ort::Session session = Ort::Session(env, model_file.c_str(), session_options);
