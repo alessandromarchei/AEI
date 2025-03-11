@@ -85,7 +85,7 @@ python EgoPath/create_path/CurveLanes/process_curvelanes.py --dataset_dir ../pov
 - **Returns**: A list of `(x, y)` points representing the drivable path, or an error message if the path violates heuristics.
 
 ### 5. `annotateGT(raw_img, anno_entry, raw_dir, visualization_dir, mask_dir, init_img_width, init_img_height, normalized=True, resize=None, crop=None)`
-- **Description**: Annotates and saves an image with lane markings, drivable path, and segmentation mask.
+- **Description**: Annotates and saves an image with lane markings and segmentation mask.
 - **Parameters**:
     - `raw_img` (PIL.Image): The original image.
     - `anno_entry` (dict): Annotation data including lanes and drivable path.
