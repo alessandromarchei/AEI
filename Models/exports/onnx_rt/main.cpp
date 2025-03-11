@@ -194,22 +194,22 @@ int main(int argc, ORTCHAR_T* argv[])
 
     // Input and Output Processing
     std::vector<const char*> inputNodeNames;
-	std::vector<const char*> outputNodeNames;
-	std::vector<int64_t> inputTensorShape;
-	std::vector<int64_t> outputTensorShape;
-	std::vector<int64_t> outputMaskTensorShape;
-
-	auto temp_input_name0 = session.GetInputNameAllocated(0, allocator);
-	inputNodeNames.push_back(temp_input_name0.get());
-
-	Ort::TypeInfo inputTypeInfo = session.GetInputTypeInfo(0);
-	auto input_tensor_info = inputTypeInfo.GetTensorTypeAndShapeInfo();
-
-	inputTensorShape = input_tensor_info.GetShape();
-
+    std::vector<const char*> outputNodeNames;
+    std::vector<int64_t> inputTensorShape;
+    std::vector<int64_t> outputTensorShape;
+    std::vector<int64_t> outputMaskTensorShape;
+    
+    auto temp_input_name0 = session.GetInputNameAllocated(0, allocator);
+    inputNodeNames.push_back(temp_input_name0.get());
+    
+    Ort::TypeInfo inputTypeInfo = session.GetInputTypeInfo(0);
+    auto input_tensor_info = inputTypeInfo.GetTensorTypeAndShapeInfo();
+    
+    inputTensorShape = input_tensor_info.GetShape();
+    
     std::vector<std::vector<int64_t>> input_node_dims;
     input_node_dims.push_back(inputTensorShape);
-
+    
     // Onnx Runtime allowed input
     std::vector<Ort::Value> input_tensors;       
 
