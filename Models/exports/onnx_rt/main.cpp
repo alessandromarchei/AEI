@@ -193,7 +193,7 @@ int main(int argc, ORTCHAR_T* argv[])
     }
 
     // Input and Output Processing
-	std::vector<const char*> inputNodeNames;
+    std::vector<const char*> inputNodeNames;
 	std::vector<const char*> outputNodeNames;
 	std::vector<int64_t> inputTensorShape;
 	std::vector<int64_t> outputTensorShape;
