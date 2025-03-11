@@ -21,6 +21,8 @@ cmake   -DLIBTORCH_INSTALL_ROOT=<_libTorch_root_location_>
         -DUSE_CUDA_BACKEND=True
         ..
 
+```
+
 To build with DNNL Execution Provider:
 
 ```
