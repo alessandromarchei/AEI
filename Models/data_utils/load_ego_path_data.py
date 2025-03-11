@@ -91,3 +91,6 @@ class LoadDataEgoPath():
 
         print(f"Dataset {self.dataset_name} loaded with {self.num_train_samples} trains and {self.num_val_samples} vals.")
         print(f"Val/Total = {self.num_val_samples / self.num_train_samples + self.num_val_samples}")
+
+    def getItemCount(self):
+        return self.num_train_samples, self.num_val_samples
