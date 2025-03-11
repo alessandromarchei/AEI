@@ -40,3 +40,20 @@ class LoadDataEgoPath():
         self.dataset_name = dataset
         self.val_set_fraction = val_set_fraction
         self.random_seed = random_seed
+
+        # ================= Preliminary checks ================= #
+
+        if not (0 <= self.val_set_fraction <= 1):
+            raise ValueError(f"val_set_fraction must be within [0, 1]. Current set to {self.val_set_fraction}")
+
+        if not (self.dataset_name in VALID_DATASET_LIST):
+            raise ValueError("Unknown dataset! Contact our team so we can work on this.")
+        
+        with open(self.label_filepath, "r") as f:
+            self.label_list = json.load(f)
+        self.image_list = sorted([
+            f for f in pathlib.Path(self.image_dirpath).glob("*.png")
+        ])
+
+        self.N_labels = len(self.label_list)
+        self.N_images = len(self.image_list)
