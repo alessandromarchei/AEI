@@ -1,8 +1,11 @@
 # deploy_onnx_rt
-Use ONNX Runtime to load model and deploy.
+This application uses ONNX Runtime to load model and inference on the following ONNX Runtime Execution Providers:
+
+1) CUDA
+2) DNNL (oneDNN)
 
 ## Build Instructions
-Set up environment:
+Set up environment (if using CUDA):
 
 ```
 export PATH=/usr/local/cuda-12.3/bin${PATH:+:${PATH}}
