@@ -5,6 +5,14 @@ set(USE_CUDNN OFF)
 set(CAFFE2_USE_CUDNN OFF)
 set(USE_CUSPARSELT OFF)
 
+if(USE_CUDA_BACKEND)
+    add_definitions(-DUSE_EP_CUDA)
+    message(STATUS "Using CUDA Execution Provider Backend")
+elseif(USE_DNNL_BACKEND)
+    add_definitions(-DUSE_EP_DNNL)
+    message(STATUS "Using DNNL Execution Provider Backend")
+endif()
+
 ## Find OpenCV installation
 find_package(OpenCV REQUIRED HINTS ${OPENCV_INSTALL_ROOT}/build/ QUIET)
 find_package(Torch REQUIRED HINTS ${LIBTORCH_INSTALL_ROOT}/share/cmake/Torch/ QUIET)
@@ -27,10 +35,11 @@ endif()
 # We added the path for the pre-built package above. Add the path for a local install to support either usage.
 # TODO: If we want to support additional EPs being loadable from a local install we also need to add EP specific
 # directories under /include/onnxruntime/core/providers
-include_directories("${ONNXRUNTIME_ROOTDIR}/include"                            # Pre-built package
-                    "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime"                # Linux local install to /usr/local
-                    "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime/core/session"   # Windows local install
-                    ${OpenCV_INCLUDE_DIRS}                                      # OpenCV
+include_directories("${ONNXRUNTIME_ROOTDIR}/include"                                    # Pre-built package
+                    "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime"                        # Linux local install to /usr/local
+                    "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime/core/session"           # Windows local install
+                    "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime/core/providers/dnnl"    # DNNL Backend Support
+                    ${OpenCV_INCLUDE_DIRS}                                              # OpenCV
                     ${TORCH_INCLUDE_DIRS})
 
 link_directories("${ONNXRUNTIME_ROOTDIR}/lib")
