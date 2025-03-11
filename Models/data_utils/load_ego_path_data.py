@@ -1,16 +1,9 @@
 #! /usr/bin/env python3
 
-import argparse
 import json
-import os
-import random
-import shutil
 import pathlib
-from PIL import Image, ImageDraw
-import warnings
-from datetime import datetime
 from typing import Literal, get_args
-from .check_data import CheckData
+from check_data import CheckData
 
 VALID_DATASET_LITERALS = Literal[
     "BDD100K", 
@@ -77,17 +70,17 @@ class LoadDataEgoPath():
             for set_idx, label_content in enumerate(self.labels):
                 if (set_idx % 10 < val_set_fraction * 10):
                     # Slap it to Val
-                    self.val_images.append(str(self.image_list[set_idx]))
-                    self.val_labels.append(self.label_list[set_idx])
+                    self.val_images.append(str(self.images[set_idx]))
+                    self.val_labels.append(self.labels[label_content])
                     self.N_vals += 1 
                 else:
                     # Slap it to Train
-                    self.train_images.append(str(self.image_list[set_idx]))
-                    self.train_labels.append(self.label_list[set_idx])
+                    self.train_images.append(str(self.images[set_idx]))
+                    self.train_labels.append(self.labels[label_content])
                     self.N_trains += 1
 
         print(f"Dataset {self.dataset_name} loaded with {self.N_trains} trains and {self.N_vals} vals.")
-        print(f"Val/Total = {self.N_vals / (self.N_trains + self.N_vals)}")
+        print(f"Val/Total = {(self.N_vals / (self.N_trains + self.N_vals)):.4f}")
 
     def getItemCount(self):
         return self.N_trains, self.N_vals
