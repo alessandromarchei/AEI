@@ -35,12 +35,12 @@ endif()
 # We added the path for the pre-built package above. Add the path for a local install to support either usage.
 # TODO: If we want to support additional EPs being loadable from a local install we also need to add EP specific
 # directories under /include/onnxruntime/core/providers
-include_directories("${ONNXRUNTIME_ROOTDIR}/include"                                    # Pre-built package
-                    "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime"                        # Linux local install to /usr/local
-                    "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime/core/session"           # Windows local install
+include_directories("${ONNXRUNTIME_ROOTDIR}/include"
+                    "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime"
+                    "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime/core/session"
                     "${ONNXRUNTIME_ROOTDIR}/include/onnxruntime/core/providers/dnnl"    # DNNL Backend Support
                     ${OpenCV_INCLUDE_DIRS}                                              # OpenCV
-                    ${TORCH_INCLUDE_DIRS})
+                    ${TORCH_INCLUDE_DIRS})                                              # Torch
 
 link_directories("${ONNXRUNTIME_ROOTDIR}/lib")
 
