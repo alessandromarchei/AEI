@@ -54,7 +54,7 @@ Run Network:
 ./deploy_onnx_rt <_input_network_file.onnx_> <_input_image_file.png_>
 ```
 
-If this run's successfully it will produce two output files:
+If the application runs successfully it will produce two output files:
 
-1) Segmentation mask image file.
+1) Output segmentation mask image file.
 2) Output image file consisting of segmentation mask overlayed onto the input image.
