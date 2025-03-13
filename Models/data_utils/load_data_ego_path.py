@@ -2,6 +2,9 @@
 
 import json
 import pathlib
+import numpy as np
+from pprint import pprint
+from PIL import Image
 from typing import Literal, get_args
 from check_data import CheckData
 
@@ -82,16 +85,41 @@ class LoadDataEgoPath():
         print(f"Dataset {self.dataset_name} loaded with {self.N_trains} trains and {self.N_vals} vals.")
         print(f"Val/Total = {(self.N_vals / (self.N_trains + self.N_vals)):.4f}")
 
+    # Get sizes of Train/Val sets
     def getItemCount(self):
         return self.N_trains, self.N_vals
+
+    # ================= Get item at index ith, returning img and EgoPath ================= #
     
+    # For train
+    def getItemTrain(self, index):
+        print(str(self.train_images[index]))
+        img_train = Image.open(str(self.train_images[index])).convert("RGB")
+        label_train = self.train_labels[index]["drivable_path"]
+        
+        img_train = np.expand_dims(img_train, axis = -1)
+        return  np.array(img_train), label_train
+    
+    # For val
+    def getItemVal(self, index):
+        img_val = Image.open(str(self.val_images[index])).convert("RGB")
+        label_val = self.val_labels[index]["drivable_path"]
+        
+        img_val = np.expand_dims(img_val, axis = -1)
+        return  np.array(img_val), label_val
+
 
 if __name__ == "__main__":
-    # Better write some unit tests to check this module
     # Testing cases here
-    TuSimpleDataset = LoadDataEgoPath(
+    CULaneDataset = LoadDataEgoPath(
         labels_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/drivable_path.json",
         images_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/image",
         dataset = "CULANE",
         val_set_fraction = 0.1
     )
+    print("Item count: ")
+    pprint(CULaneDataset.getItemCount())
+    print("Get first train item: ")
+    pprint(CULaneDataset.getItemTrain(0))
+    print("Get first val item: ")
+    pprint(CULaneDataset.getItemVal(0))
