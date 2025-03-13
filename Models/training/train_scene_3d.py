@@ -15,7 +15,7 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/2025_02_28/model/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/13_03_2025/model/'
 
     # Test images path
     test_images_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/test/'
@@ -51,7 +51,7 @@ def main():
     
     # Total training epochs and batch size
     num_epochs = 20
-    batch_size = 5
+    batch_size = 32
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -60,7 +60,16 @@ def main():
         randomlist_train_data = random.sample(range(0, total_train_samples), total_train_samples)
 
         # Learning Rate schedule            
-        if(epoch >= 10):
+        if(epoch == 1):
+            batch_size = 16
+            trainer.set_learning_rate(0.00005)
+
+        if(epoch == 2):
+            batch_size = 8
+            trainer.set_learning_rate(0.000025)
+
+        if(epoch > 2):
+            batch_size = 4
             trainer.set_learning_rate(0.0000125)
 
         for count in range(0, total_train_samples):
@@ -90,18 +99,19 @@ def main():
             if((count+1) % batch_size == 0):
                 trainer.run_optimizer()
 
-            # Logging loss to Tensor Board every 250 steps
-            if((count+1) % 250 == 0):
+            # Logging loss to Tensor Board every 1000 steps
+            if((count+1) % 1000 == 0):
                 trainer.log_loss(log_count)
             
-            # Logging Image to Tensor Board every 1000 steps
-            if((count+1) % 1000 == 0):  
+            # Logging Image to Tensor Board every 5000 steps
+            if((count+1) % 5000 == 0):  
                 trainer.save_visualization(log_count)
            
             # Save model and run validation on entire validation 
-            # dataset after 40000 steps
-            if((log_count+1) % 40000 == 0):
+            # dataset after 92000 steps
+            if((log_count+1) % 92000 == 0):
                 
+                print('Running Validation - Step:',  str(log_count))
                 # Save Model
                 model_save_path = model_save_root_path + 'iter_' + \
                     str(log_count) \
