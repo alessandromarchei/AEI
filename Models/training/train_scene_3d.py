@@ -99,12 +99,12 @@ def main():
             if((count+1) % batch_size == 0):
                 trainer.run_optimizer()
 
-            # Logging loss to Tensor Board every 1000 steps
-            if((count+1) % 1000 == 0):
+            # Logging loss to Tensor Board every 250 steps
+            if((count+1) % 250 == 0):
                 trainer.log_loss(log_count)
             
-            # Logging Image to Tensor Board every 5000 steps
-            if((count+1) % 5000 == 0):  
+            # Logging Image to Tensor Board every 1000 steps
+            if((count+1) % 1000 == 0):  
                 trainer.save_visualization(log_count)
            
             # Save model and run validation on entire validation 
