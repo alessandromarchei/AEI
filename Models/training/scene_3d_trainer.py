@@ -36,6 +36,7 @@ class Scene3DTrainer():
         self.mAE_loss = 0
         self.gram_loss = 0
         self.statistics_loss = 0
+        self.edge_scale_factor = 2
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -157,32 +158,8 @@ class Scene3DTrainer():
         
         self.mAE_loss = self.calc_mAE_ssi_loss_robust(prediction_ssi, gt_ssi)
         self.edge_loss = self.calc_multi_scale_ssi_edge_loss(prediction_ssi, gt_ssi)
-        self.loss = self.mAE_loss + 2*self.edge_loss
+        self.loss = self.mAE_loss + self.edge_scale_factor*self.edge_loss
 
-
-    def calc_statistics_loss(self):
-        prediction_median = torch.quantile(self.prediction, 0.5, interpolation='linear')
-        gt_median = torch.quantile(self.gt_tensor, 0.5, interpolation='linear')
-
-        running_statisitcs_loss = 0
-        sample_list = range(5,95,1)
-        num_vals = len(sample_list)
-
-        for i in sample_list:
-
-            sample_val = i/100
-
-            prediction_val = torch.quantile(self.prediction, sample_val, interpolation='linear')
-            gt_val = torch.quantile(self.gt_tensor, sample_val, interpolation='linear')
-
-            delta_prediction = prediction_median - prediction_val
-            delta_gt = gt_median - gt_val
-            delta_val = torch.abs(delta_gt - delta_prediction)
-
-            running_statisitcs_loss = running_statisitcs_loss + delta_val
-
-        statisitcs_loss = running_statisitcs_loss/num_vals
-        return statisitcs_loss
             
     def get_ssi_tensor(self, tensor):
         median_val = torch.median(tensor)
@@ -191,50 +168,12 @@ class Scene3DTrainer():
         ssi_tensor = shifted_tensor/scale_val
         return ssi_tensor
 
-    def gram_matrix(self, input):
-        a, b, c, d = input.size() 
-        features = input.view(a * b, c * d)  
-        G = torch.mm(features, features.t())  
-        return G.div(a * b * c * d)
-    
-    def calc_gram_loss(self):
-        gram_gt = self.gram_matrix(self.gt_tensor)
-        gram_prediction = self.gram_matrix(self.prediction)
-        gram_loss = torch.mean(torch.abs(gram_gt - gram_prediction))
-        return gram_loss
-
-    def calc_mAE_loss_robust(self):
-        mAE = torch.abs(self.prediction - self.gt_tensor)
-        mAE_robust_val = torch.quantile(mAE, 0.9, interpolation='linear')
-        mAE_robust = mAE[mAE < mAE_robust_val]
-        mAE_loss = torch.mean(mAE_robust)
-        return mAE_loss
-    
     def calc_mAE_ssi_loss_robust(self, prediction_ssi, gt_ssi):
         mAE = torch.abs(prediction_ssi - gt_ssi)
         mAE_robust_val = torch.quantile(mAE, 0.9, interpolation='linear')
         mAE_robust = mAE[mAE < mAE_robust_val]
         mAE_loss = torch.mean(mAE_robust)
-        return mAE_loss
-    
-    def calc_mAE_loss(self):
-        mAE = torch.abs(self.prediction - self.gt_tensor)
-        mAE_loss = torch.mean(mAE)
-        return mAE_loss
-    
-    def calc_edge_loss(self):
-        G_x_pred = nn.functional.conv2d(self.prediction, self.gx_filter, padding=1)
-        G_y_pred = nn.functional.conv2d(self.prediction, self.gy_filter, padding=1)
-
-        G_x_gt = nn.functional.conv2d(self.gt_tensor, self.gx_filter, padding=1)
-        G_y_gt = nn.functional.conv2d(self.gt_tensor, self.gy_filter, padding=1)
-
-        edge_diff_mAE = torch.abs(G_x_pred - G_x_gt) + \
-                            torch.abs(G_y_pred - G_y_gt)
-        edge_loss = torch.mean(edge_diff_mAE)
-
-        return edge_loss
-    
+        return mAE_loss    
         
     def calc_multi_scale_ssi_edge_loss(self, prediction_ssi, gt_ssi):
         downsample = nn.AvgPool2d(2, stride=2)
@@ -299,7 +238,7 @@ class Scene3DTrainer():
     def log_loss(self, log_count):
         self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
-            'edge_loss': self.get_edge_loss(),
+            'edge_loss': self.get_edge_loss()*self.edge_scale_factor,
             'mAE_loss': self.get_mAE_loss()
         }, (log_count))
            
@@ -309,7 +248,7 @@ class Scene3DTrainer():
         self.writer.add_scalars("Validation",{
             'total_loss': total_loss,
             'mAE_loss': mAE_loss,
-            'edge_loss': edge_loss
+            'edge_loss': edge_loss*self.edge_scale_factor
         }, (log_count))
          
     # Run Optimizer
