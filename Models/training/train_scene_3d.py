@@ -51,7 +51,7 @@ def main():
     
     # Total training epochs and batch size
     num_epochs = 20
-    batch_size = 32
+    batch_size = 8
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -61,15 +61,15 @@ def main():
 
         # Learning Rate schedule            
         if(epoch == 1):
-            batch_size = 16
+            batch_size = 6
             trainer.set_learning_rate(0.00005)
 
         if(epoch == 2):
-            batch_size = 8
+            batch_size = 4
             trainer.set_learning_rate(0.000025)
 
         if(epoch > 2):
-            batch_size = 4
+            batch_size = 2
             trainer.set_learning_rate(0.0000125)
 
         for count in range(0, total_train_samples):
