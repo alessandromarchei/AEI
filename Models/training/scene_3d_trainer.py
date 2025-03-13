@@ -270,15 +270,15 @@ class Scene3DTrainer():
         prediction_vis = prediction_vis.numpy()
 
         # Displaying on figure
-        fig1, axs = plt.subplots(1,3)
-        axs[0,0].imshow(self.image)
-        axs[0,0].set_title('Image',fontweight ="bold") 
-        axs[0,1].imshow(self.gt)
-        axs[0,1].set_title('Ground Truth',fontweight ="bold") 
-        axs[0,2].imshow(prediction_vis)
-        axs[0,2].set_title('Prediction',fontweight ="bold")
+        fig, axs = plt.subplots(1,3)
+        axs[0].imshow(self.image)
+        axs[0].set_title('Image',fontweight ="bold") 
+        axs[1].imshow(self.gt)
+        axs[1].set_title('Ground Truth',fontweight ="bold") 
+        axs[2].imshow(prediction_vis)
+        axs[2].set_title('Prediction',fontweight ="bold")
         self.writer.add_figure('predictions vs. actuals', \
-        fig1, global_step=(log_count))   
+        fig, global_step=(log_count))   
     
     # Zero Gradient
     def zero_grad(self):
