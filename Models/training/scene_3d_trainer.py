@@ -238,7 +238,7 @@ class Scene3DTrainer():
     def log_loss(self, log_count):
         self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
-            'edge_loss': self.get_edge_loss()*self.edge_scale_factor,
+            'edge_loss': self.get_edge_loss(),
             'mAE_loss': self.get_mAE_loss()
         }, (log_count))
            
@@ -248,7 +248,7 @@ class Scene3DTrainer():
         self.writer.add_scalars("Validation",{
             'total_loss': total_loss,
             'mAE_loss': mAE_loss,
-            'edge_loss': edge_loss*self.edge_scale_factor
+            'edge_loss': edge_loss
         }, (log_count))
          
     # Run Optimizer
