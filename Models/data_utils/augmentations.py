@@ -30,7 +30,7 @@ class Augmentations():
             [
                 A.Resize(width = 640, height = 320),   
                 A.HorizontalFlip(p = 0.5),
-                A.RandomGridShuffle(grid=(1,4), p=0.25)   
+                A.RandomGridShuffle(grid=(1,2), p=0.25)   
             ]
         )
 
