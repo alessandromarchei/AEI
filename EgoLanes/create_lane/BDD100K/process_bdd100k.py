@@ -107,7 +107,7 @@ def classify_lanes(data):
     """
     result = {}
     # Define threshold for merging lanes
-    MERGE_THRESHOLD = ORIGINAL_IMG_WIDTH * 0.05  # 3% of image width
+    MERGE_THRESHOLD = ORIGINAL_IMG_WIDTH * 0.05  # 5% of image width
 
     for entry in data:
         if "labels" not in entry or not entry["labels"]:
