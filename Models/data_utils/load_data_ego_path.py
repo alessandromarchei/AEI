@@ -1,10 +1,10 @@
 #! /usr/bin/env python3
 
 import json
+import os
 import pathlib
 import numpy as np
-from pprint import pprint
-from PIL import Image
+from PIL import Image, ImageDraw
 from typing import Literal, get_args
 from check_data import CheckData
 
@@ -17,7 +17,7 @@ VALID_DATASET_LITERALS = Literal[
     "TUSIMPLE"
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
-
+VAL_SET_FRACTION = 0.1
 
 
 class LoadDataEgoPath():
@@ -26,7 +26,6 @@ class LoadDataEgoPath():
             labels_filepath: str,
             images_filepath: str,
             dataset: VALID_DATASET_LITERALS,
-            val_set_fraction: float = 0.1,
     ):
         
         # ================= Parsing param ================= #
@@ -34,7 +33,6 @@ class LoadDataEgoPath():
         self.label_filepath = labels_filepath
         self.image_dirpath = images_filepath
         self.dataset_name = dataset
-        self.val_set_fraction = val_set_fraction
 
         # ================= Preliminary checks ================= #
 
@@ -70,20 +68,20 @@ class LoadDataEgoPath():
         self.N_vals = 0
 
         if (checkData.getCheck()):
-            for set_idx, label_content in enumerate(self.labels):
-                if (set_idx % 10 < val_set_fraction * 10):
+            for set_idx, frame_id in enumerate(self.labels):
+                if (set_idx % 10 == VAL_SET_FRACTION * 10):
                     # Slap it to Val
                     self.val_images.append(str(self.images[set_idx]))
-                    self.val_labels.append(self.labels[label_content])
+                    self.val_labels.append(self.labels[frame_id])
                     self.N_vals += 1 
                 else:
                     # Slap it to Train
                     self.train_images.append(str(self.images[set_idx]))
-                    self.train_labels.append(self.labels[label_content])
+                    self.train_labels.append(self.labels[frame_id])
                     self.N_trains += 1
 
         print(f"Dataset {self.dataset_name} loaded with {self.N_trains} trains and {self.N_vals} vals.")
-        print(f"Val/Total = {(self.N_vals / (self.N_trains + self.N_vals)):.4f}")
+        print(f"Val/Total = {(self.N_vals / (self.N_trains + self.N_vals))}")
 
     # Get sizes of Train/Val sets
     def getItemCount(self):
@@ -97,16 +95,51 @@ class LoadDataEgoPath():
         img_train = Image.open(str(self.train_images[index])).convert("RGB")
         label_train = self.train_labels[index]["drivable_path"]
         
-        img_train = np.expand_dims(img_train, axis = -1)
-        return  np.array(img_train), label_train
+        return np.array(img_train), label_train
     
     # For val
     def getItemVal(self, index):
         img_val = Image.open(str(self.val_images[index])).convert("RGB")
         label_val = self.val_labels[index]["drivable_path"]
         
-        img_val = np.expand_dims(img_val, axis = -1)
-        return  np.array(img_val), label_val
+        return np.array(img_val), label_val
+    
+    def sampleItemsAudit(
+            self, 
+            set_type: Literal["train", "val"], 
+            vis_output_dir: str,
+            n_samples: int = 100
+        ):
+        set_func = {
+            "train" : self.getItemTrain(),
+            "val"   : self.getItemVal(),
+        }
+        if not os.path.exists(vis_output_dir):
+            os.makedirs(vis_output_dir)
+
+        for i in range(n_samples):
+
+            # Fetch numpy image and ego path
+            np_img, ego_path = set_func[set_type](i)
+            # Convert back to image
+            img = Image.fromarray(np_img)
+
+            # Draw specs
+            draw = ImageDraw.Draw(img)
+            lane_color = (255, 255, 0)
+            lane_w = 5
+            img_width, img_height, _ = img.shape
+            frame_name = str(i).zfill(5) + ".png"
+
+            # Renormalize
+            ego_path[:, 0] *= img_width
+            ego_path[:, 1] *= img_height
+
+            # Now draw
+            draw.line(ego_path, fill = lane_color, width = lane_w)
+
+            # Then, save
+            img.save(os.path.join(vis_output_dir, frame_name))
 
 
 if __name__ == "__main__":
@@ -115,11 +148,13 @@ if __name__ == "__main__":
         labels_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/drivable_path.json",
         images_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/image",
         dataset = "CULANE",
-        val_set_fraction = 0.1
     )
-    print("Item count: ")
-    pprint(CULaneDataset.getItemCount())
-    print("Get first train item: ")
-    pprint(CULaneDataset.getItemTrain(0))
-    print("Get first val item: ")
-    pprint(CULaneDataset.getItemVal(0))
+    CULaneDataset.sampleItemsAudit(
+        "train",
+        "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/dataloader_sample"
+    )
+
+
+    # 1. Run this through all datasets to make sure they work (make sure it compatible with all JSON formats)
+    # 2. Visualize the frames (first 100 samples) from getTrainVal/getItemVal
+    # 3. Have a look at CurveLanes, then let Devang knows this as well
