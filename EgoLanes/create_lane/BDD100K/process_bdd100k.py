@@ -160,11 +160,8 @@ def classify_lanes(data):
 
         left_idx, right_idx = ego_indexes
 
-        # Check for mergeable lanes
-        left_lanes = []
-        right_lanes = []
 
-        # Check left ego lane and its neighbor
+        # Handle left ego lane
         if left_idx > 0:  # There's a lane to the left
             # Get the slopes
             left_slope = anchor_points[left_idx][2]
@@ -206,8 +203,16 @@ def classify_lanes(data):
                 result[image_name]["egoleft_lane"].append(
                     left_lane["poly2d"][0]["vertices"]
                 )
+        else:
+            # If left_idx is 0, there's no lane to the left to merge with
+            # But we still need to add the ego left lane to the result
+            left_lane_id = anchor_points[left_idx][1]
+            left_lane = next(lane for lane in valid_lanes if lane["id"] == left_lane_id)
+            result[image_name]["egoleft_lane"].append(
+                left_lane["poly2d"][0]["vertices"]
+            )
 
-        # Check right ego lane and its neighbor
+        # Handle right ego lane
         if right_idx < len(anchor_points) - 1:  # There's a lane to the right
             # Get the slopes
             right_slope = anchor_points[right_idx][2]
@@ -247,6 +252,16 @@ def classify_lanes(data):
                 result[image_name]["egoright_lane"].append(
                     right_lane["poly2d"][0]["vertices"]
                 )
+        else:
+            # If right_idx is at the end, there's no lane to the right to merge with
+            # But we still need to add the ego right lane to the result
+            right_lane_id = anchor_points[right_idx][1]
+            right_lane = next(
+                lane for lane in valid_lanes if lane["id"] == right_lane_id
+            )
+            result[image_name]["egoright_lane"].append(
+                right_lane["poly2d"][0]["vertices"]
+            )
 
         # Add remaining lanes to other_lanes
         for lane in valid_lanes:
@@ -270,6 +285,10 @@ def classify_lanes(data):
             # If lane is not an ego lane or adjacent lane, add to other_lanes
             if lane_id not in ego_lane_ids and lane_id not in adjacent_lane_ids:
                 result[image_name]["other_lanes"].append(lane["poly2d"][0]["vertices"])
+
+        # For breakpoint purposes
+        # if image_name == "00268999-9f6d5823.jpg":
+        #     print("Image is ", image_name)
 
     return result
 

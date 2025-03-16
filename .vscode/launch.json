@@ -24,7 +24,7 @@
         "--image_dir",
         "/Users/aadarshkt/Desktop/Self_Driving/bdd100k_train/images/100k/",
         "--output_dir",
-        "${workspaceFolder}/EgoLanes/create_lane/BDD100K"
+        "${workspaceFolder}/EgoLanes/create_lane/BDD100K/output"
       ]
     }
   ]
