@@ -3,3 +3,5 @@ EgoLanes/create_lane/BDD100K/tmp.txt
 EgoLanes/create_lane/BDD100K/output
 EgoLanes/create_lane/BDD100K/process_bdd100k copy.py
 EgoLanes/create_lane/BDD100K/process_bdd100k copy.py
+EgoLanes/create_lane/BDD100K/output/visualization_without_merge
+.vscode/launch.json

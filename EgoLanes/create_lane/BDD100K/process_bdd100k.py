@@ -12,11 +12,13 @@ import sys
 def custom_warning_format(message, category, filename, lineno, line=None):
     return f"WARNING : {message}\n"
 
+
 warnings.formatwarning = custom_warning_format
 
-def annotateGT(classified_lanes, gt_images_path, output_dir="visualization_merge", crop=None):
+
+def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", crop=None):
     """
-    Draws lane lines on images and saves them in the 'visualization_merge' directory.
+    Draws lane lines on images and saves them in the 'visualization' directory.
 
     :param classified_lanes: Dictionary containing lane keypoints.
     :param gt_images_path: Path to the directory containing ground truth images.
@@ -25,7 +27,7 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization_merge
     """
 
     # Create output directory if it doesn't exist
-    os.makedirs(os.path.join(output_dir, "visualization_merge"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "visualization"), exist_ok=True)
 
     # Define lane colors
     lane_colors = {
@@ -91,7 +93,7 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization_merge
 
         # image_name_png = f"{image_id}.png"  # Convert to .png
         image_name_png = image_name
-        save_path = os.path.join(output_dir, "visualization_merge", image_name_png)
+        save_path = os.path.join(output_dir, "visualization", image_name_png)
         img.save(save_path, format="PNG")
         print(f"Saved annotated image: {save_path} with dimensions {img.size}")
         if img_id_counter == 50:
@@ -103,11 +105,11 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization_merge
 def classify_lanes(data):
     """
     Classify lanes into ego-left and ego-right, merging lanes whose anchor points
-    are within a threshold distance.
+    are within a threshold distance. Lanes with laneDirection set to "vertical" are excluded.
     """
     result = {}
     # Define threshold for merging lanes
-    MERGE_THRESHOLD = ORIGINAL_IMG_WIDTH * 0.05  # 5% of image width
+    MERGE_THRESHOLD = ORIGINAL_IMG_WIDTH * 0.07  # 7% of image width
 
     for entry in data:
         if "labels" not in entry or not entry["labels"]:
@@ -122,12 +124,20 @@ def classify_lanes(data):
             if "poly2d" not in lane:
                 continue
 
+            # Skip lanes with vertical direction
+            if (
+                "attributes" in lane
+                and "laneDirection" in lane["attributes"]
+                and lane["attributes"]["laneDirection"] == "vertical"
+            ):
+                continue
+
             vertices = lane["poly2d"][0]["vertices"]
             # vertices -> [[x1, y1], [x2, y2]]
             anchor = getLaneAnchor(vertices)
 
             if anchor[0] is not None:  # Avoid lanes with undefined anchors
-                anchor_points.append((anchor[0], lane["id"], anchor[1])) # Append Lane-ID for indentification.
+                anchor_points.append((anchor[0], lane["id"]))
                 valid_lanes.append(lane)
 
         # Sort lanes by anchor x position
@@ -170,7 +180,6 @@ def classify_lanes(data):
                 prev_lane = next(
                     lane for lane in valid_lanes if lane["id"] == prev_lane_id
                 )
-
 
                 # Merge the lanes
                 merged_left = merge_lane_lines(
@@ -242,8 +251,6 @@ def classify_lanes(data):
             if lane_id not in ego_lane_ids and lane_id not in adjacent_lane_ids:
                 result[image_name]["other_lanes"].append(lane["poly2d"][0]["vertices"])
 
-        if image_name == "001bad4e-2fa8f3b6.jpg":
-            print("Image is 001bad4e-2fa8f3b6.jpg") 
 
     return result
 
