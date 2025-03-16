@@ -5,19 +5,18 @@ import cv2
 import warnings
 from PIL import Image, ImageDraw
 import copy
+import sys
 
 
 # Custom warning format cuz the default one is wayyyyyy too verbose
 def custom_warning_format(message, category, filename, lineno, line=None):
     return f"WARNING : {message}\n"
 
-
 warnings.formatwarning = custom_warning_format
 
-
-def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", crop=None):
+def annotateGT(classified_lanes, gt_images_path, output_dir="visualization_merge", crop=None):
     """
-    Draws lane lines on images and saves them in the 'visualization' directory.
+    Draws lane lines on images and saves them in the 'visualization_merge' directory.
 
     :param classified_lanes: Dictionary containing lane keypoints.
     :param gt_images_path: Path to the directory containing ground truth images.
@@ -26,7 +25,7 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
     """
 
     # Create output directory if it doesn't exist
-    os.makedirs(os.path.join(output_dir, "visualization"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "visualization_merge"), exist_ok=True)
 
     # Define lane colors
     lane_colors = {
@@ -90,60 +89,51 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
                 )
             )
 
-        if img_id_counter == 50:
-            break
         # image_name_png = f"{image_id}.png"  # Convert to .png
         image_name_png = image_name
-        save_path = os.path.join(output_dir, "visualization", image_name_png)
+        save_path = os.path.join(output_dir, "visualization_merge", image_name_png)
         img.save(save_path, format="PNG")
         print(f"Saved annotated image: {save_path} with dimensions {img.size}")
+        if img_id_counter == 50:
+            break
 
     print("Annotation complete. All images saved in", output_dir)
 
 
 def classify_lanes(data):
     """
-    Classify lanes into ego-left and ego-right based on anchor points derived from poly2d vertices.
-    Excludes lanes with laneDirection set to "parallel".
-
-    Returns:
-        dict: Dictionary with lanes classified into "egoleft_lane", "egoright_lane", and "other_lanes" keys.
+    Classify lanes into ego-left and ego-right, merging lanes whose anchor points
+    are within a threshold distance.
     """
     result = {}
+    # Define threshold for merging lanes
+    MERGE_THRESHOLD = ORIGINAL_IMG_WIDTH * 0.05  # 3% of image width
 
     for entry in data:
-        # Skip images with no lane data
         if "labels" not in entry or not entry["labels"]:
             continue
 
         image_name = entry["name"]
         anchor_points = []
 
-        # First, filter out parallel lanes and collect valid lanes
+        # Collect valid lanes and their anchor points
         valid_lanes = []
         for lane in entry["labels"]:
             if "poly2d" not in lane:
                 continue
 
-            # Skip lanes with parallel direction
-            if (
-                "attributes" in lane
-                and "laneDirection" in lane["attributes"]
-                and lane["attributes"]["laneDirection"] == "vertical"
-            ):
-                continue
-
-            valid_lanes.append(lane)
             vertices = lane["poly2d"][0]["vertices"]
+            # vertices -> [[x1, y1], [x2, y2]]
             anchor = getLaneAnchor(vertices)
 
             if anchor[0] is not None:  # Avoid lanes with undefined anchors
-                anchor_points.append((anchor[0], lane["id"], anchor[1]))
+                anchor_points.append((anchor[0], lane["id"], anchor[1])) # Append Lane-ID for indentification.
+                valid_lanes.append(lane)
 
         # Sort lanes by anchor x position
         anchor_points.sort()
 
-        # Determine ego left and right lanes
+        # Determine ego indexes
         ego_indexes = getEgoIndexes(anchor_points)
 
         # Initialize result structure
@@ -156,22 +146,104 @@ def classify_lanes(data):
         }
 
         if isinstance(ego_indexes, str):
-            # Warning already handled by getEgoIndexes
             continue
 
         left_idx, right_idx = ego_indexes
 
-        # Classify the valid lanes
+        # Check for mergeable lanes
+        left_lanes = []
+        right_lanes = []
+
+        # Check left ego lane and its neighbor
+        if left_idx > 0:  # There's a lane to the left
+            # Distance between anchor points
+            dist_to_prev = abs(
+                anchor_points[left_idx][0] - anchor_points[left_idx - 1][0]
+            )
+            if dist_to_prev <= MERGE_THRESHOLD:
+                # Find the lanes to merge
+                left_lane_id = anchor_points[left_idx][1]
+                prev_lane_id = anchor_points[left_idx - 1][1]
+                left_lane = next(
+                    lane for lane in valid_lanes if lane["id"] == left_lane_id
+                )
+                prev_lane = next(
+                    lane for lane in valid_lanes if lane["id"] == prev_lane_id
+                )
+
+
+                # Merge the lanes
+                merged_left = merge_lane_lines(
+                    left_lane["poly2d"][0]["vertices"],
+                    prev_lane["poly2d"][0]["vertices"],
+                )
+                result[image_name]["egoleft_lane"].append(merged_left)
+            else:
+                # Use single lane
+                left_lane_id = anchor_points[left_idx][1]
+                left_lane = next(
+                    lane for lane in valid_lanes if lane["id"] == left_lane_id
+                )
+                result[image_name]["egoleft_lane"].append(
+                    left_lane["poly2d"][0]["vertices"]
+                )
+
+        # Check right ego lane and its neighbor
+        if right_idx < len(anchor_points) - 1:  # There's a lane to the right
+            dist_to_next = abs(
+                anchor_points[right_idx + 1][0] - anchor_points[right_idx][0]
+            )
+            if dist_to_next <= MERGE_THRESHOLD:
+                # Find the lanes to merge
+                right_lane_id = anchor_points[right_idx][1]
+                next_lane_id = anchor_points[right_idx + 1][1]
+                right_lane = next(
+                    lane for lane in valid_lanes if lane["id"] == right_lane_id
+                )
+                next_lane = next(
+                    lane for lane in valid_lanes if lane["id"] == next_lane_id
+                )
+                # Merge the lanes
+                merged_right = merge_lane_lines(
+                    right_lane["poly2d"][0]["vertices"],
+                    next_lane["poly2d"][0]["vertices"],
+                )
+                result[image_name]["egoright_lane"].append(merged_right)
+            else:
+                # Use single lane
+                right_lane_id = anchor_points[right_idx][1]
+                right_lane = next(
+                    lane for lane in valid_lanes if lane["id"] == right_lane_id
+                )
+                result[image_name]["egoright_lane"].append(
+                    right_lane["poly2d"][0]["vertices"]
+                )
+
+        # Add remaining lanes to other_lanes
         for lane in valid_lanes:
             lane_id = lane["id"]
-            if lane_id == anchor_points[left_idx][1]:
-                result[image_name]["egoleft_lane"].append(lane["poly2d"][0]["vertices"])
-            elif lane_id == anchor_points[right_idx][1]:
-                result[image_name]["egoright_lane"].append(
-                    lane["poly2d"][0]["vertices"]
-                )
-            else:
+            # Create lists of lane IDs to check, with range checking
+            ego_lane_ids = []
+            adjacent_lane_ids = []
+
+            # Add ego lane IDs
+            if 0 <= left_idx < len(anchor_points):
+                ego_lane_ids.append(anchor_points[left_idx][1])
+            if 0 <= right_idx < len(anchor_points):
+                ego_lane_ids.append(anchor_points[right_idx][1])
+
+            # Add adjacent lane IDs with range checking
+            if left_idx - 1 >= 0:  # Check left adjacent
+                adjacent_lane_ids.append(anchor_points[left_idx - 1][1])
+            if right_idx + 1 < len(anchor_points):  # Check right adjacent
+                adjacent_lane_ids.append(anchor_points[right_idx + 1][1])
+
+            # If lane is not an ego lane or adjacent lane, add to other_lanes
+            if lane_id not in ego_lane_ids and lane_id not in adjacent_lane_ids:
                 result[image_name]["other_lanes"].append(lane["poly2d"][0]["vertices"])
+
+        if image_name == "001bad4e-2fa8f3b6.jpg":
+            print("Image is 001bad4e-2fa8f3b6.jpg") 
 
     return result
 
@@ -255,18 +327,18 @@ def getLaneAnchor(lane):
             (x1, y1) = lane[i]
             break
     if x1 == x2:
-        warnings.warn(
-            f"Vertical lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2})."
-        )
+        # warnings.warn(
+        #     f"Vertical lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2})."
+        # )
         return (x1, None, None)
     # Get slope and intercept
     a = (y2 - y1) / (x2 - x1)
     b = y1 - a * x1
     # Get projected point on the image's bottom
     if a == 0:
-        warnings.warn(
-            f"Horizontal lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2})."
-        )
+        # warnings.warn(
+        #     f"Horizontal lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2})."
+        # )
         return (x1, None, None)
     x0 = (ORIGINAL_IMG_HEIGHT - b) / a
 
@@ -278,7 +350,7 @@ def getEgoIndexes(anchors):
     Identifies the two ego lanes (left and right) from sorted anchor points.
     """
     for i in range(len(anchors)):
-        if anchors[i][0] >= IMG_WIDTH / 2:
+        if anchors[i][0] >= ORIGINAL_IMG_WIDTH / 2:
             if i == 0:
                 return "NO LANES on the LEFT side of the frame!"
             return (i - 1, i)
@@ -373,6 +445,54 @@ def saveGT(gt_images_path, args):
             print(f"Processed and saved: {output_path}")
         else:
             print(f"Skipped: {image_name} (Invalid image)")
+
+
+def merge_lane_lines(vertices1, vertices2):
+    """
+    Merge two lane lines into a single lane by interpolating and averaging points.
+
+    Args:
+        vertices1: List of [x, y] coordinates for first lane
+        vertices2: List of [x, y] coordinates for second lane
+    Returns:
+        List of merged [x, y] coordinates
+    """
+    # Sort vertices by y-coordinate
+    v1_sorted = sorted(vertices1, key=lambda p: p[1])
+    v2_sorted = sorted(vertices2, key=lambda p: p[1])
+
+    # Get y-coordinate range
+    y_min = max(v1_sorted[0][1], v2_sorted[0][1])
+    y_max = min(v1_sorted[-1][1], v2_sorted[-1][1])
+
+    # Create interpolation functions for x-coordinates
+    def interpolate_x(y, vertices):
+        """Get x value at given y using linear interpolation"""
+        for i in range(len(vertices) - 1):
+            y1, y2 = vertices[i][1], vertices[i + 1][1]
+            if y1 <= y <= y2:
+                # use current best ground truth values for interpolation.
+                x1, x2 = vertices[i][0], vertices[i + 1][0]
+                # Linear interpolation
+                if y2 - y1 == 0:
+                    return x1
+                return x1 + (x2 - x1) * (y - y1) / (y2 - y1)
+        return None
+
+    # Generate merged points
+    merged = []
+    num_points = 50  # Number of points in merged lane
+
+    for i in range(num_points):
+        y = y_min + (y_max - y_min) * i / (num_points - 1)
+        x1 = interpolate_x(y, v1_sorted)
+        x2 = interpolate_x(y, v2_sorted)
+
+        if x1 is not None and x2 is not None:
+            x = (x1 + x2) / 2  # Average x coordinates
+            merged.append([x, y])
+
+    return merged
 
 
 if __name__ == "__main__":
@@ -481,4 +601,4 @@ if __name__ == "__main__":
     # output_file = os.path.join(args.output_dir, "classified_lanes.json")
 
     # with open(output_file, "w") as f:
-        # json.dump(formatted_data, f, indent=4)
+    # json.dump(formatted_data, f, indent=4)
