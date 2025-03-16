@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import pathlib
 import numpy as np
 from PIL import Image, ImageDraw
@@ -39,8 +40,25 @@ class LoadDataEgoPath():
         if not (self.dataset_name in VALID_DATASET_LIST):
             raise ValueError("Unknown dataset! Contact our team so we can work on this.")
         
+        # Load JSON labels, address the diffs of format across datasets
         with open(self.label_filepath, "r") as f:
             self.labels = json.load(f)
+        if "data" in self.labels:                   # Some has "data" parent key
+            self.labels = self.labels["data"]       # Make sure it gets the "data" part
+        # Some even stores ego path data like this:
+        # data : [
+        #   {
+        #       "00001" : ...
+        #   }
+        # ]
+        # So convert it back to dict to be compatible with the rest
+        if type(self.labels) is list:
+            self.labels = {
+                frame_code : content
+                for smaller_dict in self.labels
+                for frame_code, content in smaller_dict.items()
+            }
+
         self.images = sorted([
             f for f in pathlib.Path(self.image_dirpath).glob("*.png")
         ])
@@ -106,10 +124,12 @@ class LoadDataEgoPath():
             vis_output_dir: str,
             n_samples: int = 100
     ):
-        print(f"Now sampling first {n_samples} images from {set_type} set for audit...")
+        print(f"Sampling first {n_samples} images from {set_type} set for audit...")
 
-        if not os.path.exists(vis_output_dir):
-            os.makedirs(vis_output_dir)
+        if os.path.exists(vis_output_dir):
+            print(f"Output path exists. Deleting.")
+            shutil.rmtree(vis_output_dir)
+        os.makedirs(vis_output_dir)
 
         for i in range(n_samples):
 
@@ -147,18 +167,42 @@ class LoadDataEgoPath():
 
 
 if __name__ == "__main__":
-    # Testing cases here
-    CurveLanesDataset = LoadDataEgoPath(
-        labels_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CurveLanes/drivable_path.json",
-        images_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CurveLanes/image",
-        dataset = "CURVELANES",
-    )
-    CurveLanesDataset.sampleItemsAudit(
-        "train",
-        "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CurveLanes/dataloader_sample"
-    )
+    # Testing cases here, running through all 6 datasets
+    # Feel free to change dir configs as per yours
+    # Below setting applies for this structure, which is by default:
+    
+    # |---- <datasets_repo>/
+    # |     |------ <dataset_name in UPPERCASE>/
+    # |     |       |------ image/
+    # |     |       |------ segmentation/
+    # |     |       |------ visualization/
+    # |     |       |------ drivable_path.json
 
+    datasets_repo = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/"
 
-    # 1. Run this through all datasets to make sure they work (make sure it compatible with all JSON formats)
-    # 2. Visualize the frames (first 100 samples) from getTrainVal/getItemVal
-    # 3. Have a look at CurveLanes, then let Devang knows this as well
+    for dataset_name in VALID_DATASET_LIST:
+
+        print(f"\n{dataset_name}\n")
+
+        TestDataset = LoadDataEgoPath(
+            labels_filepath = os.path.join(
+                datasets_repo, 
+                f"processed_{dataset_name}", 
+                "drivable_path.json"
+            ),
+            images_filepath = os.path.join(
+                datasets_repo, 
+                f"processed_{dataset_name}", 
+                "image"
+            ),
+            dataset = dataset_name,
+        )
+
+        TestDataset.sampleItemsAudit(
+            "train",
+            os.path.join(
+                datasets_repo, 
+                f"processed_{dataset_name}", 
+                "dataloader_sample"
+            )
+        )
