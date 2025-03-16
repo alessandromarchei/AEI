@@ -1,9 +1,12 @@
 import albumentations as A
-from typing import Literal
+from typing import Literal, get_args
 import random
 
+DATA_TYPES_LITERAL = Literal['SEGMENTATION', 'DEPTH', 'KEYPOINTS']
+DATA_TYPES_LIST = list(get_args(DATA_TYPES_LITERAL))
+
 class Augmentations():
-    def __init__(self, is_train, data_type: Literal['SEGMENTATION', 'DEPTH']):
+    def __init__(self, is_train: bool, data_type: DATA_TYPES_LITERAL):
         
         # Data
         self.image = 0
@@ -16,7 +19,7 @@ class Augmentations():
 
         # Dataset type
         self.data_type = data_type
-        if(self.data_type != 'SEGMENTATION' and self.data_type != 'DEPTH'):
+        if not (self.data_type in DATA_TYPES_LIST):
             raise ValueError('Dataset type is not correctly specified')
 
         self.transform_shape = A.Compose(
@@ -55,6 +58,20 @@ class Augmentations():
                     cutout_threshold=(0.68, 0.68), intensity=(0.3, 0.3), mode='rain', \
                     p=0.1),
                 A.ToGray(num_output_channels=3, method='weighted_average', p=0.1)           
+            ]
+        )
+
+        self.transform_shape_keypoints = A.Compose(
+            [
+                A.Resize(width = 640, height = 320),
+                A.HorizontalFlip(p = 0.5),
+                A.Rotate(limit = 10, p = 1.0)
+            ]
+        )
+
+        self.transform_shape_keypoints_test = A.Compose(
+            [
+                A.Resize(width = 640, height = 320)
             ]
         )
 
@@ -139,6 +156,52 @@ class Augmentations():
             self.augmented_data = self.adjust_shape["mask"]
             self.augmented_image = self.adjust_shape["image"]
         return self.augmented_image, self.augmented_data
-
-
     
+    # KEYPOINTS
+    # Set data values
+    def setDataKeypoints(self, image, ground_truth):
+
+        self.image = image
+        self.augmented_image = image
+
+        self.ground_truth = ground_truth
+        self.augmented_data = ground_truth
+
+    # Apply augmentation transform
+    def applyTransformKeypoint(self, image, ground_truth):
+
+        if (self.data_type != "KEYPOINTS"):
+            raise ValueError("Please set dataset type to KEYPOINTS in intialization of class")
+        
+        self.setDataKeypoints(image, ground_truth)
+
+        # For train set
+        if (self.is_train):
+
+            # Resize, random horiztonal flip and 10-deg rotate
+            self.adjust_shape = self.transform_shape_keypoints(
+                image = self.image,
+                mask = self.ground_truth
+            )
+            
+            self.augmented_data = self.adjust_shape["mask"]
+            self.augmented_image = self.adjust_shape["image"]
+
+            # Random image augmentations
+            if (random.random() >= 0.25 and self.is_train):
+        
+                self.add_noise = self.transform_noise(image = self.augmented_image)
+                self.augmented_image = self.add_noise["image"]
+
+        # For test/val sets
+        else:
+
+            # Only resize in test/val
+            self.adjust_shape = self.transform_shape_keypoints_test(
+                image = self.image,
+                mask = self.ground_truth
+            )
+            self.augmented_data = self.adjust_shape["mask"]
+            self.augmented_image = self.adjust_shape["image"]
+
+        return self.augmented_image, self.augmented_data
