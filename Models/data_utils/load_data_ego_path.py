@@ -36,9 +36,6 @@ class LoadDataEgoPath():
 
         # ================= Preliminary checks ================= #
 
-        if not (0 <= self.val_set_fraction <= 1):
-            raise ValueError(f"val_set_fraction must be within [0, 1]. Currently set to {self.val_set_fraction}")
-
         if not (self.dataset_name in VALID_DATASET_LIST):
             raise ValueError("Unknown dataset! Contact our team so we can work on this.")
         
@@ -91,7 +88,6 @@ class LoadDataEgoPath():
     
     # For train
     def getItemTrain(self, index):
-        print(str(self.train_images[index]))
         img_train = Image.open(str(self.train_images[index])).convert("RGB")
         label_train = self.train_labels[index]["drivable_path"]
         
@@ -109,18 +105,22 @@ class LoadDataEgoPath():
             set_type: Literal["train", "val"], 
             vis_output_dir: str,
             n_samples: int = 100
-        ):
-        set_func = {
-            "train" : self.getItemTrain(),
-            "val"   : self.getItemVal(),
-        }
+    ):
+        print(f"Now sampling first {n_samples} images from {set_type} set for audit...")
+
         if not os.path.exists(vis_output_dir):
             os.makedirs(vis_output_dir)
 
         for i in range(n_samples):
 
             # Fetch numpy image and ego path
-            np_img, ego_path = set_func[set_type](i)
+            if set_type == "train":
+                np_img, ego_path = self.getItemTrain(i)
+            elif set_type == "val":
+                np_img, ego_path = self.getItemVal(i)
+            else:
+                raise ValueError(f"sampleItemAudit() does not recognize set type {set_type}")
+            
             # Convert back to image
             img = Image.fromarray(np_img)
 
@@ -128,12 +128,14 @@ class LoadDataEgoPath():
             draw = ImageDraw.Draw(img)
             lane_color = (255, 255, 0)
             lane_w = 5
-            img_width, img_height, _ = img.shape
+            img_width, img_height = img.size
             frame_name = str(i).zfill(5) + ".png"
 
             # Renormalize
-            ego_path[:, 0] *= img_width
-            ego_path[:, 1] *= img_height
+            ego_path = [
+                (point[0] * img_width, point[1] * img_height) 
+                for point in ego_path
+            ]
 
             # Now draw
             draw.line(ego_path, fill = lane_color, width = lane_w)
@@ -141,17 +143,19 @@ class LoadDataEgoPath():
             # Then, save
             img.save(os.path.join(vis_output_dir, frame_name))
 
+        print(f"Sampling all done, saved at {vis_output_dir}")
+
 
 if __name__ == "__main__":
     # Testing cases here
-    CULaneDataset = LoadDataEgoPath(
-        labels_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/drivable_path.json",
-        images_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/image",
-        dataset = "CULANE",
+    CurveLanesDataset = LoadDataEgoPath(
+        labels_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CurveLanes/drivable_path.json",
+        images_filepath = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CurveLanes/image",
+        dataset = "CURVELANES",
     )
-    CULaneDataset.sampleItemsAudit(
+    CurveLanesDataset.sampleItemsAudit(
         "train",
-        "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CULane/dataloader_sample"
+        "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/processed_CurveLanes/dataloader_sample"
     )
 
 
