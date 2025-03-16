@@ -104,12 +104,12 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
 
 def classify_lanes(data):
     """
-    Classify lanes into ego-left and ego-right, merging lanes whose anchor points
-    are within a threshold distance. Lanes with laneDirection set to "vertical" are excluded.
+    Classify lanes into ego-left and ego-right, merging lanes based on slope similarity.
+    Lanes with laneDirection set to "vertical" are excluded.
     """
     result = {}
-    # Define threshold for merging lanes
-    MERGE_THRESHOLD = ORIGINAL_IMG_WIDTH * 0.07  # 7% of image width
+    # Define threshold for slope comparison
+    SLOPE_THRESHOLD = 0.2  # Adjust this value based on your needs
 
     for entry in data:
         if "labels" not in entry or not entry["labels"]:
@@ -137,7 +137,7 @@ def classify_lanes(data):
             anchor = getLaneAnchor(vertices)
 
             if anchor[0] is not None:  # Avoid lanes with undefined anchors
-                anchor_points.append((anchor[0], lane["id"]))
+                anchor_points.append((anchor[0], lane["id"], anchor[1]))
                 valid_lanes.append(lane)
 
         # Sort lanes by anchor x position
@@ -166,11 +166,20 @@ def classify_lanes(data):
 
         # Check left ego lane and its neighbor
         if left_idx > 0:  # There's a lane to the left
-            # Distance between anchor points
-            dist_to_prev = abs(
-                anchor_points[left_idx][0] - anchor_points[left_idx - 1][0]
-            )
-            if dist_to_prev <= MERGE_THRESHOLD:
+            # Get the slopes
+            left_slope = anchor_points[left_idx][2]
+            prev_slope = anchor_points[left_idx - 1][2]
+
+            # Check if both slopes are valid (not None)
+            slopes_valid = left_slope is not None and prev_slope is not None
+
+            # Check if slopes are within threshold
+            slopes_similar = False
+            if slopes_valid:
+                slopes_similar = abs(left_slope - prev_slope) <= SLOPE_THRESHOLD
+
+            # Merge if slopes are similar (if valid)
+            if slopes_valid and slopes_similar:
                 # Find the lanes to merge
                 left_lane_id = anchor_points[left_idx][1]
                 prev_lane_id = anchor_points[left_idx - 1][1]
@@ -193,16 +202,27 @@ def classify_lanes(data):
                 left_lane = next(
                     lane for lane in valid_lanes if lane["id"] == left_lane_id
                 )
+
                 result[image_name]["egoleft_lane"].append(
                     left_lane["poly2d"][0]["vertices"]
                 )
 
         # Check right ego lane and its neighbor
         if right_idx < len(anchor_points) - 1:  # There's a lane to the right
-            dist_to_next = abs(
-                anchor_points[right_idx + 1][0] - anchor_points[right_idx][0]
-            )
-            if dist_to_next <= MERGE_THRESHOLD:
+            # Get the slopes
+            right_slope = anchor_points[right_idx][2]
+            next_slope = anchor_points[right_idx + 1][2]
+
+            # Check if both slopes are valid (not None)
+            slopes_valid = right_slope is not None and next_slope is not None
+
+            # Check if slopes are within threshold
+            slopes_similar = False
+            if slopes_valid:
+                slopes_similar = abs(right_slope - next_slope) <= SLOPE_THRESHOLD
+
+            # Merge if slopes are similar (if valid)
+            if slopes_valid and slopes_similar:
                 # Find the lanes to merge
                 right_lane_id = anchor_points[right_idx][1]
                 next_lane_id = anchor_points[right_idx + 1][1]
@@ -250,7 +270,6 @@ def classify_lanes(data):
             # If lane is not an ego lane or adjacent lane, add to other_lanes
             if lane_id not in ego_lane_ids and lane_id not in adjacent_lane_ids:
                 result[image_name]["other_lanes"].append(lane["poly2d"][0]["vertices"])
-
 
     return result
 

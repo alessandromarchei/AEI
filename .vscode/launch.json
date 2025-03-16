@@ -16,7 +16,7 @@
       "name": "Debug BDD100K Processing Script",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/EgoLanes/create_lane/BDD100K/process_bdd100k_merge.py",
+      "program": "${workspaceFolder}/EgoLanes/create_lane/BDD100K/process_bdd100k.py",
       "console": "integratedTerminal",
       "args": [
         "--labels_dir",
@@ -24,7 +24,7 @@
         "--image_dir",
         "/Users/aadarshkt/Desktop/Self_Driving/bdd100k_train/images/100k/",
         "--output_dir",
-        "./output"
+        "${workspaceFolder}/EgoLanes/create_lane/BDD100K"
       ]
     }
   ]
