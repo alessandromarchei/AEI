@@ -16,6 +16,75 @@ def custom_warning_format(message, category, filename, lineno, line=None):
 warnings.formatwarning = custom_warning_format
 
 
+def draw_keypoints_on_image(
+    image_path, keypoints, output_path=None, point_radius=5, point_color=(0, 0, 255)
+):
+    """
+    Draws keypoints on an image and optionally saves the result.
+
+    Args:
+        image_path (str): Path to the input image.
+        keypoints (list): List of keypoints in [x, y] format.
+        output_path (str, optional): Path to save the output image. If None, the image is not saved.
+                                     Can be a directory or a full path with filename.
+        point_radius (int, optional): Radius of the keypoints to draw. Defaults to 3.
+        point_color (tuple, optional): RGB color for the keypoints. Defaults to red (255, 0, 0).
+
+    Returns:
+        PIL.Image.Image: The image with keypoints drawn on it.
+    """
+    try:
+        # Open the image
+        img = Image.open(image_path).convert("RGB")
+        draw = ImageDraw.Draw(img)
+
+        # Draw each keypoint
+        for point in keypoints:
+            if len(point) >= 2:  # Ensure the point has x and y coordinates
+                x, y = point[0], point[1]
+                # Draw a circle for each keypoint
+                draw.ellipse(
+                    [
+                        (x - point_radius, y - point_radius),
+                        (x + point_radius, y + point_radius),
+                    ],
+                    fill=point_color,
+                )
+
+        # Save the image if output_path is provided
+        if output_path:
+            os.makedirs(
+                (
+                    os.path.dirname(output_path)
+                    if os.path.dirname(output_path)
+                    else output_path
+                ),
+                exist_ok=True,
+            )
+
+            # Check if output_path is a directory or a file path
+            if os.path.isdir(output_path):
+                # If it's a directory, create a filename from the input image
+                image_basename = os.path.basename(image_path)
+                image_name_base = os.path.splitext(image_basename)[
+                    0
+                ]  # Remove the extension
+                save_path = os.path.join(
+                    output_path, f"{image_name_base}_keypoints.png"
+                )
+            else:
+                # If it's a file path, use it directly
+                save_path = output_path
+
+            img.save(save_path, format="PNG")
+            print(f"Saved keypoints image: {save_path}")
+
+        return img
+    except Exception as e:
+        warnings.warn(f"Error drawing keypoints on image {image_path}: {str(e)}")
+        return None
+
+
 def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", crop=None):
     """
     Draws lane lines on images and saves them in the 'visualization' directory.
@@ -91,8 +160,11 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
                 )
             )
 
-        # image_name_png = f"{image_id}.png"  # Convert to .png
-        image_name_png = image_name
+        # Ensure we save as PNG by changing the file extension
+        # image_name_base = image_id
+        image_name_base = os.path.splitext(image_name)[0]  # Remove the extension
+        image_name_png = f"{image_name_base}.png"  # Add .png extension
+
         save_path = os.path.join(output_dir, "visualization", image_name_png)
         img.save(save_path, format="PNG")
         print(f"Saved annotated image: {save_path} with dimensions {img.size}")
@@ -102,7 +174,7 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
     print("Annotation complete. All images saved in", output_dir)
 
 
-def classify_lanes(data):
+def classify_lanes(data, gt_images_path, output_dir):
     """
     Classify lanes into ego-left and ego-right, merging lanes based on slope similarity.
     Lanes with laneDirection set to "vertical" are excluded.
@@ -117,6 +189,26 @@ def classify_lanes(data):
 
         image_name = entry["name"]
         anchor_points = []
+
+        # Draw keypoints on image for debugging
+        if image_name == "000e0252-8523a4a9.jpg":
+            image_path = os.path.join(gt_images_path, entry["name"])
+            if os.path.exists(image_path):
+                keypoints = []
+                for lane in entry["labels"]:
+                    if "poly2d" in lane:
+                        vertices = lane["poly2d"][0]["vertices"]
+                        # Extend keypoints with individual vertices instead of appending the whole list
+                        keypoints.extend(vertices)
+
+                draw_keypoints_on_image(
+                    image_path,
+                    keypoints,
+                    output_path=os.path.join(output_dir, "visualization"),
+                )
+
+        if image_name == "000d4f89-3bcbe37a.jpg":
+            print("Image is ", image_name)
 
         # Collect valid lanes and their anchor points
         valid_lanes = []
@@ -287,8 +379,8 @@ def classify_lanes(data):
                 result[image_name]["other_lanes"].append(lane["poly2d"][0]["vertices"])
 
         # For breakpoint purposes
-        # if image_name == "00268999-9f6d5823.jpg":
-        #     print("Image is ", image_name)
+        # if image_name == "000d4f89-3bcbe37a.jpg":
+            # print("Image is ", image_name)
 
     return result
 
@@ -393,14 +485,45 @@ def getLaneAnchor(lane):
 def getEgoIndexes(anchors):
     """
     Identifies the two ego lanes (left and right) from sorted anchor points.
+
+    This function determines which lanes are the ego-vehicle lanes by finding
+    the lanes closest to the center of the image (ORIGINAL_IMG_WIDTH/2).
+
+    Args:
+        anchors: List of tuples (x_position, lane_id, slope), sorted by x_position.
+                Each tuple represents a lane with its anchor point x-coordinate,
+                unique ID, and slope.
+
+    Returns:
+        tuple: (left_idx, right_idx) - Indices of the left and right ego lanes
+               in the anchors list.
+        str: Error message if proper ego lanes cannot be determined.
+
+    Logic:
+        1. Iterate through sorted anchors to find the first lane with x-position
+           greater than or equal to the image center.
+        2. This lane and the one before it are considered the ego lanes.
+        3. Special cases:
+           - If the first lane is already past center (i=0), use it and the next lane
+           - If no lanes are past center, use the last two lanes
+           - If there's only one lane, return an error message
     """
     for i in range(len(anchors)):
         if anchors[i][0] >= ORIGINAL_IMG_WIDTH / 2:
             if i == 0:
-                return "NO LANES on the LEFT side of the frame!"
+                # First lane is already past the center
+                if len(anchors) >= 2:
+                    # Use first and second lanes as ego lanes
+                    return (i, i + 1)
+                return "SINGLE LANE DETECTED"
+            # Normal case: use the lane before and at the center
             return (i - 1, i)
 
-    return "NO LANES on the RIGHT side of the frame!"
+    # If we get here, no lanes are past the center
+    if len(anchors) >= 2:
+        # Use the last two lanes as ego lanes
+        return (len(anchors) - 2, len(anchors) - 1)
+    return "SINGLE LANE DETECTED"
 
 
 def process_binary_mask(args):
@@ -616,7 +739,8 @@ if __name__ == "__main__":
     # process_binary_mask(args)
 
     # ============================== Identify EgoLanes ============================== #
-    classified_lanes = classify_lanes(data)
+    gt_images_path = os.path.join(args.image_dir, "train")
+    classified_lanes = classify_lanes(data, gt_images_path, output_dir=args.output_dir)
     # Get the first three image keys
     first_three_keys = list(classified_lanes.keys())[:3]
 
@@ -628,7 +752,6 @@ if __name__ == "__main__":
 
     # # ============================== AnnotateGT ====================================== #
 
-    gt_images_path = os.path.join(args.image_dir, "train")
     annotateGT(classified_lanes, gt_images_path, output_dir=args.output_dir, crop=crop)
 
     # # # ============================== Save required JSON ============================== #
@@ -643,7 +766,7 @@ if __name__ == "__main__":
     # print(json.dumps(first_three_formatted_data, indent=4))
 
     # Save classified lanes as new JSON file
-    # output_file = os.path.join(args.output_dir, "classified_lanes.json")
+    output_file = os.path.join(args.output_dir, "classified_lanes.json")
 
-    # with open(output_file, "w") as f:
-    # json.dump(formatted_data, f, indent=4)
+    with open(output_file, "w") as f:
+        json.dump(classified_lanes, f, indent=4)
