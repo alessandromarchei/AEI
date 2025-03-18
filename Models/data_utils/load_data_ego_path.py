@@ -108,6 +108,8 @@ class LoadDataEgoPath():
     def getItemTrain(self, index):
         img_train = Image.open(str(self.train_images[index])).convert("RGB")
         label_train = self.train_labels[index]["drivable_path"]
+        # Address the issue currently occurs in CurveLanes
+        label_train = [[x, y] for [x, y] in label_train if y < 1.0]
         
         return np.array(img_train), label_train
     
@@ -115,6 +117,8 @@ class LoadDataEgoPath():
     def getItemVal(self, index):
         img_val = Image.open(str(self.val_images[index])).convert("RGB")
         label_val = self.val_labels[index]["drivable_path"]
+        # Address the issue currently occurs in CurveLanes
+        label_val = [[x, y] for [x, y] in label_val if y < 1.0]
         
         return np.array(img_val), label_val
     
@@ -153,7 +157,7 @@ class LoadDataEgoPath():
 
             # Renormalize
             ego_path = [
-                (point[0] * img_width, point[1] * img_height) 
+                (float(point[0] * img_width), float(point[1] * img_height)) 
                 for point in ego_path
             ]
 
