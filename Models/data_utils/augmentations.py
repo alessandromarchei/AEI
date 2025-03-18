@@ -184,7 +184,7 @@ class Augmentations():
                 mask = self.ground_truth
             )
             
-            self.augmented_data = self.adjust_shape["mask"]
+            self.augmented_data = self.adjust_shape["keypoints"]
             self.augmented_image = self.adjust_shape["image"]
 
             # Random image augmentations
@@ -201,7 +201,7 @@ class Augmentations():
                 image = self.image,
                 mask = self.ground_truth
             )
-            self.augmented_data = self.adjust_shape["mask"]
+            self.augmented_data = self.adjust_shape["keypoints"]
             self.augmented_image = self.adjust_shape["image"]
 
         return self.augmented_image, self.augmented_data
