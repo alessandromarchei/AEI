@@ -1,6 +1,7 @@
+import random
+import argparse
 import albumentations as A
 from typing import Literal, get_args
-import random
 
 DATA_TYPES_LITERAL = Literal['SEGMENTATION', 'DEPTH', 'KEYPOINTS']
 DATA_TYPES_LIST = list(get_args(DATA_TYPES_LITERAL))
@@ -181,11 +182,11 @@ class Augmentations():
             # Resize, random horiztonal flip and 10-deg rotate
             self.adjust_shape = self.transform_shape_keypoints(
                 image = self.image,
-                mask = self.ground_truth
+                keypoints = self.ground_truth
             )
             
-            self.augmented_data = self.adjust_shape["keypoints"]
             self.augmented_image = self.adjust_shape["image"]
+            self.augmented_data = self.adjust_shape["keypoints"]
 
             # Random image augmentations
             if (random.random() >= 0.25 and self.is_train):
@@ -199,9 +200,60 @@ class Augmentations():
             # Only resize in test/val
             self.adjust_shape = self.transform_shape_keypoints_test(
                 image = self.image,
-                mask = self.ground_truth
+                keypoints = self.ground_truth
             )
-            self.augmented_data = self.adjust_shape["keypoints"]
+            
             self.augmented_image = self.adjust_shape["image"]
+            self.augmented_data = self.adjust_shape["keypoints"]
 
         return self.augmented_image, self.augmented_data
+    
+
+if __name__ == "__main__":
+
+    # Testing cases here. Currently only for keypoints
+    CURRENTLY_SUPPORTED_DATATYPE = [
+        "KEYPOINTS"
+    ]
+
+    parser = argparse.ArgumentParser(
+        description = "Testing Augmentation functions"
+    )
+    parser.add_argument(
+        "--is_train",
+        type = bool,
+        help = "True if this is train set, False if otherwise",
+        required = True
+    )
+    parser.add_argument(
+        "--data_type",
+        type = str,
+        help = "Data type, either 'SEGMENTATION', 'DEPTH', or 'KEYPOINTS'",
+        required = True
+    )
+    parser.add_argument(
+        "--image_dirpath",
+        type = str,
+        help = "Path to raw image directory",
+        required = True
+    )
+    parser.add_argument(
+        "--label_filepath",
+        type = str,
+        help = "Path to drivable_path.json",
+        required = True
+    )
+    parser.add_argument(
+        "--early_stopping",
+        type = str,
+        help = "Num. of samples you wanna limit, instead of whole image dir.",
+        required = False
+    )
+    args = parser.parse_args()
+
+    is_train = args.is_train
+    data_type = args.data_type
+    image_dirpath = args.image_dirpath
+    label_filepath = args.label_filepath
+
+    
