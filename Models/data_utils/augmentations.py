@@ -1,11 +1,11 @@
 import os
 import shutil
 import random
-import argparse
 import albumentations as A
+import numpy as np
 from typing import Literal, get_args
 from PIL import Image, ImageDraw
-from load_data_ego_path import LoadDataEgoPath
+from load_data_ego_path import LoadDataEgoPath, VALID_DATASET_LIST
 
 DATA_TYPES_LITERAL = Literal['SEGMENTATION', 'DEPTH', 'KEYPOINTS']
 DATA_TYPES_LIST = list(get_args(DATA_TYPES_LITERAL))
@@ -71,13 +71,15 @@ class Augmentations():
                 A.Resize(width = 640, height = 320),
                 A.HorizontalFlip(p = 0.5),
                 A.Rotate(limit = 10, p = 1.0)
-            ]
+            ],
+            keypoint_params = A.KeypointParams(format = "xy")
         )
 
         self.transform_shape_keypoints_test = A.Compose(
             [
                 A.Resize(width = 640, height = 320)
-            ]
+            ],
+            keypoint_params = A.KeypointParams(format = "xy")
         )
 
     # SEMANTIC SEGMENTATION
@@ -212,132 +214,120 @@ class Augmentations():
 
         return self.augmented_image, self.augmented_data
     
+    # ================ This is to visually test the functions ================ #
+    
+    def sampleItemsAudit(
+            self,
+            np_img: np.array,
+            ego_path: list,
+            input_frame_id: int,
+            output_dir: str,
+    ):
+    
+        # Currently only for keypoints
+        CURRENTLY_SUPPORTED_DATATYPE = [
+            "KEYPOINTS"
+        ]
+
+        if (self.data_type not in CURRENTLY_SUPPORTED_DATATYPE):
+            raise ValueError(f"Data type set to {self.data_type}. Currently supporting {CURRENTLY_SUPPORTED_DATATYPE} data types only.")
+
+        # Process image & ego path
+        img = Image.fromarray(np_img)
+        # Renormalize ego path points
+        img_width, img_height = img.size
+        ego_path = [
+            (point[0] * img_width, point[1] * img_height) 
+            for point in ego_path
+        ]
+        # Augmentation
+        augmented_np_img, augmented_ego_path = self.applyTransformKeypoint(
+            image = np_img,
+            ground_truth = ego_path
+        )
+        # Draw
+        augmented_img = Image.fromarray(augmented_np_img)
+        augmented_ego_path = [(x, y) for [x, y] in augmented_ego_path]
+        lane_color = (255, 255, 0)
+        lane_w = 5
+        frame_name = str(input_frame_id).zfill(5) + f"_aug.png"
+        draw = ImageDraw.Draw(augmented_img)
+        draw.line(
+            augmented_ego_path, 
+            fill = lane_color, 
+            width = lane_w
+        )
+        # Save
+        augmented_img.save(os.path.join(output_dir, frame_name))
+
 
 if __name__ == "__main__":
-
-    # Testing cases here. Currently only for keypoints
-    CURRENTLY_SUPPORTED_DATATYPE = [
-        "KEYPOINTS"
-    ]
-
-    parser = argparse.ArgumentParser(
-        description = "Testing Augmentation functions"
-    )
-    # Params for Augmentations
-    parser.add_argument(
-        "--data_type",
-        type = str,
-        help = "Data type, either 'SEGMENTATION', 'DEPTH', or 'KEYPOINTS'",
-        required = True
-    )
-    # Params for LoadDataEgoPath
-    parser.add_argument(
-        "--image_dirpath",
-        type = str,
-        help = "Path to raw image directory",
-        required = True
-    )
-    parser.add_argument(
-        "--label_filepath",
-        type = str,
-        help = "Path to drivable_path.json",
-        required = True
-    )
-    parser.add_argument(
-        "--dataset",
-        type = str,
-        help = "Dataset type. Currently supporting [BDD100K, COMMA2K19, CULANE, CURVELANES, ROADWORK, TUSIMPLE]",
-        required = True
-    )
-    parser.add_argument(
-        "--set_type",
-        type = Literal["train", "val"],
-        help = "train or val?",
-        required = True
-    )
-    # Output dir for the samples
-    parser.add_argument(
-        "--output_dir",
-        type = str,
-        help = "Output directory for the samples",
-        required = True
-    )
-    # Early stopping setting
-    parser.add_argument(
-        "--n_samples",
-        type = str,
-        help = "Num. of samples you wanna limit, instead of whole image dir.",
-        default = 100,
-        required = False
-    )
-    args = parser.parse_args()
-
-    data_type = args.data_type
-    image_dirpath = args.image_dirpath
-    label_filepath = args.label_filepath
-    dataset = args.dataset
-    set_type = args.set_type
-    output_dir = args.output_dir
-    n_samples = args.n_samples
-
-    if (data_type not in CURRENTLY_SUPPORTED_DATATYPE):
-        raise ValueError(f"Data type set to {data_type}. Currently supporting {CURRENTLY_SUPPORTED_DATATYPE} data types only.")
+    # Testing cases here, running through all 6 datasets
+    # Feel free to change dir configs as per yours
+    # Below setting applies for this structure, which is by default:
     
-    if os.path.exists(output_dir):
-        print(f"Output path exists. Deleting.")
-        shutil.rmtree(output_dir)
-    os.makedirs(output_dir)
+    # |---- <datasets_repo>/
+    # |     |------ <dataset_name in UPPERCASE>/
+    # |     |       |------ image/
+    # |     |       |------ segmentation/
+    # |     |       |------ visualization/
+    # |     |       |------ drivable_path.json
 
-    # Init test_data
-    print(f"Initializing LoadDataEgoPath instance for dataset {dataset}...")
-    test_data = LoadDataEgoPath(
-        labels_filepath = label_filepath,
-        images_filepath = image_dirpath,
-        dataset = dataset
+    datasets_repo = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/"
+    IS_TRAIN = True
+
+    print("Initializing Augmentation instance...")
+    AugInstance = Augmentations(
+        is_train = IS_TRAIN,
+        data_type = "KEYPOINTS"
     )
 
-    # Init Augmentations
-    print(f"Initializing Augmentations instance...")
-    aug = Augmentations(
-        is_train = (set_type == "train"),
-        data_type = data_type
-    )
+    N_SAMPLES = 100
+    print(f"Sampling {N_SAMPLES} frames from each dataset in {datasets_repo}")
 
-    # Extract samples from above data loader instance
-    print(f"Sampling first {n_samples} samples...")
-    for index in range(n_samples):
+    for dataset_name in VALID_DATASET_LIST:
 
-        if set_type == "train":
-            np_img, ego_path = test_data.getItemTrain(index)
-        elif set_type == "val":
-            np_img, ego_path = test_data.getItemVal(index)
-        else:
-            raise ValueError(f"Cannot recognize set type {set_type}")
-        
-        if np_img and ego_path:
-            img = Image.fromarray(np_img)
-            # Renormalize ego path points
-            img_width, img_height = img.size
-            ego_path = [
-                (point[0] * img_width, point[1] * img_height) 
-                for point in ego_path
-            ]
-            # Augmentation
-            augmented_img, augmented_ego_path = aug.applyTransformKeypoint(
-                image = img,
-                ground_truth = ego_path
+        print(f"\n{dataset_name}\n")
+
+        TestDataset = LoadDataEgoPath(
+            labels_filepath = os.path.join(
+                datasets_repo, 
+                f"processed_{dataset_name}", 
+                "drivable_path.json"
+            ),
+            images_filepath = os.path.join(
+                datasets_repo, 
+                f"processed_{dataset_name}", 
+                "image"
+            ),
+            dataset = dataset_name,
+        )
+
+        # Make output dir
+        OUTPUT_DIR = os.path.join(
+            datasets_repo, 
+            f"processed_{dataset_name}", 
+            "augmentation_sample"
+        )
+        if os.path.exists(OUTPUT_DIR):
+            print(f"Output path exists. Deleting.")
+            shutil.rmtree(OUTPUT_DIR)
+        os.makedirs(OUTPUT_DIR)
+
+        # Sampling
+        for index in range(N_SAMPLES):
+            # Fetch numpy img and corresponding ego path
+            np_img, ego_path = (
+                TestDataset.getItemTrain(index)
+                if IS_TRAIN else
+                TestDataset.getItemVal(index)
             )
-            # Draw
-            lane_color = (255, 255, 0)
-            lane_w = 5
-            frame_name = str(index).zfill(5) + f"_{set_type}_aug.png"
-            draw = ImageDraw.Draw(augmented_img)
-            draw.line(
-                augmented_ego_path, 
-                fill = lane_color, 
-                width = lane_w
+            # Sample that pair
+            AugInstance.sampleItemsAudit(
+                np_img = np_img,
+                ego_path = ego_path,
+                input_frame_id = index,
+                output_dir = OUTPUT_DIR,
             )
-            # Save
-            img.save(os.path.join(output_dir, frame_name))
 
-    print(f"Sampling all done, saved at {output_dir}")
+        print(f"Sampling all done, saved at {OUTPUT_DIR}")
