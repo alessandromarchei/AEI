@@ -176,7 +176,7 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
 
 def classify_lanes(data, gt_images_path, output_dir):
     """
-    Classify lanes into ego-left and ego-right, merging lanes based on slope similarity.
+    Classify lanes into ego-left and ego-right, and merge any adjacent lanes with similar slopes.
     Lanes with laneDirection set to "vertical" are excluded.
     """
     result = {}
@@ -252,135 +252,94 @@ def classify_lanes(data, gt_images_path, output_dir):
 
         left_idx, right_idx = ego_indexes
 
+        # --- New approach: Process all lanes and merge adjacent ones with similar slopes ---
 
-        # Handle left ego lane
-        if left_idx > 0:  # There's a lane to the left
-            # Get the slopes
-            left_slope = anchor_points[left_idx][2]
-            prev_slope = anchor_points[left_idx - 1][2]
+        # Create a list to track which lanes have been merged
+        merged_lanes = [False] * len(anchor_points)
+
+        # For each lane, check if it can be merged with the next lane
+        i = 0
+        while i < len(anchor_points) - 1:
+            if merged_lanes[i]:
+                i += 1
+                continue
+
+            current_slope = anchor_points[i][2]
+            next_slope = anchor_points[i + 1][2]
 
             # Check if both slopes are valid (not None)
-            slopes_valid = left_slope is not None and prev_slope is not None
+            slopes_valid = current_slope is not None and next_slope is not None
 
             # Check if slopes are within threshold
             slopes_similar = False
             if slopes_valid:
-                slopes_similar = abs(left_slope - prev_slope) <= SLOPE_THRESHOLD
+                slopes_similar = abs(current_slope - next_slope) <= SLOPE_THRESHOLD
 
-            # Merge if slopes are similar (if valid)
             if slopes_valid and slopes_similar:
-                # Find the lanes to merge
-                left_lane_id = anchor_points[left_idx][1]
-                prev_lane_id = anchor_points[left_idx - 1][1]
-                left_lane = next(
-                    lane for lane in valid_lanes if lane["id"] == left_lane_id
-                )
-                prev_lane = next(
-                    lane for lane in valid_lanes if lane["id"] == prev_lane_id
-                )
+                # Get the lane IDs and objects
+                current_lane_id = anchor_points[i][1]
+                next_lane_id = anchor_points[i + 1][1]
 
-                # Merge the lanes
-                merged_left = merge_lane_lines(
-                    left_lane["poly2d"][0]["vertices"],
-                    prev_lane["poly2d"][0]["vertices"],
-                )
-                result[image_name]["egoleft_lane"].append(merged_left)
-            else:
-                # Use single lane
-                left_lane_id = anchor_points[left_idx][1]
-                left_lane = next(
-                    lane for lane in valid_lanes if lane["id"] == left_lane_id
-                )
-
-                result[image_name]["egoleft_lane"].append(
-                    left_lane["poly2d"][0]["vertices"]
-                )
-        else:
-            # If left_idx is 0, there's no lane to the left to merge with
-            # But we still need to add the ego left lane to the result
-            left_lane_id = anchor_points[left_idx][1]
-            left_lane = next(lane for lane in valid_lanes if lane["id"] == left_lane_id)
-            result[image_name]["egoleft_lane"].append(
-                left_lane["poly2d"][0]["vertices"]
-            )
-
-        # Handle right ego lane
-        if right_idx < len(anchor_points) - 1:  # There's a lane to the right
-            # Get the slopes
-            right_slope = anchor_points[right_idx][2]
-            next_slope = anchor_points[right_idx + 1][2]
-
-            # Check if both slopes are valid (not None)
-            slopes_valid = right_slope is not None and next_slope is not None
-
-            # Check if slopes are within threshold
-            slopes_similar = False
-            if slopes_valid:
-                slopes_similar = abs(right_slope - next_slope) <= SLOPE_THRESHOLD
-
-            # Merge if slopes are similar (if valid)
-            if slopes_valid and slopes_similar:
-                # Find the lanes to merge
-                right_lane_id = anchor_points[right_idx][1]
-                next_lane_id = anchor_points[right_idx + 1][1]
-                right_lane = next(
-                    lane for lane in valid_lanes if lane["id"] == right_lane_id
+                current_lane = next(
+                    lane for lane in valid_lanes if lane["id"] == current_lane_id
                 )
                 next_lane = next(
                     lane for lane in valid_lanes if lane["id"] == next_lane_id
                 )
+
                 # Merge the lanes
-                merged_right = merge_lane_lines(
-                    right_lane["poly2d"][0]["vertices"],
+                merged_lane = merge_lane_lines(
+                    current_lane["poly2d"][0]["vertices"],
                     next_lane["poly2d"][0]["vertices"],
                 )
-                result[image_name]["egoright_lane"].append(merged_right)
+
+                # Add to the appropriate category
+                if i == left_idx:
+                    result[image_name]["egoleft_lane"].append(merged_lane)
+                elif i == right_idx - 1 or i == right_idx:
+                    result[image_name]["egoright_lane"].append(merged_lane)
+                else:
+                    result[image_name]["other_lanes"].append(merged_lane)
+
+                # Mark both lanes as merged
+                merged_lanes[i] = True
+                merged_lanes[i + 1] = True
+
+                # Skip the next lane since it's been merged
+                i += 2
             else:
-                # Use single lane
-                right_lane_id = anchor_points[right_idx][1]
-                right_lane = next(
-                    lane for lane in valid_lanes if lane["id"] == right_lane_id
-                )
+                # This lane wasn't merged, add it as is
+                lane_id = anchor_points[i][1]
+                lane = next(lane for lane in valid_lanes if lane["id"] == lane_id)
+
+                if i == left_idx:
+                    result[image_name]["egoleft_lane"].append(
+                        lane["poly2d"][0]["vertices"]
+                    )
+                elif i == right_idx:
+                    result[image_name]["egoright_lane"].append(
+                        lane["poly2d"][0]["vertices"]
+                    )
+                else:
+                    result[image_name]["other_lanes"].append(
+                        lane["poly2d"][0]["vertices"]
+                    )
+
+                i += 1
+
+        # Handle the last lane if it wasn't merged
+        if i < len(anchor_points) and not merged_lanes[i]:
+            lane_id = anchor_points[i][1]
+            lane = next(lane for lane in valid_lanes if lane["id"] == lane_id)
+
+            if i == left_idx:
+                result[image_name]["egoleft_lane"].append(lane["poly2d"][0]["vertices"])
+            elif i == right_idx:
                 result[image_name]["egoright_lane"].append(
-                    right_lane["poly2d"][0]["vertices"]
+                    lane["poly2d"][0]["vertices"]
                 )
-        else:
-            # If right_idx is at the end, there's no lane to the right to merge with
-            # But we still need to add the ego right lane to the result
-            right_lane_id = anchor_points[right_idx][1]
-            right_lane = next(
-                lane for lane in valid_lanes if lane["id"] == right_lane_id
-            )
-            result[image_name]["egoright_lane"].append(
-                right_lane["poly2d"][0]["vertices"]
-            )
-
-        # Add remaining lanes to other_lanes
-        for lane in valid_lanes:
-            lane_id = lane["id"]
-            # Create lists of lane IDs to check, with range checking
-            ego_lane_ids = []
-            adjacent_lane_ids = []
-
-            # Add ego lane IDs
-            if 0 <= left_idx < len(anchor_points):
-                ego_lane_ids.append(anchor_points[left_idx][1])
-            if 0 <= right_idx < len(anchor_points):
-                ego_lane_ids.append(anchor_points[right_idx][1])
-
-            # Add adjacent lane IDs with range checking
-            if left_idx - 1 >= 0:  # Check left adjacent
-                adjacent_lane_ids.append(anchor_points[left_idx - 1][1])
-            if right_idx + 1 < len(anchor_points):  # Check right adjacent
-                adjacent_lane_ids.append(anchor_points[right_idx + 1][1])
-
-            # If lane is not an ego lane or adjacent lane, add to other_lanes
-            if lane_id not in ego_lane_ids and lane_id not in adjacent_lane_ids:
+            else:
                 result[image_name]["other_lanes"].append(lane["poly2d"][0]["vertices"])
-
-        # For breakpoint purposes
-        # if image_name == "000d4f89-3bcbe37a.jpg":
-            # print("Image is ", image_name)
 
     return result
 
