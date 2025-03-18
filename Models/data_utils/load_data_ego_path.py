@@ -12,13 +12,16 @@ from check_data import CheckData
 VALID_DATASET_LITERALS = Literal[
     "BDD100K", 
     "COMMA2K19", 
-    "CULANE", 
+    # "CULANE", 
     "CURVELANES", 
     "ROADWORK", 
     "TUSIMPLE"
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
-VAL_SET_FRACTION = 0.1
+COMMA2K19_SIZE = {
+    "w" : 1048,
+    "h" : 524
+}
 
 
 class LoadDataEgoPath():
@@ -84,16 +87,29 @@ class LoadDataEgoPath():
 
         if (checkData.getCheck()):
             for set_idx, frame_id in enumerate(self.labels):
-                if (set_idx % 10 == VAL_SET_FRACTION * 10):
-                    # Slap it to Val
-                    self.val_images.append(str(self.images[set_idx]))
-                    self.val_labels.append(self.labels[frame_id])
-                    self.N_vals += 1 
+                frame_id_from_img_path = str(self.images[set_idx]).split("/")[-1].replace(".png", "")
+                if (frame_id == frame_id_from_img_path):
+
+                    if (self.dataset_name == "COMMA2K19"):
+                        self.labels[frame_id]["drivable_path"] = [
+                            (
+                                point[0] / COMMA2K19_SIZE["w"], 
+                                point[1] / COMMA2K19_SIZE["h"]
+                            ) for point in self.labels[frame_id]["drivable_path"]
+                        ]
+
+                    if (set_idx % 10 == 0):
+                        # Slap it to Val
+                        self.val_images.append(str(self.images[set_idx]))
+                        self.val_labels.append(self.labels[frame_id])
+                        self.N_vals += 1 
+                    else:
+                        # Slap it to Train
+                        self.train_images.append(str(self.images[set_idx]))
+                        self.train_labels.append(self.labels[frame_id])
+                        self.N_trains += 1
                 else:
-                    # Slap it to Train
-                    self.train_images.append(str(self.images[set_idx]))
-                    self.train_labels.append(self.labels[frame_id])
-                    self.N_trains += 1
+                    raise ValueError(f"Mismatch data detected in {self.dataset_name}!")
 
         print(f"Dataset {self.dataset_name} loaded with {self.N_trains} trains and {self.N_vals} vals.")
         print(f"Val/Total = {(self.N_vals / (self.N_trains + self.N_vals))}")
