@@ -1,7 +1,11 @@
+import os
+import shutil
 import random
 import argparse
 import albumentations as A
 from typing import Literal, get_args
+from PIL import Image, ImageDraw
+from load_data_ego_path import LoadDataEgoPath
 
 DATA_TYPES_LITERAL = Literal['SEGMENTATION', 'DEPTH', 'KEYPOINTS']
 DATA_TYPES_LIST = list(get_args(DATA_TYPES_LITERAL))
@@ -219,18 +223,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description = "Testing Augmentation functions"
     )
-    parser.add_argument(
-        "--is_train",
-        type = bool,
-        help = "True if this is train set, False if otherwise",
-        required = True
-    )
+    # Params for Augmentations
     parser.add_argument(
         "--data_type",
         type = str,
         help = "Data type, either 'SEGMENTATION', 'DEPTH', or 'KEYPOINTS'",
         required = True
     )
+    # Params for LoadDataEgoPath
     parser.add_argument(
         "--image_dirpath",
         type = str,
@@ -244,16 +244,100 @@ if __name__ == "__main__":
         required = True
     )
     parser.add_argument(
-        "--early_stopping",
+        "--dataset",
+        type = str,
+        help = "Dataset type. Currently supporting [BDD100K, COMMA2K19, CULANE, CURVELANES, ROADWORK, TUSIMPLE]",
+        required = True
+    )
+    parser.add_argument(
+        "--set_type",
+        type = Literal["train", "val"],
+        help = "train or val?",
+        required = True
+    )
+    # Output dir for the samples
+    parser.add_argument(
+        "--output_dir",
+        type = str,
+        help = "Output directory for the samples",
+        required = True
+    )
+    # Early stopping setting
+    parser.add_argument(
+        "--n_samples",
         type = str,
         help = "Num. of samples you wanna limit, instead of whole image dir.",
+        default = 100,
         required = False
     )
     args = parser.parse_args()
 
-    is_train = args.is_train
     data_type = args.data_type
     image_dirpath = args.image_dirpath
     label_filepath = args.label_filepath
+    dataset = args.dataset
+    set_type = args.set_type
+    output_dir = args.output_dir
+    n_samples = args.n_samples
 
+    if (data_type not in CURRENTLY_SUPPORTED_DATATYPE):
+        raise ValueError(f"Data type set to {data_type}. Currently supporting {CURRENTLY_SUPPORTED_DATATYPE} data types only.")
     
+    if os.path.exists(output_dir):
+        print(f"Output path exists. Deleting.")
+        shutil.rmtree(output_dir)
+    os.makedirs(output_dir)
+
+    # Init test_data
+    print(f"Initializing LoadDataEgoPath instance for dataset {dataset}...")
+    test_data = LoadDataEgoPath(
+        labels_filepath = label_filepath,
+        images_filepath = image_dirpath,
+        dataset = dataset
+    )
+
+    # Init Augmentations
+    print(f"Initializing Augmentations instance...")
+    aug = Augmentations(
+        is_train = (set_type == "train"),
+        data_type = data_type
+    )
+
+    # Extract samples from above data loader instance
+    print(f"Sampling first {n_samples} samples...")
+    for index in range(n_samples):
+
+        if set_type == "train":
+            np_img, ego_path = test_data.getItemTrain(index)
+        elif set_type == "val":
+            np_img, ego_path = test_data.getItemVal(index)
+        else:
+            raise ValueError(f"Cannot recognize set type {set_type}")
+        
+        if np_img and ego_path:
+            img = Image.fromarray(np_img)
+            # Renormalize ego path points
+            img_width, img_height = img.size
+            ego_path = [
+                (point[0] * img_width, point[1] * img_height) 
+                for point in ego_path
+            ]
+            # Augmentation
+            augmented_img, augmented_ego_path = aug.applyTransformKeypoint(
+                image = img,
+                ground_truth = ego_path
+            )
+            # Draw
+            lane_color = (255, 255, 0)
+            lane_w = 5
+            frame_name = str(index).zfill(5) + f"_{set_type}_aug.png"
+            draw = ImageDraw.Draw(augmented_img)
+            draw.line(
+                augmented_ego_path, 
+                fill = lane_color, 
+                width = lane_w
+            )
+            # Save
+            img.save(os.path.join(output_dir, frame_name))
+
+    print(f"Sampling all done, saved at {output_dir}")
