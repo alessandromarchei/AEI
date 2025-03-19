@@ -12,15 +12,15 @@ from check_data import CheckData
 VALID_DATASET_LITERALS = Literal[
     "BDD100K", 
     "COMMA2K19", 
-    # "CULANE", 
+    "CULANE", 
     "CURVELANES", 
     "ROADWORK", 
     "TUSIMPLE"
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
-COMMA2K19_SIZE = {
-    "w" : 1048,
-    "h" : 524
+COMMA2K19_DIMS = {
+    "WIDTH" : 1048,
+    "HEIGHT" : 524
 }
 
 
@@ -93,12 +93,12 @@ class LoadDataEgoPath():
                     if (self.dataset_name == "COMMA2K19"):
                         self.labels[frame_id]["drivable_path"] = [
                             (
-                                point[0] / COMMA2K19_SIZE["w"], 
-                                point[1] / COMMA2K19_SIZE["h"]
+                                point[0] / COMMA2K19_DIMS["WIDTH"], 
+                                point[1] / COMMA2K19_DIMS["HEIGHT"]
                             ) for point in self.labels[frame_id]["drivable_path"]
                         ]
 
-                    if (set_idx % 10 == 0):
+                    if (set_idx % 10 == 0):     # Hard-coded 10% as val set
                         # Slap it to Val
                         self.val_images.append(str(self.images[set_idx]))
                         self.val_labels.append(self.labels[frame_id])
@@ -184,45 +184,3 @@ class LoadDataEgoPath():
             img.save(os.path.join(vis_output_dir, frame_name))
 
         print(f"Sampling all done, saved at {vis_output_dir}")
-
-
-if __name__ == "__main__":
-    # Testing cases here, running through all 6 datasets
-    # Feel free to change dir configs as per yours
-    # Below setting applies for this structure, which is by default:
-    
-    # |---- <datasets_repo>/
-    # |     |------ <dataset_name in UPPERCASE>/
-    # |     |       |------ image/
-    # |     |       |------ segmentation/
-    # |     |       |------ visualization/
-    # |     |       |------ drivable_path.json
-
-    datasets_repo = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/"
-
-    for dataset_name in VALID_DATASET_LIST:
-
-        print(f"\n{dataset_name}\n")
-
-        TestDataset = LoadDataEgoPath(
-            labels_filepath = os.path.join(
-                datasets_repo, 
-                f"processed_{dataset_name}", 
-                "drivable_path.json"
-            ),
-            images_filepath = os.path.join(
-                datasets_repo, 
-                f"processed_{dataset_name}", 
-                "image"
-            ),
-            dataset = dataset_name,
-        )
-
-        TestDataset.sampleItemsAudit(
-            "train",
-            os.path.join(
-                datasets_repo, 
-                f"processed_{dataset_name}", 
-                "dataloader_sample"
-            )
-        )
