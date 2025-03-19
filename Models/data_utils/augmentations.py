@@ -230,7 +230,8 @@ class Augmentations():
         ]
 
         if (self.data_type not in CURRENTLY_SUPPORTED_DATATYPE):
-            raise ValueError(f"Data type set to {self.data_type}. Currently supporting {CURRENTLY_SUPPORTED_DATATYPE} data types only.")
+            raise ValueError(f"Data type set to {self.data_type}. \
+                             Currently supporting {CURRENTLY_SUPPORTED_DATATYPE} data types only.")
 
         # Process image & ego path
         img = Image.fromarray(np_img)
@@ -259,75 +260,3 @@ class Augmentations():
         )
         # Save
         augmented_img.save(os.path.join(output_dir, frame_name))
-
-
-if __name__ == "__main__":
-    # Testing cases here, running through all 6 datasets
-    # Feel free to change dir configs as per yours
-    # Below setting applies for this structure, which is by default:
-    
-    # |---- <datasets_repo>/
-    # |     |------ <dataset_name in UPPERCASE>/
-    # |     |       |------ image/
-    # |     |       |------ segmentation/
-    # |     |       |------ visualization/
-    # |     |       |------ drivable_path.json
-
-    datasets_repo = "/home/tranhuunhathuy/Documents/Autoware/pov_datasets/"
-    IS_TRAIN = True
-
-    print("Initializing Augmentation instance...")
-    AugInstance = Augmentations(
-        is_train = IS_TRAIN,
-        data_type = "KEYPOINTS"
-    )
-
-    N_SAMPLES = 100
-    print(f"Sampling {N_SAMPLES} frames from each dataset in {datasets_repo}")
-
-    for dataset_name in VALID_DATASET_LIST:
-
-        print(f"\n{dataset_name}\n")
-
-        TestDataset = LoadDataEgoPath(
-            labels_filepath = os.path.join(
-                datasets_repo, 
-                f"processed_{dataset_name}", 
-                "drivable_path.json"
-            ),
-            images_filepath = os.path.join(
-                datasets_repo, 
-                f"processed_{dataset_name}", 
-                "image"
-            ),
-            dataset = dataset_name,
-        )
-
-        # Make output dir
-        OUTPUT_DIR = os.path.join(
-            datasets_repo, 
-            f"processed_{dataset_name}", 
-            "augmentation_sample"
-        )
-        if os.path.exists(OUTPUT_DIR):
-            print(f"Output path exists. Deleting.")
-            shutil.rmtree(OUTPUT_DIR)
-        os.makedirs(OUTPUT_DIR)
-
-        # Sampling
-        for index in range(N_SAMPLES):
-            # Fetch numpy img and corresponding ego path
-            np_img, ego_path = (
-                TestDataset.getItemTrain(index)
-                if IS_TRAIN else
-                TestDataset.getItemVal(index)
-            )
-            # Sample that pair
-            AugInstance.sampleItemsAudit(
-                np_img = np_img,
-                ego_path = ego_path,
-                input_frame_id = index,
-                output_dir = OUTPUT_DIR,
-            )
-
-        print(f"Sampling all done, saved at {OUTPUT_DIR}")
