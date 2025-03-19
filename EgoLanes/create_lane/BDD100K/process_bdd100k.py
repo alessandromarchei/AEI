@@ -294,9 +294,11 @@ def classify_lanes(data, gt_images_path, output_dir):
                 )
 
                 # Add to the appropriate category
-                if i == left_idx:
+                if i + 1 == left_idx:
                     result[image_name]["egoleft_lane"].append(merged_lane)
-                elif i == right_idx - 1 or i == right_idx:
+                elif (
+                    i == right_idx
+                ):
                     result[image_name]["egoright_lane"].append(merged_lane)
                 else:
                     result[image_name]["other_lanes"].append(merged_lane)
