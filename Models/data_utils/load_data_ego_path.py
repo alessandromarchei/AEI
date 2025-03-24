@@ -132,14 +132,15 @@ class LoadDataEgoPath():
         # Filter out those y extremely close to 1.0
         # But under some certain conditions, add back last point of heap
         morethan1_stack = []
-        while (label[0][1] >= 0.99):
+        stacking_threshold = 0.99
+        while (label[0][1] >= stacking_threshold):
             morethan1_stack.append(label[0])
             label.pop(0)
         if (
             (len(morethan1_stack) >= 1) and
                 (
                     (len(label) <= 1) or 
-                    (label[0][1] < 1.0)
+                    (label[0][1] < stacking_threshold)
                 )
         ):
             label.insert(0, morethan1_stack[-1])
