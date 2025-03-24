@@ -18,9 +18,9 @@ VALID_DATASET_LITERALS = Literal[
     "TUSIMPLE"
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
-COMMA2K19_DIMS = {
-    "WIDTH" : 1048,
-    "HEIGHT" : 524
+COMMA2K19_SIZE = {
+    "w" : 1048,
+    "h" : 524
 }
 
 
@@ -93,12 +93,12 @@ class LoadDataEgoPath():
                     if (self.dataset_name == "COMMA2K19"):
                         self.labels[frame_id]["drivable_path"] = [
                             (
-                                point[0] / COMMA2K19_DIMS["WIDTH"], 
-                                point[1] / COMMA2K19_DIMS["HEIGHT"]
+                                point[0] / COMMA2K19_SIZE["w"], 
+                                point[1] / COMMA2K19_SIZE["h"]
                             ) for point in self.labels[frame_id]["drivable_path"]
                         ]
 
-                    if (set_idx % 10 == 0):     # Hard-coded 10% as val set
+                    if (set_idx % 10 == 0):
                         # Slap it to Val
                         self.val_images.append(str(self.images[set_idx]))
                         self.val_labels.append(self.labels[frame_id])
@@ -121,66 +121,34 @@ class LoadDataEgoPath():
     # ================= Get item at index ith, returning img and EgoPath ================= #
     
     # For train
-    def getItemTrain(self, index):
-        img_train = Image.open(str(self.train_images[index])).convert("RGB")
-        label_train = self.train_labels[index]["drivable_path"]
-        # Address the issue currently occurs in CurveLanes
-        label_train = [[x, y] for [x, y] in label_train if y < 1.0]
+    def getItem(self, index, is_train: bool):
+        if (is_train):
+            img = Image.open(str(self.train_images[index])).convert("RGB")
+            label = self.train_labels[index]["drivable_path"]
+        else:
+            img = Image.open(str(self.val_images[index])).convert("RGB")
+            label = self.val_labels[index]["drivable_path"]
+
+        # Filter out those y extremely close to 1.0
+        # But under some certain conditions, add back last point of heap
+        morethan1_heap = []
+        while (label[0][1] >= 0.99):
+            morethan1_heap.append(label[0])
+            label.pop(0)
+        if (
+            (len(morethan1_heap) >= 1) and
+                (
+                    (len(label) <= 1) or 
+                    (label[0][1] < 1.0)
+                )
+        ):
+            label.insert(0, morethan1_heap[-1])
+        # Convert all of those points into sublists
+        label = [[x, y] for [x, y] in label]
+
+        # Reduce the anchor's y coord a bit if it exceeds 1.0
+        # (cuz y >= 1.0 will jeopardize the Albumentation)
+        if (label[0][1] >= 1.0):
+            label[0][1] = 0.9999
         
-        return np.array(img_train), label_train
-    
-    # For val
-    def getItemVal(self, index):
-        img_val = Image.open(str(self.val_images[index])).convert("RGB")
-        label_val = self.val_labels[index]["drivable_path"]
-        # Address the issue currently occurs in CurveLanes
-        label_val = [[x, y] for [x, y] in label_val if y < 1.0]
-        
-        return np.array(img_val), label_val
-    
-    def sampleItemsAudit(
-            self, 
-            set_type: Literal["train", "val"], 
-            vis_output_dir: str,
-            n_samples: int = 100
-    ):
-        print(f"Sampling first {n_samples} images from {set_type} set for audit...")
-
-        if os.path.exists(vis_output_dir):
-            print(f"Output path exists. Deleting.")
-            shutil.rmtree(vis_output_dir)
-        os.makedirs(vis_output_dir)
-
-        for i in range(n_samples):
-
-            # Fetch numpy image and ego path
-            if set_type == "train":
-                np_img, ego_path = self.getItemTrain(i)
-            elif set_type == "val":
-                np_img, ego_path = self.getItemVal(i)
-            else:
-                raise ValueError(f"sampleItemAudit() does not recognize set type {set_type}")
-            
-            # Convert back to image
-            img = Image.fromarray(np_img)
-
-            # Draw specs
-            draw = ImageDraw.Draw(img)
-            lane_color = (255, 255, 0)
-            lane_w = 5
-            img_width, img_height = img.size
-            frame_name = str(i).zfill(5) + ".png"
-
-            # Renormalize
-            ego_path = [
-                (float(point[0] * img_width), float(point[1] * img_height)) 
-                for point in ego_path
-            ]
-
-            # Now draw
-            draw.line(ego_path, fill = lane_color, width = lane_w)
-
-            # Then, save
-            img.save(os.path.join(vis_output_dir, frame_name))
-
-        print(f"Sampling all done, saved at {vis_output_dir}")
+        return np.array(img), label
