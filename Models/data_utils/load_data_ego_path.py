@@ -10,12 +10,12 @@ from typing import Literal, get_args
 from check_data import CheckData
 
 VALID_DATASET_LITERALS = Literal[
-    "BDD100K", 
-    "COMMA2K19", 
-    "CULANE", 
+    # "BDD100K", 
+    # "COMMA2K19", 
+    # "CULANE", 
     "CURVELANES", 
-    "ROADWORK", 
-    "TUSIMPLE"
+    # "ROADWORK", 
+    # "TUSIMPLE"
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 COMMA2K19_SIZE = {
@@ -143,7 +143,7 @@ class LoadDataEgoPath():
                     (label[0][1] < stacking_threshold)
                 )
         ):
-            label.insert(0, morethan1_stack[-1])
+            label.insert(0, morethan1_stack[0])
         # Convert all of those points into sublists
         label = [[x, y] for [x, y] in label]
 
