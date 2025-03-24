@@ -1,11 +1,11 @@
+#! /usr/bin/env python3
+
 import os
-import shutil
 import random
 import albumentations as A
 import numpy as np
 from typing import Literal, get_args
 from PIL import Image, ImageDraw
-from load_data_ego_path import LoadDataEgoPath, VALID_DATASET_LIST
 
 DATA_TYPES_LITERAL = Literal['SEGMENTATION', 'DEPTH', 'KEYPOINTS']
 DATA_TYPES_LIST = list(get_args(DATA_TYPES_LITERAL))
@@ -66,11 +66,19 @@ class Augmentations():
             ]
         )
 
-        self.transform_shape_keypoints = A.Compose(
+        self.transform_shape_keypoints_flip_rotate = A.Compose(
             [
                 A.Resize(width = 640, height = 320),
                 A.HorizontalFlip(p = 0.5),
                 A.Rotate(limit = 10, p = 1.0)
+            ],
+            keypoint_params = A.KeypointParams(format = "xy")
+        )
+
+        self.transform_shape_keypoints_flip = A.Compose(
+            [
+                A.Resize(width = 640, height = 320),
+                A.HorizontalFlip(p = 0.5),
             ],
             keypoint_params = A.KeypointParams(format = "xy")
         )
@@ -175,7 +183,12 @@ class Augmentations():
         self.augmented_data = ground_truth
 
     # Apply augmentation transform
-    def applyTransformKeypoint(self, image, ground_truth):
+    def applyTransformKeypoint(
+            self, 
+            image: np.array, 
+            ground_truth: list, 
+            is_rotate: bool
+    ):
 
         if (self.data_type != "KEYPOINTS"):
             raise ValueError("Please set dataset type to KEYPOINTS in intialization of class")
@@ -186,10 +199,16 @@ class Augmentations():
         if (self.is_train):
 
             # Resize, random horiztonal flip and 10-deg rotate
-            self.adjust_shape = self.transform_shape_keypoints(
-                image = self.image,
-                keypoints = self.ground_truth
-            )
+            if (is_rotate):
+                self.adjust_shape = self.transform_shape_keypoints_flip_rotate(
+                    image = self.image,
+                    keypoints = self.ground_truth
+                )
+            else:
+                self.adjust_shape = self.transform_shape_keypoints_flip(
+                    image = self.image,
+                    keypoints = self.ground_truth
+                )
             
             self.augmented_image = self.adjust_shape["image"]
             self.augmented_data = self.adjust_shape["keypoints"]
@@ -218,9 +237,10 @@ class Augmentations():
     
     def sampleItemsAudit(
             self,
+            is_rotate: bool,
             np_img: np.array,
             ego_path: list,
-            input_frame_id: int,
+            frame_id: int,
             output_dir: str,
     ):
     
@@ -230,8 +250,7 @@ class Augmentations():
         ]
 
         if (self.data_type not in CURRENTLY_SUPPORTED_DATATYPE):
-            raise ValueError(f"Data type set to {self.data_type}. \
-                             Currently supporting {CURRENTLY_SUPPORTED_DATATYPE} data types only.")
+            raise ValueError(f"Data type set to {self.data_type}. Currently supporting {CURRENTLY_SUPPORTED_DATATYPE} data types only.")
 
         # Process image & ego path
         img = Image.fromarray(np_img)
@@ -244,14 +263,15 @@ class Augmentations():
         # Augmentation
         augmented_np_img, augmented_ego_path = self.applyTransformKeypoint(
             image = np_img,
-            ground_truth = ego_path
+            ground_truth = ego_path,
+            is_rotate = is_rotate
         )
         # Draw
         augmented_img = Image.fromarray(augmented_np_img)
         augmented_ego_path = [(x, y) for [x, y] in augmented_ego_path]
         lane_color = (255, 255, 0)
         lane_w = 5
-        frame_name = str(input_frame_id).zfill(5) + f"_aug.png"
+        frame_name = str(frame_id).zfill(5) + f"_aug.png"
         draw = ImageDraw.Draw(augmented_img)
         draw.line(
             augmented_ego_path, 
