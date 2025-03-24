@@ -6,6 +6,7 @@ import warnings
 from PIL import Image, ImageDraw
 import copy
 import sys
+import math
 
 
 # Custom warning format cuz the default one is wayyyyyy too verbose
@@ -17,7 +18,7 @@ warnings.formatwarning = custom_warning_format
 
 
 def draw_keypoints_on_image(
-    image_path, keypoints, output_path=None, point_radius=5, point_color=(0, 0, 255)
+    image_id, image_path, keypoints, output_path=None, point_radius=5, point_color=(0, 0, 255)
 ):
     """
     Draws keypoints on an image and optionally saves the result.
@@ -65,10 +66,7 @@ def draw_keypoints_on_image(
             # Check if output_path is a directory or a file path
             if os.path.isdir(output_path):
                 # If it's a directory, create a filename from the input image
-                image_basename = os.path.basename(image_path)
-                image_name_base = os.path.splitext(image_basename)[
-                    0
-                ]  # Remove the extension
+                image_name_base = image_id
                 save_path = os.path.join(
                     output_path, f"{image_name_base}_keypoints.png"
                 )
@@ -161,14 +159,14 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
             )
 
         # Ensure we save as PNG by changing the file extension
-        # image_name_base = image_id
-        image_name_base = os.path.splitext(image_name)[0]  # Remove the extension
+        image_name_base = image_id
+        # image_name_base = os.path.splitext(image_name)[0]  # Remove the extension
         image_name_png = f"{image_name_base}.png"  # Add .png extension
 
         save_path = os.path.join(output_dir, "visualization", image_name_png)
         img.save(save_path, format="PNG")
         print(f"Saved annotated image: {save_path} with dimensions {img.size}")
-        if img_id_counter == 50:
+        if img_id_counter == 100:
             break
 
     print("Annotation complete. All images saved in", output_dir)
@@ -181,17 +179,21 @@ def classify_lanes(data, gt_images_path, output_dir):
     """
     result = {}
     # Define threshold for slope comparison
-    SLOPE_THRESHOLD = 0.2  # Adjust this value based on your needs
+    SLOPE_THRESHOLD = 0.6
+    DISTANCE_THRESHOLD = 0.15 * ORIGINAL_IMG_WIDTH # Required so that parallel lanes which are much distance apart are not merged.
 
+    img_id_counter = 0
     for entry in data:
         if "labels" not in entry or not entry["labels"]:
             continue
 
-        image_name = entry["name"]
+        image_id = str(str(img_id_counter).zfill(6))
+        img_id_counter += 1
         anchor_points = []
 
+        # For Debugging purposes.
         # Draw keypoints on image for debugging
-        if image_name == "000e0252-8523a4a9.jpg":
+        if image_id == "000020":
             image_path = os.path.join(gt_images_path, entry["name"])
             if os.path.exists(image_path):
                 keypoints = []
@@ -202,13 +204,12 @@ def classify_lanes(data, gt_images_path, output_dir):
                         keypoints.extend(vertices)
 
                 draw_keypoints_on_image(
+                    image_id,
                     image_path,
                     keypoints,
                     output_path=os.path.join(output_dir, "visualization"),
                 )
 
-        if image_name == "000d4f89-3bcbe37a.jpg":
-            print("Image is ", image_name)
 
         # Collect valid lanes and their anchor points
         valid_lanes = []
@@ -228,7 +229,7 @@ def classify_lanes(data, gt_images_path, output_dir):
             # vertices -> [[x1, y1], [x2, y2]]
             anchor = getLaneAnchor(vertices)
 
-            if anchor[0] is not None:  # Avoid lanes with undefined anchors
+            if anchor[0] is not None and anchor[1] is not None:  # Avoid lanes with undefined anchors and horizontal and vertical lanes.
                 anchor_points.append((anchor[0], lane["id"], anchor[1]))
                 valid_lanes.append(lane)
 
@@ -239,7 +240,7 @@ def classify_lanes(data, gt_images_path, output_dir):
         ego_indexes = getEgoIndexes(anchor_points)
 
         # Initialize result structure
-        result[image_name] = {
+        result[image_id] = {
             "egoleft_lane": [],
             "egoright_lane": [],
             "other_lanes": [],
@@ -267,15 +268,20 @@ def classify_lanes(data, gt_images_path, output_dir):
             current_slope = anchor_points[i][2]
             next_slope = anchor_points[i + 1][2]
 
-            # Check if both slopes are valid (not None)
-            slopes_valid = current_slope is not None and next_slope is not None
+            # Check if both slopes are valid (not None) and not perpendicular
+            slopes_valid = current_slope is not None and next_slope is not None and (current_slope * next_slope != -1)
+            anchor_distance_valid = abs(anchor_points[i][0] - anchor_points[i+1][0]) <= DISTANCE_THRESHOLD
 
             # Check if slopes are within threshold
             slopes_similar = False
             if slopes_valid:
-                slopes_similar = abs(current_slope - next_slope) <= SLOPE_THRESHOLD
+                # Calculate the angle between the lines
+                angle_radians = math.atan(
+                    abs((current_slope - next_slope) / (1 + current_slope * next_slope))
+                )
+                slopes_similar = angle_radians <= SLOPE_THRESHOLD
 
-            if slopes_valid and slopes_similar:
+            if slopes_valid and slopes_similar and anchor_distance_valid:
                 # Get the lane IDs and objects
                 current_lane_id = anchor_points[i][1]
                 next_lane_id = anchor_points[i + 1][1]
@@ -295,13 +301,11 @@ def classify_lanes(data, gt_images_path, output_dir):
 
                 # Add to the appropriate category
                 if i + 1 == left_idx:
-                    result[image_name]["egoleft_lane"].append(merged_lane)
-                elif (
-                    i == right_idx
-                ):
-                    result[image_name]["egoright_lane"].append(merged_lane)
+                    result[image_id]["egoleft_lane"].append(merged_lane)
+                elif i == right_idx:
+                    result[image_id]["egoright_lane"].append(merged_lane)
                 else:
-                    result[image_name]["other_lanes"].append(merged_lane)
+                    result[image_id]["other_lanes"].append(merged_lane)
 
                 # Mark both lanes as merged
                 merged_lanes[i] = True
@@ -315,34 +319,42 @@ def classify_lanes(data, gt_images_path, output_dir):
                 lane = next(lane for lane in valid_lanes if lane["id"] == lane_id)
 
                 if i == left_idx:
-                    result[image_name]["egoleft_lane"].append(
+                    result[image_id]["egoleft_lane"].append(
                         lane["poly2d"][0]["vertices"]
                     )
                 elif i == right_idx:
-                    result[image_name]["egoright_lane"].append(
+                    result[image_id]["egoright_lane"].append(
                         lane["poly2d"][0]["vertices"]
                     )
                 else:
-                    result[image_name]["other_lanes"].append(
+                    result[image_id]["other_lanes"].append(
                         lane["poly2d"][0]["vertices"]
                     )
 
                 i += 1
+            
+            # For debugging purposes.
+            # if image_id == "0035afff-3295dbd6.jpg":
+            #     print("Image is ", image_id)
+
 
         # Handle the last lane if it wasn't merged
         if i < len(anchor_points) and not merged_lanes[i]:
             lane_id = anchor_points[i][1]
             lane = next(lane for lane in valid_lanes if lane["id"] == lane_id)
 
-            if i == left_idx:
-                result[image_name]["egoleft_lane"].append(lane["poly2d"][0]["vertices"])
-            elif i == right_idx:
-                result[image_name]["egoright_lane"].append(
+            if left_idx is not None and i == left_idx:
+                result[image_id]["egoleft_lane"].append(lane["poly2d"][0]["vertices"])
+            elif right_idx is not None and i == right_idx:
+                result[image_id]["egoright_lane"].append(
                     lane["poly2d"][0]["vertices"]
                 )
             else:
-                result[image_name]["other_lanes"].append(lane["poly2d"][0]["vertices"])
+                result[image_id]["other_lanes"].append(lane["poly2d"][0]["vertices"])
 
+        # For debugging purposes.
+        if image_id == "000001": 
+            print("Image is ", image_id)
     return result
 
 
@@ -417,8 +429,12 @@ def getLaneAnchor(lane):
     Determine "anchor" point of a lane.
 
     """
+    # Sort lane keypoints in decreasing order of y coordinates.
+    lane.sort(key=lambda point: point[1], reverse=True)
+
     (x2, y2) = lane[0]
     (x1, y1) = lane[1]
+
 
     for i in range(1, len(lane) - 1, 1):
         if lane[i][0] != x2:
@@ -476,7 +492,7 @@ def getEgoIndexes(anchors):
                 if len(anchors) >= 2:
                     # Use first and second lanes as ego lanes
                     return (i, i + 1)
-                return "SINGLE LANE DETECTED"
+                return (None, 0)
             # Normal case: use the lane before and at the center
             return (i - 1, i)
 
@@ -484,7 +500,9 @@ def getEgoIndexes(anchors):
     if len(anchors) >= 2:
         # Use the last two lanes as ego lanes
         return (len(anchors) - 2, len(anchors) - 1)
-    return "SINGLE LANE DETECTED"
+    elif len(anchors) == 1:
+        return (0, None)
+    return "Unhandled Edge Case"
 
 
 def process_binary_mask(args):
@@ -727,7 +745,7 @@ if __name__ == "__main__":
     # print(json.dumps(first_three_formatted_data, indent=4))
 
     # Save classified lanes as new JSON file
-    output_file = os.path.join(args.output_dir, "classified_lanes.json")
+    # output_file = os.path.join(args.output_dir, "classified_lanes.json")
 
-    with open(output_file, "w") as f:
-        json.dump(classified_lanes, f, indent=4)
+    # with open(output_file, "w") as f:
+    #     json.dump(classified_lanes, f, indent=4)

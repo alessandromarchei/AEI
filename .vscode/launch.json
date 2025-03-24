@@ -26,6 +26,21 @@
         "--output_dir",
         "${workspaceFolder}/EgoLanes/create_lane/BDD100K/output"
       ]
+    },
+    {
+      "name": "Without merge debug BDD100K Processing Script ",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/EgoLanes/create_lane/BDD100K/process_bdd100k_without_merge.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--labels_dir",
+        "/Users/aadarshkt/Desktop/Self_Driving/Autoware/bdd100k_lane_labels_trainval/labels",
+        "--image_dir",
+        "/Users/aadarshkt/Desktop/Self_Driving/bdd100k_train/images/100k/",
+        "--output_dir",
+        "${workspaceFolder}/EgoLanes/create_lane/BDD100K/output"
+      ]
     }
   ]
 }
