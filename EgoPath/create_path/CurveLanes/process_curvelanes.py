@@ -26,6 +26,42 @@ def normalizeCoords(line, width, height):
     return [(x / width, y / height) for x, y in line]
 
 
+def interpLine(line: list, points_quota: int):
+    """
+    Interpolates a line of (x, y) points to have at least `point_quota` points.
+    This helps with CurveLanes since most of its lines have so few points, 2~3.
+    """
+    if len(line) >= points_quota:
+        return line
+
+    # Extract x, y separately then parse to interp
+    x = np.array([pt[0] for pt in line])
+    y = np.array([pt[1] for pt in line])
+    interp_x = np.interp
+    interp_y = np.interp
+
+    # Here I try to interp more points along the line, based on
+    # distance between each subsequent original points. 
+
+    # 1) Use distance along line as param (t)
+    # This is Euclidian distance between each point and the one before it
+    distances = np.cumsum(np.sqrt(
+        np.diff(x, prepend = x[0])**2 + \
+        np.diff(y, prepend = y[0])**2
+    ))
+    # Force first t as zero
+    distances[0] = 0
+
+    # 2) Generate new t evenly spaced along original line
+    evenly_t = np.linspace(distances[0], distances[-1], points_quota)
+
+    # 3) Interp x, y coordinates based on evenly t
+    x_new = interp_x(evenly_t, distances, x)
+    y_new = interp_y(evenly_t, distances, y)
+
+    return list(zip(x_new, y_new))
+
+
 def getLineAnchor(line, new_img_height):
     """
     Determine "anchor" point of a line.
@@ -296,7 +332,10 @@ def parseAnnotations(
             print("Lines, freshly acquired:")
             pprint(lines)
 
-            # Interpolate each line 
+            # Interpolate each line in case it has too few points
+            for i in range(len(lines)):
+                if (len(lines[i]) < LINE_INTERP_THRESHOLD):
+                    lines[i] = interpLine(lines[i], LINE_INTERP_THRESHOLD)
 
             new_img_height = init_img_height
             new_img_width = init_img_width
@@ -433,6 +472,9 @@ if __name__ == "__main__":
         "BOTTOM" : WEIRD_Y_CROP,
         "LEFT" : WEIRD_X_CROP
     }
+
+    # For interping lines with soooooooo few points, 2~3 or so
+    LINE_INTERP_THRESHOLD = 5
 
     # ====== Heuristic boundaries of drivable path for automatic auditing ====== #
 
