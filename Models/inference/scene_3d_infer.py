@@ -37,7 +37,7 @@ class Scene3DNetworkInfer():
         self.model = self.model.to(self.device)
         self.model = self.model.eval()
 
-    def inference(self, image, scale_factor):
+    def inference(self, image):
 
         width, height = image.size
         if(width != 640 or height != 320):
@@ -47,13 +47,8 @@ class Scene3DNetworkInfer():
         image_tensor = image_tensor.unsqueeze(0)
         image_tensor = image_tensor.to(self.device)
 
-           
-        scale_factor_tensor = torch.tensor(scale_factor, dtype=torch.float32)
-        scale_factor_tensor.requires_grad = False
-        scale_factor_tensor = scale_factor_tensor.to(self.device)
-
         # Run model
-        prediction = self.model(image_tensor)*scale_factor_tensor
+        prediction = self.model(image_tensor)
 
         # Get output, find max class probability and convert to numpy array
         prediction = prediction.squeeze(0).cpu().detach()
