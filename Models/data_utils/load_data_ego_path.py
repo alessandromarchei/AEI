@@ -87,9 +87,12 @@ class LoadDataEgoPath():
 
         if (checkData.getCheck()):
             for set_idx, frame_id in enumerate(self.labels):
+
+                # Check if there might be frame ID mismatch - happened to CULane before, just to make sure
                 frame_id_from_img_path = str(self.images[set_idx]).split("/")[-1].replace(".png", "")
                 if (frame_id == frame_id_from_img_path):
 
+                    # Deal with Comma2k19's non-normalized coords
                     if (self.dataset_name == "COMMA2K19"):
                         self.labels[frame_id]["drivable_path"] = [
                             (
@@ -128,28 +131,14 @@ class LoadDataEgoPath():
         else:
             img = Image.open(str(self.val_images[index])).convert("RGB")
             label = self.val_labels[index]["drivable_path"]
+        
+        # Convert all points into sublists in case they are tuples - yeah it DOES happens
+        if (type(label[0]) == tuple):
+            label = [[x, y] for [x, y] in label]
 
-        # Filter out those y extremely close to 1.0
-        # But under some certain conditions, add back last point of heap
-        morethan1_stack = []
-        stacking_threshold = 0.99
-        while (label[0][1] >= stacking_threshold):
-            morethan1_stack.append(label[0])
-            label.pop(0)
-        if (
-            (len(morethan1_stack) >= 1) and
-                (
-                    (len(label) <= 1) or 
-                    (label[0][1] < stacking_threshold)
-                )
-        ):
-            label.insert(0, morethan1_stack[0])
-        # Convert all of those points into sublists
-        label = [[x, y] for [x, y] in label]
-
-        # Reduce the anchor's y coord a bit if it exceeds 1.0
-        # (cuz y >= 1.0 will jeopardize the Albumentation)
-        if (label[0][1] >= 1.0):
+        # Reduce the anchor's y coord a bit if it is 1.0
+        # (cuz y == 1.0 will jeopardize the Albumentation)
+        if (label[0][1] == 1.0):
             label[0][1] = 0.9999
         
         return np.array(img), label
