@@ -329,8 +329,6 @@ def parseAnnotations(
                 [(float(point["x"]), float(point["y"])) for point in line]
                 for line in read_data
             ]
-            print("Lines, freshly acquired:")
-            pprint(lines)
 
             # Interpolate each line in case it has too few points
             for i in range(len(lines)):
@@ -339,7 +337,6 @@ def parseAnnotations(
 
             new_img_height = init_img_height
             new_img_width = init_img_width
-            print(f"Image size before resize and crop: {new_img_width} x {new_img_height}")
 
             # Handle image resizing
             if (resize):
@@ -366,17 +363,12 @@ def parseAnnotations(
                 ] for line in lines]
                 new_img_height -= (CROP_TOP + CROP_BOTTOM)
                 new_img_width -= (CROP_LEFT + CROP_RIGHT)
-            print(f"Image size AFTER resize and crop: {new_img_width} x {new_img_height}")
-            print("Lanes, after resizing and cropping:")
-            pprint(lines)
             
             # Remove empty lanes
             lines = [line for line in lines if (line and len(line) >= 2)]   # Pick lines with >= 2 points
             if (len(lines) < 2):    # Ignore frames with less than 2 lines
                 warnings.warn(f"Parsing {anno_path}: insufficient line amount after cropping: {len(lines)}")
                 return None
-            print("Lines, after removing empty lanes:")
-            pprint(lines)
             
             # Determine 2 ego lines via line anchors
 
@@ -393,8 +385,6 @@ def parseAnnotations(
                 lines[anchor[0]]
                 for anchor in line_anchors
             ]
-            print("Lines, after being sorted by anchors from left to right:")
-            pprint(lines)
 
             ego_indexes = getEgoIndexes(
                 [anchor[1] for anchor in line_anchors],
@@ -565,7 +555,7 @@ if __name__ == "__main__":
             for i in range(0, len(list_raw_files), sampling_step):
                 img_path = os.path.join(dataset_dir, ROOT_DIR, split, list_raw_files[i]).strip()
                 img_id_counter += 1
-                # print(img_id_counter)
+
                 # Preload image file for multiple uses later
                 raw_img = Image.open(img_path).convert("RGB")
                 img_width, img_height = raw_img.size
