@@ -126,7 +126,7 @@ class Augmentations():
             self.augmented_image = self.adjust_shape["image"]
 
             # Random image augmentations
-            if (random.random() >= 0.95 and self.is_train):
+            if (random.random() >= 0.25 and self.is_train):
         
                 self.add_noise = self.transform_noise(image=self.augmented_image)
                 self.augmented_image = self.add_noise["image"]
