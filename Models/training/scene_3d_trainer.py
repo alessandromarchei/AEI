@@ -152,9 +152,6 @@ class Scene3DTrainer():
         self.prediction = self.model(self.image_tensor)
         prediction_ssi = self.get_ssi_nom_tensor(self.prediction)
         gt_ssi = self.get_ssi_nom_tensor(self.gt_tensor)    
-        #gt_ssi = self.get_ssi_tensor(self.gt_tensor)
-        #prediction_ssi = self.get_ssi_tensor(self.prediction)
-        
         self.mAE_loss = self.calc_mAE_ssi_loss_robust(prediction_ssi, gt_ssi)
         self.edge_loss = self.calc_multi_scale_ssi_edge_loss(prediction_ssi, gt_ssi)
         self.loss = self.mAE_loss + self.edge_scale_factor*self.edge_loss
