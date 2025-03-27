@@ -15,10 +15,10 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/24_03_2025/model/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Scene3D/24_03_2025/model/'
 
     # Test images path
-    test_images_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/test/'
+    test_images_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Scene3D/test/'
     test_images_filepath = root + 'Test/'
     test_images = sorted([f for f in pathlib.Path(test_images_filepath).glob("*")])
     num_test_images = len(test_images)
@@ -41,19 +41,16 @@ def main():
     print(num_test_images, ': Total samples for visual testing')
 
     # Pre-trained model checkpoint path
-    #root_path = \
-    #    '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
-    #pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
-
-    root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/13_03_2025/model/'
-    checkpoint_path = root_path + 'iter_1287999_epoch_2_step_359781.pth'
+    root_path = \
+        '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
+    pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
 
     # Trainer Class
-    trainer = Scene3DTrainer(checkpoint_path=checkpoint_path, is_pretrained=True)
+    trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
     trainer.zero_grad()
     
     # Total training epochs and batch size
-    num_epochs = 10
+    num_epochs = 5
     batch_size = 24
 
 
@@ -106,7 +103,7 @@ def main():
 
             # Run validation on entire validation 
             # dataset after 92000 steps
-            if((log_count+1) % 24000 == 0):
+            if((log_count+1) % 92000 == 0):
                 
                 print('Running Validation - Step:',  str(log_count))
                 # Save Model
