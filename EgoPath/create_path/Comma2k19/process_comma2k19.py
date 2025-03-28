@@ -158,9 +158,13 @@ def generate_mask_vis(frame_count, out_path, processed_img_count,
         cv2.line(img, img_pts[i], img_pts[i + 1], line_color, 3)
         cv2.line(mask, img_pts[i], img_pts[i + 1], (255), 3)
     # print(processed_img_count, auc, img_pts[0], img_pts[-1])
-    cv2.imwrite(f"{out_path}images/{processed_img_count:05d}.png", org_img)
-    cv2.imwrite(f"{out_path}segmentation/{processed_img_count:05d}.png", mask)
-    cv2.imwrite(f"{out_path}visualization/{processed_img_count:05d}.png", img)
+    cv2.imwrite(f"{out_path}images/{processed_img_count:06d}.png", org_img)
+    cv2.imwrite(f"{out_path}segmentation/{processed_img_count:06d}.png", mask)
+    cv2.imwrite(f"{out_path}visualization/{processed_img_count:06d}.png", img)
+    img_pts = [
+        [point[0] / img_w, point[1] / img_h]
+        for point in img_pts
+    ]
     return img_pts
 
 def extract_frames(seg_path, out_path, img_count, downsampling_factor=1):
@@ -186,7 +190,7 @@ def extract_frames(seg_path, out_path, img_count, downsampling_factor=1):
 
     frame_count = 0
     last_saved_frame = 0
-    jdata = []
+    jdata = {}
     success, image = vidcap.read()
         
     x2, y2 = x_off+img_w, y_off+img_h # Bottom-right corner coordinates
@@ -196,8 +200,8 @@ def extract_frames(seg_path, out_path, img_count, downsampling_factor=1):
             cropped_image = image[y_off:y2, x_off:x2]
             drive_path = generate_mask_vis(frame_count, out_path, img_count, frame_positions, frame_orientations, cropped_image)
             if drive_path is not None:
-                data = {f"{img_count:05d}":{"drivable_path": drive_path.tolist(),"image_width": img_w, "image_height": img_h}}
-                jdata.append(data)
+                data = {f"{img_count:06d}":{"drivable_path": drive_path.tolist(),"img_width": img_w, "img_height": img_h}}
+                jdata.update(data)
                 img_count += 1
                 last_saved_frame = frame_count
         success, image = vidcap.read()
@@ -223,12 +227,12 @@ if __name__ == "__main__":
         os.makedirs(out_path + "images")
 
     segments = glob.glob(dataset_root_path+"Chunk_*/*/*/")
-    json_data = {"data": []}
+    json_data = {}
     processed_img_count, img_count = 0, 0
     for seg in segments:
         print(f"Start processing {seg}")
         jdata, img_count =  extract_frames(seg, out_path, img_count, downsampling_factor)
-        json_data["data"] += jdata
+        json_data.update(jdata)
         # print(f"Finished processing {seg}")
     with open(f"{out_path}drivable_path.json", "w") as json_file:
         json.dump(json_data, json_file)
