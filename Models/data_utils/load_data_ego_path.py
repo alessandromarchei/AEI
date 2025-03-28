@@ -10,18 +10,14 @@ from typing import Literal, get_args
 from check_data import CheckData
 
 VALID_DATASET_LITERALS = Literal[
-    # "BDD100K", 
-    # "COMMA2K19", 
-    # "CULANE", 
+    "BDD100K", 
+    "COMMA2K19", 
+    "CULANE", 
     "CURVELANES", 
-    # "ROADWORK", 
-    # "TUSIMPLE"
+    "ROADWORK", 
+    "TUSIMPLE"
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
-COMMA2K19_SIZE = {
-    "w" : 1048,
-    "h" : 524
-}
 
 
 class LoadDataEgoPath():
@@ -46,21 +42,6 @@ class LoadDataEgoPath():
         # Load JSON labels, address the diffs of format across datasets
         with open(self.label_filepath, "r") as f:
             self.labels = json.load(f)
-        if "data" in self.labels:                   # Some has "data" parent key
-            self.labels = self.labels["data"]       # Make sure it gets the "data" part
-        # Some even stores ego path data like this:
-        # data : [
-        #   {
-        #       "00001" : ...
-        #   }
-        # ]
-        # So convert it back to dict to be compatible with the rest
-        if type(self.labels) is list:
-            self.labels = {
-                frame_code : content
-                for smaller_dict in self.labels
-                for frame_code, content in smaller_dict.items()
-            }
 
         self.images = sorted([
             f for f in pathlib.Path(self.image_dirpath).glob("*.png")
@@ -92,15 +73,6 @@ class LoadDataEgoPath():
                 frame_id_from_img_path = str(self.images[set_idx]).split("/")[-1].replace(".png", "")
                 if (frame_id == frame_id_from_img_path):
 
-                    # Deal with Comma2k19's non-normalized coords
-                    if (self.dataset_name == "COMMA2K19"):
-                        self.labels[frame_id]["drivable_path"] = [
-                            (
-                                point[0] / COMMA2K19_SIZE["w"], 
-                                point[1] / COMMA2K19_SIZE["h"]
-                            ) for point in self.labels[frame_id]["drivable_path"]
-                        ]
-
                     if (set_idx % 10 == 0):
                         # Slap it to Val
                         self.val_images.append(str(self.images[set_idx]))
@@ -115,13 +87,46 @@ class LoadDataEgoPath():
                     raise ValueError(f"Mismatch data detected in {self.dataset_name}!")
 
         print(f"Dataset {self.dataset_name} loaded with {self.N_trains} trains and {self.N_vals} vals.")
-        print(f"Val/Total = {(self.N_vals / (self.N_trains + self.N_vals))}")
+        print(f"Val/Total = {(self.N_vals / (self.N_trains + self.N_vals)):03f}")
 
     # Get sizes of Train/Val sets
     def getItemCount(self):
         return self.N_trains, self.N_vals
 
     # ================= Get item at index ith, returning img and EgoPath ================= #
+
+    def dataAudit(self, label: list):
+
+        # Convert all points into sublists in case they are tuples - yeah it DOES happens
+        if (type(label[0]) == tuple):
+            label = [[x, y] for [x, y] in label]
+
+        # ========== Point trimming ========== #
+
+        fixed_label = label.copy()
+        # Remove those whose y > 1.0
+        fixed_label = [
+            point for point in fixed_label
+            if point[1] <= 1.0
+        ]
+        # and slightly decrease y if y == 1.0
+        for i, point in enumerate(fixed_label):
+            if (point[1] == 1.0):
+                fixed_label[i][1] = 0.9999
+
+        # ========== Point ordering ========== #
+
+        start_y, end_y = fixed_label[0][1], fixed_label[-1][1]
+        if (end_y > start_y):       # Top-to-bottom annotation, must reverse
+            fixed_label = fixed_label.reverse()
+
+        # Comma2k19's jumpy point (but can be happening to others as well)
+        for i in range(1, len(fixed_label)):
+            if (fixed_label[i][1] < fixed_label[i - 1][1]):
+                fixed_label = fixed_label[0 : i]
+                break
+
+        return fixed_label
     
     # For train
     def getItem(self, index, is_train: bool):
@@ -131,14 +136,7 @@ class LoadDataEgoPath():
         else:
             img = Image.open(str(self.val_images[index])).convert("RGB")
             label = self.val_labels[index]["drivable_path"]
-        
-        # Convert all points into sublists in case they are tuples - yeah it DOES happens
-        if (type(label[0]) == tuple):
-            label = [[x, y] for [x, y] in label]
 
-        # Reduce the anchor's y coord a bit if it is 1.0
-        # (cuz y == 1.0 will jeopardize the Albumentation)
-        if (label[0][1] == 1.0):
-            label[0][1] = 0.9999
+        label = self.dataAudit(label)
         
         return np.array(img), label
