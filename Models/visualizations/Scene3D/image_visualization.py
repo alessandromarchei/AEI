@@ -4,8 +4,7 @@
 import cv2
 import sys
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_agg import FigureCanvas
+import cmapy
 from PIL import Image
 sys.path.append('../..')
 from inference.scene_3d_infer import Scene3DNetworkInfer
@@ -27,17 +26,14 @@ def main():
     # Run inference
     prediction = model.inference(image_pil)
     prediction = cv2.resize(prediction, (frame.shape[1], frame.shape[0]))
-    
+
     # Create visualization
-    fig = plt.figure()
-    plt.imshow(prediction, cmap = 'viridis')
-    canvas = FigureCanvas(fig)
-    canvas.draw()
-    prediction_image = np.array(canvas.renderer._renderer)
-    prediction_image = cv2.cvtColor(prediction_image, cv2.COLOR_RGB2BGR)
-    window_name = 'depth'
+    prediction_image = 255.0*((prediction - np.min(prediction))/ (np.max(prediction) - np.min(prediction)))
+    prediction_image = prediction_image.astype(np.uint8)
+    prediction_image = cv2.applyColorMap(prediction_image, cmapy.cmap('viridis'))
 
     # Display depth map
+    window_name = 'depth'
     cv2.imshow(window_name, prediction_image)
     cv2.waitKey(0)
 
