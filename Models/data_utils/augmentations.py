@@ -66,16 +66,7 @@ class Augmentations():
             ]
         )
 
-        self.transform_shape_keypoints_flip_rotate = A.Compose(
-            [
-                A.Resize(width = 640, height = 320),
-                A.HorizontalFlip(p = 0.5),
-                A.Rotate(limit = 10, p = 1.0)
-            ],
-            keypoint_params = A.KeypointParams(format = "xy")
-        )
-
-        self.transform_shape_keypoints_flip = A.Compose(
+        self.transform_shape_keypoints = A.Compose(
             [
                 A.Resize(width = 640, height = 320),
                 A.HorizontalFlip(p = 0.5),
@@ -187,7 +178,6 @@ class Augmentations():
             self, 
             image: np.array, 
             ground_truth: list, 
-            is_rotate: bool
     ):
 
         if (self.data_type != "KEYPOINTS"):
@@ -198,17 +188,10 @@ class Augmentations():
         # For train set
         if (self.is_train):
 
-            # Resize, random horiztonal flip and 10-deg rotate
-            if (is_rotate):
-                self.adjust_shape = self.transform_shape_keypoints_flip_rotate(
-                    image = self.image,
-                    keypoints = self.ground_truth
-                )
-            else:
-                self.adjust_shape = self.transform_shape_keypoints_flip(
-                    image = self.image,
-                    keypoints = self.ground_truth
-                )
+            self.adjust_shape = self.transform_shape_keypoints(
+                image = self.image,
+                keypoints = self.ground_truth
+            )
             
             self.augmented_image = self.adjust_shape["image"]
             self.augmented_data = self.adjust_shape["keypoints"]
