@@ -103,14 +103,14 @@ def merge_json_files(json_dir):
 
 def generate_jsonID(indx, data_size):
     """
-    Generate JSON ID from 00000 to 99999. The number of digits is
+    Generate JSON ID from 000000 to 999999. The number of digits is
     less or equal to 5 if the data size is less than 100000. Otherwise,
     the number of digits is equal to the number of digits in the data size.
     """
 
     # Get the number of digits in the data size
     digits = len(str(data_size))
-    zfill_num = max(digits, 5)
+    zfill_num = max(digits, 6)
 
     return str(indx).zfill(zfill_num)
 
@@ -126,10 +126,7 @@ def create_drivable_path_json(traj_data, output_dir):
     out_file_path = os.path.join(output_dir, out_file_name)
 
     # Process the trajectory data - traj_data is a list of dictionaries
-    traj_dict = {k: v for i in traj_data for k, v in i.items()}
-
-    # Create JSON Data Structure
-    json_data = {"data": traj_dict}
+    json_data = {k: v for i in traj_data for k, v in i.items()}
 
     with open(out_file_path, "w") as fh:
         json.dump(json_data, fh, indent=4)
@@ -553,8 +550,8 @@ def main(args):
         # Create drivable path JSON file
         meta_dict = {
             "drivable_path": norm_trajectory,
-            "image_width": crop_shape[1],
-            "image_height": crop_shape[0],
+            "img_width": crop_shape[1],
+            "img_height": crop_shape[0],
         }
 
         # Append the dictionary to the list
