@@ -145,7 +145,7 @@ def annotateGT(
     # Define save name
     # Keep original pathname (back to 5 levels) for traceability, but replace "/" with "-"
     # Also save in PNG (EXTREMELY SLOW compared to jpg, for lossless quality)
-    save_name = str(img_id_counter).zfill(5) + ".png"
+    save_name = str(img_id_counter).zfill(6) + ".png"
 
     # Copy raw img and put it in raw dir.
     raw_img.save(os.path.join(raw_dir, save_name))
@@ -297,14 +297,11 @@ if __name__ == "__main__":
     label_files = train_label_files + test_label_files
 
     # Parse data by batch
-    data_master = {
-        "files": label_files,
-        "data": {}
-    }
+    data_master = {}
 
     img_id_counter = -1
 
-    for anno_file in data_master["files"]:
+    for anno_file in label_files:
         print(f"\n==================== Processing data in label file {anno_file} ====================\n")
         this_data = parseAnnotations(anno_file)
         
@@ -332,14 +329,14 @@ if __name__ == "__main__":
             # Pop redundant keys
             del anno_entry["lanes"]
             del anno_entry["ego_indexes"]
-            # Change `raw_file` to 5-digit incremental index
-            this_data[str(img_id_counter).zfill(5)] = anno_entry
+            # Change `raw_file` to 6-digit incremental index
+            this_data[str(img_id_counter).zfill(6)] = anno_entry
             this_data.pop(raw_file)
 
-        data_master["data"].update(this_data)
+        data_master.update(this_data)
         print(f"Processed {len(this_data)} entries in above file.\n")
 
-    print(f"Done processing data with {len(data_master['data'])} entries in total.\n")
+    print(f"Done processing data with {len(data_master)} entries in total.\n")
 
     # Save master data
     with open(os.path.join(output_dir, "drivable_path.json"), "w") as f:

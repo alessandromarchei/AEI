@@ -15,10 +15,10 @@ def main():
     root = '/mnt/media/Scene3D/'
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/13_03_2025/model/'
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Scene3D/24_03_2025/model/'
 
     # Test images path
-    test_images_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/Scene3D/test/'
+    test_images_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Scene3D/test/'
     test_images_filepath = root + 'Test/'
     test_images = sorted([f for f in pathlib.Path(test_images_filepath).glob("*")])
     num_test_images = len(test_images)
@@ -50,27 +50,21 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs and batch size
-    num_epochs = 20
-    batch_size = 8
+    num_epochs = 5
+    batch_size = 24
+
 
     # Epochs
-    for epoch in range(0, num_epochs):
+    for epoch in range(2, num_epochs):
 
         print('Epoch: ', epoch + 1)
         randomlist_train_data = random.sample(range(0, total_train_samples), total_train_samples)
 
         # Learning Rate schedule            
-        if(epoch == 1):
-            batch_size = 6
-            trainer.set_learning_rate(0.00005)
-
-        if(epoch == 2):
-            batch_size = 4
-            trainer.set_learning_rate(0.000025)
-
-        if(epoch > 2):
-            batch_size = 2
+        if(epoch >= 2):
             trainer.set_learning_rate(0.0000125)
+            batch_size = 3
+
 
         for count in range(0, total_train_samples):
 
@@ -106,8 +100,8 @@ def main():
             # Logging Image to Tensor Board every 1000 steps
             if((count+1) % 1000 == 0):  
                 trainer.save_visualization(log_count)
-           
-            # Save model and run validation on entire validation 
+
+            # Run validation on entire validation 
             # dataset after 92000 steps
             if((log_count+1) % 92000 == 0):
                 

@@ -415,10 +415,12 @@ if __name__ == "__main__":
 
     # Parse data by batch
     data_master = {}
+    img_id_counter = -1
 
     for split in list_splits:
+        
         print(f"\n==================== Processing {split} data ====================\n")
-        img_id_counter = -1
+        
         if (split in ["train", "val"]):
             list_files = [os.path.join(dataset_dir, list_path, f"{split}.txt")]    # Train or Val set
         else:   # Test set and its lil more complicated

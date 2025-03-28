@@ -496,10 +496,7 @@ if __name__ == '__main__':
     # Read the label JSON file and extract mask data and corresponding image names
 
     # Initialize the master data structure for storing processed results
-    data_master = {
-        'files': mask_dir,
-        'data': {}
-    }
+    data_master = {}
 
     name_data = {}
     print('Extracting mask from mask_dir')
@@ -512,8 +509,8 @@ if __name__ == '__main__':
         
         # Iterate over each mask and corresponding image
         for index, mask_np in enumerate(mask_np_list):
-            # Generate the save name for the image (5-digit format)
-            save_name = str(img_id_counter).zfill(5) + ".png"
+            # Generate the save name for the image (6-digit format)
+            save_name = str(img_id_counter).zfill(6) + ".png"
             # print(name_list[img_id_counter])
 
             # Get the image file path and open the image
@@ -571,22 +568,22 @@ if __name__ == '__main__':
 
             # Prepare annotation data for the current image (normalized drivable path coordinates)
             anno_data = {}
-            anno_data[str(img_id_counter).zfill(5)] = {
+            anno_data[str(img_id_counter).zfill(6)] = {
                 "drivable_path": normalizeCoords(drivable_path, img_width, img_height),
                 "img_width": img_width,
                 "img_height": img_height,
             }
 
             # Update the master data structure with the new annotation data
-            data_master["data"].update(anno_data)
+            data_master.update(anno_data)
 
-            name_data[str(img_id_counter).zfill(5)] = name_list[index]
+            name_data[str(img_id_counter).zfill(6)] = name_list[index]
             img_id_counter += 1
         print(f"Done processing data with {img_id_counter} entries.\n")
 
 
     # Print the total number of entries processed
-    print(f"Done processing data with {len(data_master['data'])} entries in total.\n")
+    print(f"Done processing data with {len(data_master)} entries in total.\n")
 
     # Save the final master JSON data to the output directory
     with open(os.path.join(output_dir, "drivable_path.json"), "w") as f:

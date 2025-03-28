@@ -19,23 +19,59 @@ warnings.formatwarning = custom_warning_format
 
 # ============================== Helper functions ============================== #
 
-def normalizeCoords(lane, width, height):
+def normalizeCoords(line, width, height):
     """
-    Normalize the coords of lane points.
+    Normalize the coords of line points.
     """
-    return [(x / width, y / height) for x, y in lane]
+    return [(x / width, y / height) for x, y in line]
 
 
-def getLaneAnchor(lane, new_img_height):
+def interpLine(line: list, points_quota: int):
     """
-    Determine "anchor" point of a lane.
+    Interpolates a line of (x, y) points to have at least `point_quota` points.
+    This helps with CurveLanes since most of its lines have so few points, 2~3.
     """
-    (x2, y2) = lane[0]
-    (x1, y1) = lane[1]
+    if len(line) >= points_quota:
+        return line
 
-    for i in range(1, len(lane) - 1, 1):
-        if (lane[i][0] != x2) & (lane[i][1] != y2):
-            (x1, y1) = lane[i]
+    # Extract x, y separately then parse to interp
+    x = np.array([pt[0] for pt in line])
+    y = np.array([pt[1] for pt in line])
+    interp_x = np.interp
+    interp_y = np.interp
+
+    # Here I try to interp more points along the line, based on
+    # distance between each subsequent original points. 
+
+    # 1) Use distance along line as param (t)
+    # This is Euclidian distance between each point and the one before it
+    distances = np.cumsum(np.sqrt(
+        np.diff(x, prepend = x[0])**2 + \
+        np.diff(y, prepend = y[0])**2
+    ))
+    # Force first t as zero
+    distances[0] = 0
+
+    # 2) Generate new t evenly spaced along original line
+    evenly_t = np.linspace(distances[0], distances[-1], points_quota)
+
+    # 3) Interp x, y coordinates based on evenly t
+    x_new = interp_x(evenly_t, distances, x)
+    y_new = interp_y(evenly_t, distances, y)
+
+    return list(zip(x_new, y_new))
+
+
+def getLineAnchor(line, new_img_height):
+    """
+    Determine "anchor" point of a line.
+    """
+    (x2, y2) = line[0]
+    (x1, y1) = line[1]
+
+    for i in range(1, len(line) - 1, 1):
+        if (line[i][0] != x2) & (line[i][1] != y2):
+            (x1, y1) = line[i]
             break
 
     if (x1 == x2) or (y1 == y2):
@@ -43,7 +79,7 @@ def getLaneAnchor(lane, new_img_height):
             error_lane = "Vertical"
         elif (y1 == y2):
             error_lane = "Horizontal"
-        warnings.warn(f"{error_lane} lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
+        warnings.warn(f"{error_lane} line detected: {line}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
         return (x1, None, None)
     
     a = (y2 - y1) / (x2 - x1)
@@ -55,16 +91,16 @@ def getLaneAnchor(lane, new_img_height):
 
 def getEgoIndexes(anchors, new_img_width):
     """
-    Identifies 2 ego lanes - left and right - from a sorted list of lane anchors.
+    Identifies 2 ego lanes - left and right - from a sorted list of line anchors.
     """
     for i in range(len(anchors)):
         if (anchors[i][0] >= new_img_width / 2):
             if (i == 0):
-                return "NO LANES on the LEFT side of frame. Something's sussy out there!"
+                return "NO LINES on the LEFT side of frame. Something's sussy out there!"
             left_ego_idx, right_ego_idx = i - 1, i
             return (left_ego_idx, right_ego_idx)
 
-    return "NO LANES on the RIGHT side of frame. Something's sussy out there!"
+    return "NO LINES on the RIGHT side of frame. Something's sussy out there!"
 
 
 def getDrivablePath(
@@ -119,22 +155,18 @@ def getDrivablePath(
                 j += 1
 
     # Extend drivable path to bottom edge of the frame
-    if ((len(drivable_path) >= 2) and (drivable_path[0][1] < new_img_height)):
-        # print(f"Current drivable path: {drivable_path}")
+    if ((len(drivable_path) >= 2) and (drivable_path[0][1] < new_img_height - 1)):
         x1, y1 = drivable_path[1]
         x2, y2 = drivable_path[0]
         if (x2 == x1):
             x_bottom = x2
         else:
             a = (y2 - y1) / (x2 - x1)
-            # print(f"a = {a}")
-            x_bottom = x2 + (new_img_height - y2) / a
-            # print(f"x_bottom = {x_bottom}")
-        drivable_path.insert(0, (x_bottom, new_img_height))
-        # print(f"Bottom-extended drivable path: {drivable_path}")
+            x_bottom = x2 + (new_img_height - 1 - y2) / a
+        drivable_path.insert(0, (x_bottom, new_img_height - 1))
 
-    # Extend drivable path to be on par with longest ego lane
-    # By making it parallel with longer ego lane
+    # Extend drivable path to be on par with longest ego line
+    # By making it parallel with longer ego line
     y_top = min(left_ego[-1][1], right_ego[-1][1])
     if ((len(drivable_path) >= 2) and (drivable_path[-1][1] > y_top)):
         sign_left_ego = left_ego[-1][0] - left_ego[-2][0]
@@ -243,18 +275,18 @@ def annotateGT(
     }
     lane_w = 5
     # Draw lanes
-    for idx, lane in enumerate(anno_entry["lanes"]):
+    for idx, line in enumerate(anno_entry["lanes"]):
         if (normalized):
-            lane = [
+            line = [
                 (x * new_img_width, y * new_img_height) 
-                for x, y in lane
+                for x, y in line
             ]
         if (idx in anno_entry["ego_indexes"]):
             # Ego lanes, in green
-            draw.line(lane, fill = lane_colors["ego_green"], width = lane_w)
+            draw.line(line, fill = lane_colors["ego_green"], width = lane_w)
         else:
             # Outer lanes, in red
-            draw.line(lane, fill = lane_colors["outer_red"], width = lane_w)
+            draw.line(line, fill = lane_colors["outer_red"], width = lane_w)
     # Drivable path, in yellow
     if (normalized):
         drivable_renormed = [
@@ -283,20 +315,25 @@ def parseAnnotations(
         resize = None,
     ):
     """
-    Parses lane annotations from raw img + anno files, then extracts normalized GT data.
+    Parses line annotations from raw img + anno files, then extracts normalized GT data.
     """
     # Read each line of GT text file as JSON
     with open(anno_path, "r") as f:
         read_data = json.load(f)["Lines"]
         if (len(read_data) < 2):    # Some files are empty, or having less than 2 lines
-            warnings.warn(f"Parsing {anno_path} : insufficient lane amount: {len(read_data)}")
+            warnings.warn(f"Parsing {anno_path} : insufficient line amount: {len(read_data)}")
             return None
         else:
             # Parse data from those JSON lines
-            lanes = [
+            lines = [
                 [(float(point["x"]), float(point["y"])) for point in line]
                 for line in read_data
             ]
+
+            # Interpolate each line in case it has too few points
+            for i in range(len(lines)):
+                if (len(lines[i]) < LINE_INTERP_THRESHOLD):
+                    lines[i] = interpLine(lines[i], LINE_INTERP_THRESHOLD)
 
             new_img_height = init_img_height
             new_img_width = init_img_width
@@ -305,10 +342,10 @@ def parseAnnotations(
             if (resize):
                 new_img_height = int(new_img_height * resize)
                 new_img_width = int(new_img_width * resize)
-                lanes = [[
+                lines = [[
                     (x * resize, y * resize) 
-                    for (x, y) in lane
-                ] for lane in lanes]
+                    for (x, y) in line
+                ] for line in lines]
 
             # Handle image cropping
             if (crop):
@@ -317,40 +354,40 @@ def parseAnnotations(
                 CROP_BOTTOM = crop["BOTTOM"]
                 CROP_LEFT = crop["LEFT"]
                 # Crop
+                lines = [[
+                    (x - CROP_LEFT, y - CROP_TOP) for x, y in line
+                    if (
+                        (CROP_LEFT <= x <= (new_img_width - CROP_RIGHT)) and 
+                        (CROP_TOP <= y <= (new_img_height - CROP_BOTTOM))
+                    )
+                ] for line in lines]
                 new_img_height -= (CROP_TOP + CROP_BOTTOM)
                 new_img_width -= (CROP_LEFT + CROP_RIGHT)
-                lanes = [[
-                    (x - CROP_LEFT, y - CROP_TOP) for x, y in lane
-                    if (
-                        (CROP_LEFT <= x <= (init_img_width - CROP_RIGHT)) and 
-                        (CROP_TOP <= y <= (init_img_height - CROP_BOTTOM))
-                    )
-                ] for lane in lanes]
             
             # Remove empty lanes
-            lanes = [lane for lane in lanes if (lane and len(lane) >= 2)]   # Pick lanes with >= 2 points
-            if (len(lanes) < 2):    # Ignore frames with less than 2 lanes
-                warnings.warn(f"Parsing {anno_path}: insufficient lane amount after cropping: {len(lanes)}")
+            lines = [line for line in lines if (line and len(line) >= 2)]   # Pick lines with >= 2 points
+            if (len(lines) < 2):    # Ignore frames with less than 2 lines
+                warnings.warn(f"Parsing {anno_path}: insufficient line amount after cropping: {len(lines)}")
                 return None
             
-            # Determine 2 ego lanes via lane anchors
+            # Determine 2 ego lines via line anchors
 
             # First get the anchors
             # Here I attach index i before each anchor to support retracking after sort by x-coord)
-            lane_anchors = sorted(
-                [(i, getLaneAnchor(lane, new_img_height)) for i, lane in enumerate(lanes)],
+            line_anchors = sorted(
+                [(i, getLineAnchor(line, new_img_height)) for i, line in enumerate(lines)],
                 key = lambda x : x[1][0],
                 reverse = False
             )
                 
-            # Sort the lanes by order of their corresponding anchors (which is also sorted)
-            lanes_sortedBy_anchor = [
-                lanes[anchor[0]]
-                for anchor in lane_anchors
+            # Sort the lines by order of their corresponding anchors (which is also sorted)
+            lines_sortedBy_anchor = [
+                lines[anchor[0]]
+                for anchor in line_anchors
             ]
 
             ego_indexes = getEgoIndexes(
-                [anchor[1] for anchor in lane_anchors],
+                [anchor[1] for anchor in line_anchors],
                 new_img_width
             )
 
@@ -359,8 +396,8 @@ def parseAnnotations(
                     warnings.warn(f"Parsing {anno_path}: {ego_indexes}")
                 return None
 
-            left_ego = lanes_sortedBy_anchor[ego_indexes[0]]
-            right_ego = lanes_sortedBy_anchor[ego_indexes[1]]
+            left_ego = lines_sortedBy_anchor[ego_indexes[0]]
+            right_ego = lines_sortedBy_anchor[ego_indexes[1]]
 
             # Determine drivable path from 2 egos, and switch on interp cuz this is CurveLanes
             drivable_path = getDrivablePath(
@@ -375,11 +412,15 @@ def parseAnnotations(
                 # Parse processed data, all coords normalized
                 anno_data = {
                     "lanes" : [
-                        normalizeCoords(lane, new_img_width, new_img_height) 
-                        for lane in lanes_sortedBy_anchor
+                        normalizeCoords(line, new_img_width, new_img_height) 
+                        for line in lines_sortedBy_anchor
                     ],
                     "ego_indexes" : ego_indexes,
-                    "drivable_path" : normalizeCoords(drivable_path, new_img_width, new_img_height),
+                    "drivable_path" : normalizeCoords(
+                        drivable_path, 
+                        new_img_width, 
+                        new_img_height
+                    ),
                     "img_width" : new_img_width,
                     "img_height" : new_img_height,
                 }
@@ -421,6 +462,9 @@ if __name__ == "__main__":
         "BOTTOM" : WEIRD_Y_CROP,
         "LEFT" : WEIRD_X_CROP
     }
+
+    # For interping lines with soooooooo few points, 2~3 or so
+    LINE_INTERP_THRESHOLD = 5
 
     # ====== Heuristic boundaries of drivable path for automatic auditing ====== #
 
@@ -511,7 +555,7 @@ if __name__ == "__main__":
             for i in range(0, len(list_raw_files), sampling_step):
                 img_path = os.path.join(dataset_dir, ROOT_DIR, split, list_raw_files[i]).strip()
                 img_id_counter += 1
-                # print(img_id_counter)
+
                 # Preload image file for multiple uses later
                 raw_img = Image.open(img_path).convert("RGB")
                 img_width, img_height = raw_img.size

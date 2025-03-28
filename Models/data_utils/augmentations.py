@@ -118,8 +118,8 @@ class Augmentations():
 
         if(self.is_train):
 
-            # Resize and random horiztonal flip/grid-shuffle
-            self.adjust_shape = self.transform_shape_with_shuffle(image=self.image, \
+            # Resize and random horiztonal flip
+            self.adjust_shape = self.transform_shape(image=self.image, \
                 mask=self.ground_truth)
             
             self.augmented_data = self.adjust_shape["mask"]
