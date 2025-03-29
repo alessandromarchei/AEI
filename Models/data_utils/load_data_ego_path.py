@@ -1,13 +1,18 @@
 #! /usr/bin/env python3
 
-import json
 import os
-import shutil
+import json
 import pathlib
 import numpy as np
-from PIL import Image, ImageDraw
+import sys
+sys.path.append(os.path.abspath(os.path.join(
+    os.path.dirname(__file__), 
+    '..',
+    '..'
+)))
+from PIL import Image
 from typing import Literal, get_args
-from check_data import CheckData
+from Models.data_utils.check_data import CheckData
 
 VALID_DATASET_LITERALS = Literal[
     "BDD100K", 
@@ -92,43 +97,39 @@ class LoadDataEgoPath():
     # Get sizes of Train/Val sets
     def getItemCount(self):
         return self.N_trains, self.N_vals
-
-    # ================= Get item at index ith, returning img and EgoPath ================= #
-
+    
+    # Point/lane auto audit
     def dataAudit(self, label: list):
-
         # Convert all points into sublists in case they are tuples - yeah it DOES happens
         if (type(label[0]) == tuple):
             label = [[x, y] for [x, y] in label]
 
-        # ========== Point trimming ========== #
-
+        # Trimming points whose y > 1.0
         fixed_label = label.copy()
-        # Remove those whose y > 1.0
         fixed_label = [
             point for point in fixed_label
             if point[1] <= 1.0
         ]
-        # and slightly decrease y if y == 1.0
+
+        # Make sure points are bottom-up
+        start_y, end_y = fixed_label[0][1], fixed_label[-1][1]
+        if (end_y > start_y):       # Top-to-bottom annotation, must reverse
+            fixed_label.reverse()
+
+        # Slightly decrease y if y == 1.0
         for i, point in enumerate(fixed_label):
             if (point[1] == 1.0):
                 fixed_label[i][1] = 0.9999
 
-        # ========== Point ordering ========== #
-
-        start_y, end_y = fixed_label[0][1], fixed_label[-1][1]
-        if (end_y > start_y):       # Top-to-bottom annotation, must reverse
-            fixed_label = fixed_label.reverse()
-
         # Comma2k19's jumpy point (but can be happening to others as well)
         for i in range(1, len(fixed_label)):
-            if (fixed_label[i][1] < fixed_label[i - 1][1]):
+            if (fixed_label[i][1] > fixed_label[i - 1][1]):
                 fixed_label = fixed_label[0 : i]
                 break
 
         return fixed_label
     
-    # For train
+    # Get item at index ith, returning img and EgoPath
     def getItem(self, index, is_train: bool):
         if (is_train):
             img = Image.open(str(self.train_images[index])).convert("RGB")
@@ -137,6 +138,7 @@ class LoadDataEgoPath():
             img = Image.open(str(self.val_images[index])).convert("RGB")
             label = self.val_labels[index]["drivable_path"]
 
+        # Point/line auto audit
         label = self.dataAudit(label)
         
         return np.array(img), label
