@@ -1,13 +1,15 @@
 #! /usr/bin/env python3
 
-import os
 import random
 import albumentations as A
 import numpy as np
 from typing import Literal, get_args
-from PIL import Image, ImageDraw
 
-DATA_TYPES_LITERAL = Literal['SEGMENTATION', 'DEPTH', 'KEYPOINTS']
+DATA_TYPES_LITERAL = Literal[
+    "SEGMENTATION", 
+    "DEPTH", 
+    "KEYPOINTS"
+]
 DATA_TYPES_LIST = list(get_args(DATA_TYPES_LITERAL))
 
 class Augmentations():
@@ -237,51 +239,3 @@ class Augmentations():
             self.augmented_data = self.adjust_shape["keypoints"]
 
         return self.augmented_image, self.augmented_data
-    
-    # ================ This is to visually test the functions ================ #
-    
-    def sampleItemsAudit(
-            self,
-            is_rotate: bool,
-            np_img: np.array,
-            ego_path: list,
-            frame_id: int,
-            output_dir: str,
-    ):
-    
-        # Currently only for keypoints
-        CURRENTLY_SUPPORTED_DATATYPE = [
-            "KEYPOINTS"
-        ]
-
-        if (self.data_type not in CURRENTLY_SUPPORTED_DATATYPE):
-            raise ValueError(f"Data type set to {self.data_type}. Currently supporting {CURRENTLY_SUPPORTED_DATATYPE} data types only.")
-
-        # Process image & ego path
-        img = Image.fromarray(np_img)
-        # Renormalize ego path points
-        img_width, img_height = img.size
-        ego_path = [
-            (point[0] * img_width, point[1] * img_height) 
-            for point in ego_path
-        ]
-        # Augmentation
-        augmented_np_img, augmented_ego_path = self.applyTransformKeypoint(
-            image = np_img,
-            ground_truth = ego_path,
-            is_rotate = is_rotate
-        )
-        # Draw
-        augmented_img = Image.fromarray(augmented_np_img)
-        augmented_ego_path = [(x, y) for [x, y] in augmented_ego_path]
-        lane_color = (255, 255, 0)
-        lane_w = 5
-        frame_name = str(frame_id).zfill(5) + f"_aug.png"
-        draw = ImageDraw.Draw(augmented_img)
-        draw.line(
-            augmented_ego_path, 
-            fill = lane_color, 
-            width = lane_w
-        )
-        # Save
-        augmented_img.save(os.path.join(output_dir, frame_name))
