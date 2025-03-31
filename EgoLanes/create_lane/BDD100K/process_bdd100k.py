@@ -343,8 +343,8 @@ def classify_lanes(data, gt_images_path, output_dir):
                 i += 1
 
             # For debugging purposes.
-            # if image_id == "0035afff-3295dbd6.jpg":
-            #     print("Image is ", image_id)
+            if image_id == "000006":
+                print("Image is ", image_id)
 
         # Handle the last lane if it wasn't merged
         if i < len(anchor_points) and not merged_lanes[i]:
@@ -359,8 +359,8 @@ def classify_lanes(data, gt_images_path, output_dir):
                 result[image_id]["other_lanes"].append(lane["poly2d"][0]["vertices"])
 
         # For debugging purposes.
-        if image_id == "000001":
-            print("Image is ", image_id)
+        # if image_id == "000001":
+        #     print("Image is ", image_id)
     return result
 
 
@@ -397,6 +397,10 @@ def format_data(data, crop):
 
                 for lane in image_data[lane_type]:
                     formatted_lane = []
+
+                    # Interpolate for very few points.
+                    if len(lane) < 8:
+                        lane = interpolated_list(lane, 8)
 
                     for point in lane:
                         # Normalize x by width and y by height
@@ -570,6 +574,10 @@ def curateInputData(json_data_path, gt_images_path, args):
     with open(json_data_path, "r") as f:
         lane_data = json.load(f)
 
+    # Check first lane_data.
+    print(json.dumps(lane_data[:2], indent=4))
+    
+
     print(f"Found {len(lane_data)} entries in lane_train.json")
 
     img_id_counter = 0
@@ -659,6 +667,54 @@ def curateInputData(json_data_path, gt_images_path, args):
 #             break
 
 
+# Create interpolation functions for x-coordinates
+def interpolate_x(y, vertices):
+    """Get x value at given y using linear interpolation"""
+    for i in range(len(vertices) - 1):
+        y1, y2 = vertices[i][1], vertices[i + 1][1]
+        if y1 <= y <= y2:
+            # use current best ground truth values for interpolation.
+            x1, x2 = vertices[i][0], vertices[i + 1][0]
+            # Linear interpolation
+            if y2 - y1 == 0:
+                return x1
+            return x1 + (x2 - x1) * (y - y1) / (y2 - y1)
+    return None
+
+
+def interpolated_list(point_list, req_points):
+    """
+    Creates an interpolated list of points with a specified number of points.
+
+    Args:
+        point_list: List of [x, y] coordinates
+        req_points: Number of points in the resulting interpolated list
+
+    Returns:
+        List of interpolated [x, y] coordinates
+    """
+    if not point_list or len(point_list) < 2:
+        return []
+
+    # Sort according to y axis - create a new sorted list
+    sorted_list = sorted(point_list, key=lambda p: p[1])
+
+    # Correctly assign min and max y values
+    y_min = sorted_list[0][1]
+    y_max = sorted_list[-1][1]
+
+    interpolated_points = []
+    for i in range(req_points):
+        y = y_min + (y_max - y_min) * i / (req_points - 1)
+        x = interpolate_x(y, sorted_list)
+
+        # Only add point if interpolation was successful
+        if x is not None:
+            interpolated_points.append([x, y])
+
+    return interpolated_points
+
+
 def merge_lane_lines(vertices1, vertices2):
     """
     Merge two lane lines into a single lane by interpolating and averaging points.
@@ -676,20 +732,6 @@ def merge_lane_lines(vertices1, vertices2):
     # Get y-coordinate range
     y_min = max(v1_sorted[0][1], v2_sorted[0][1])
     y_max = min(v1_sorted[-1][1], v2_sorted[-1][1])
-
-    # Create interpolation functions for x-coordinates
-    def interpolate_x(y, vertices):
-        """Get x value at given y using linear interpolation"""
-        for i in range(len(vertices) - 1):
-            y1, y2 = vertices[i][1], vertices[i + 1][1]
-            if y1 <= y <= y2:
-                # use current best ground truth values for interpolation.
-                x1, x2 = vertices[i][0], vertices[i + 1][0]
-                # Linear interpolation
-                if y2 - y1 == 0:
-                    return x1
-                return x1 + (x2 - x1) * (y - y1) / (y2 - y1)
-        return None
 
     # Generate merged points
     merged = []
@@ -752,14 +794,20 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    json_data_path = os.path.join(args.labels_dir, "lane", "polygons", "lane_train.json")
-
-    # Check Data
-    # print(json.dumps(data[:1], indent=4))
+    json_data_path = os.path.join(
+        args.labels_dir, "lane", "polygons", "lane_train.json"
+    )
 
     # Save ground truth images.
     gt_images_path = os.path.join(args.image_dir, "train")
-    lane_data = curateInputData(json_data_path, gt_images_path, args)  # Do not enable if not required.
+    lane_data = curateInputData(
+        json_data_path, gt_images_path, args
+    )  # Do not enable if not required.
+
+    # End of main function
+    if __name__ == "__main__":
+        # Script is being run directly
+        pass
 
     # ============================== Get crop image params ============================== #
 
@@ -779,7 +827,9 @@ if __name__ == "__main__":
 
     # ============================== Identify EgoLanes ============================== #
     gt_images_path = os.path.join(args.output_dir, "images")
-    classified_lanes = classify_lanes(lane_data, gt_images_path, output_dir=args.output_dir)
+    classified_lanes = classify_lanes(
+        lane_data, gt_images_path, output_dir=args.output_dir
+    )
     # # Get the first three image keys
     # first_three_keys = list(classified_lanes.keys())[:3]
 
@@ -806,7 +856,7 @@ if __name__ == "__main__":
     # # # ============================== Save result JSON ============================== #
 
     # Save classified lanes as new JSON file
-    # output_file = os.path.join(args.output_dir, "classified_lanes.json")
+    # output_file = os.path.join(args.output_dir, "bdd100k_egolanes_train.json")
 
     # with open(output_file, "w") as f:
-    #     json.dump(classified_lanes, f, indent=4)
+    #     json.dump(formatted_data, f, indent=4)
