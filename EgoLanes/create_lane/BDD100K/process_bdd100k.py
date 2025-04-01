@@ -45,7 +45,7 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
         image_path = os.path.join(gt_images_path, image_name + ".png")
         img_id_counter += 1
 
-        if img_id_counter == 100:
+        if img_id_counter == 200:
             break
 
         if not os.path.exists(image_path):
@@ -127,7 +127,18 @@ def classify_lanes(data, gt_images_path, output_dir):
 
     for entry in data:
         image_id = entry["name"]
+
+        # Initialize result structure
+        result[image_id] = {
+            "egoleft_lane": [],
+            "egoright_lane": [],
+            "other_lanes": [],
+            "img_height": IMG_HEIGHT,
+            "img_width": IMG_WIDTH,
+        }
+
         if "labels" not in entry or not entry["labels"]:
+            KeyError(f"labels not present for Image {image_id}")
             continue
 
         anchor_points = []
@@ -136,6 +147,7 @@ def classify_lanes(data, gt_images_path, output_dir):
         valid_lanes = []
         for lane in entry["labels"]:
             if "poly2d" not in lane:
+                KeyError(f"poly2d not present for Image {image_id}")
                 continue
 
             # Skip lanes with vertical direction
@@ -146,6 +158,7 @@ def classify_lanes(data, gt_images_path, output_dir):
             ):
                 continue
 
+
             vertices = lane["poly2d"][0]["vertices"]
             # vertices -> [[x1, y1], [x2, y2]]
             anchor = getLaneAnchor(vertices)
@@ -155,21 +168,14 @@ def classify_lanes(data, gt_images_path, output_dir):
             ):  # Avoid lanes with undefined anchors and horizontal and vertical lanes.
                 anchor_points.append((anchor[0], lane["id"], anchor[1]))
                 valid_lanes.append(lane)
+            if image_id == "000022":
+                print(f"Image is {image_id}")
 
         # Sort lanes by anchor x position
         anchor_points.sort()
 
         # Determine ego indexes
         ego_indexes = getEgoIndexes(anchor_points)
-
-        # Initialize result structure
-        result[image_id] = {
-            "egoleft_lane": [],
-            "egoright_lane": [],
-            "other_lanes": [],
-            "img_height": IMG_HEIGHT,
-            "img_width": IMG_WIDTH,
-        }
 
         if isinstance(ego_indexes, str):
             continue
@@ -271,6 +277,9 @@ def classify_lanes(data, gt_images_path, output_dir):
                 result[image_id]["egoright_lane"].append(lane["poly2d"][0]["vertices"])
             else:
                 result[image_id]["other_lanes"].append(lane["poly2d"][0]["vertices"])
+
+        if image_id == "000022":
+            print(f"Image is {image_id}")
     return result
 
 
@@ -293,8 +302,6 @@ def format_data(data, crop):
         CROP_RIGHT = crop["RIGHT"]
         CROP_BOTTOM = crop["BOTTOM"]
         CROP_LEFT = crop["LEFT"]
-
-    insufficient_lanes = 0
 
     for idx, (image_key, image_data) in enumerate(data.items()):
         # Create a copy of the image data
@@ -329,16 +336,8 @@ def format_data(data, crop):
                     formatted_lanes.append(formatted_lane)
 
                 # Update the list in place
-                if len(formatted_lanes) >= 2:
-                    formatted_image[lane_type] = formatted_lanes
-                else:
-                    formatted_image[lane_type] = []
-                    insufficient_lanes += 1
                 formatted_image[lane_type] = formatted_lanes
-
         formatted_data[image_key] = formatted_image
-
-    warnings.warn(f"Number of insufficient lanes after cropping: {insufficient_lanes}.")
     return formatted_data
 
 
@@ -372,7 +371,6 @@ def getLaneAnchor(lane):
         return (x1, None, None)
     x0 = (ORIGINAL_IMG_HEIGHT - b) / a
 
-    print(f"Total number of horizontal lanes is {num_horizontal} and vertical lanes is {num_vertical}")
     return (x0, a, b)
 
 
@@ -468,6 +466,8 @@ def process_binary_mask(args):
         )  # Original image path
         image_id = str(str(img_id_counter).zfill(6))
         img_id_counter += 1
+        if img_id_counter == 200:
+            break
         output_path = os.path.join(args.output_dir, "segmentation", f"{image_id}.png")
 
         # Read the binary mask image in grayscale mode
@@ -485,7 +485,6 @@ def process_binary_mask(args):
 
             # Save the processed image
             cv2.imwrite(output_path, cropped_img)
-            print(f"Processed and saved: {output_path}")
         else:
             print(f"Skipped: {image_name} (Invalid image)")
 
@@ -543,7 +542,7 @@ def saveGT(json_data_path, gt_images_path, args):
         else:
             skipped_img_counter += 1
             continue
-        if img_id_counter == 100:
+        if img_id_counter == 200:
             break
 
     print(
@@ -703,7 +702,7 @@ if __name__ == "__main__":
     }
 
     # ============================== Save binary mask ============================== #
-    process_binary_mask(args)
+    # process_binary_mask(args)
 
     # ============================== Identify EgoLanes ============================== #
     gt_images_path = os.path.join(args.output_dir, "images")
@@ -721,7 +720,7 @@ if __name__ == "__main__":
     # # # ============================== Save result JSON ============================== #
 
     # Save classified lanes as new JSON file
-    output_file = os.path.join(args.output_dir, "bdd100k_egolanes_train.json")
+    # output_file = os.path.join(args.output_dir, "bdd100k_egolanes_train.json")
 
-    with open(output_file, "w") as f:
-        json.dump(formatted_data, f, indent=4)
+    # with open(output_file, "w") as f:
+    #     json.dump(formatted_data, f, indent=4)

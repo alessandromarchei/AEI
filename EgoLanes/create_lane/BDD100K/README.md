@@ -102,8 +102,11 @@ python process_bdd100k.py --image_dir /path/to/bdd100k/images/100k/ \
 ├── README.md
 ├── process_bdd100k.py
 ├── output
-│   ├── bdd100k_egolanes_train.json.json
-│   ├── images # Groundtruth images resized and renamed
+│   ├── bdd100k_egolanes_train.json # Classified, merged lane keypoints data
+│   ├── images # Groundtruth images renamed
+│   │   ├── 000000.png
+│   │   └── 000001.png
+│   ├── Segmentation # Binary mask for lane lines
 │   │   ├── 000000.png
 │   │   └── 000001.png
 │   ├── visualization # Annotated images output
