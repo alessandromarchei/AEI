@@ -19,11 +19,11 @@ def main():
     
     # Create a VideoCapture object and read from input file
     # If the input is taken from the camera, pass 0 instead of the video file name.
-    video_filepath = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Crash_Compilation.mp4'
+    video_filepath = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Road_Driving_Scenes_Normal.mp4'
     cap = cv2.VideoCapture(video_filepath)
 
     # Output filepath
-    output_filepath_obj = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Crash_Compilation_Depth' + '.avi'
+    output_filepath_obj = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Road_Driving_Scenes_Normal_Depth_v2' + '.avi'
 
 
     writer_obj = cv2.VideoWriter(output_filepath_obj,
