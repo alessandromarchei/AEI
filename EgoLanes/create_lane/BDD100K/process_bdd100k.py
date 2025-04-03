@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw
 import copy
 import sys
 import math
+from utils import *
 
 
 # Custom warning format cuz the default one is wayyyyyy too verbose
@@ -20,7 +21,7 @@ warnings.formatwarning = custom_warning_format
 def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", crop=None):
     """
     Annotates ground truth images with lane lines and saves them to the specified output directory.
-    
+
     :param classified_lanes: Dictionary containing lane keypoints classified by lane type.
     :param gt_images_path: Path to the directory containing ground truth images.
     :param output_dir: Directory to save annotated images, defaults to "visualization".
@@ -41,17 +42,15 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
 
     img_id_counter = 0
 
-    for image_name, lanes in classified_lanes.items():
-        image_path = os.path.join(gt_images_path, image_name + ".png")
+    for image_id, lanes in classified_lanes.items():
+        image_path = os.path.join(gt_images_path, image_id + ".png")
         img_id_counter += 1
 
         if img_id_counter == 200:
             break
 
         if not os.path.exists(image_path):
-            print(
-                f"Warning: Image {image_name} not found in {gt_images_path}. Skipping."
-            )
+            print(f"Warning: Image {image_id} not found in {gt_images_path}. Skipping.")
             continue
 
         # Load image
@@ -89,11 +88,15 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
                     new_x = x * IMG_WIDTH
                     new_y = y * IMG_HEIGHT
                     lane_points.append((new_x, new_y))
-                if len(lane_points) > 1:  # Ensure we have enough points to draw
+                if image_id == "000022":
+
+                    print("Image found")
+                if len(lane_points) > 1:
+                    # Ensure we have enough points to draw
                     draw.line(lane_points, fill=color, width=lane_width)
 
         # Ensure we save as PNG by changing the file extension
-        image_name_base = image_name
+        image_name_base = image_id
         # image_name_base = os.path.splitext(image_name)[0]  # Remove the extension
         image_name_png = f"{image_name_base}.png"  # Add .png extension
 
@@ -109,12 +112,12 @@ def classify_lanes(data, gt_images_path, output_dir):
     Classify lanes from BDD100K dataset, filtering out vertical lanes and processing
     the remaining lanes to identify their positions relative to the ego vehicle.
     Lanes with similar slopes and proximity are merged to reduce redundancy.
-    
+
     Args:
         data: List of dictionaries containing lane annotations from BDD100K
         gt_images_path: Path to the ground truth images
         output_dir: Directory to save the processed results
-        
+
     Returns:
         Dictionary mapping image IDs to classified lane data
     """
@@ -158,21 +161,31 @@ def classify_lanes(data, gt_images_path, output_dir):
             ):
                 continue
 
-
             vertices = lane["poly2d"][0]["vertices"]
             # vertices -> [[x1, y1], [x2, y2]]
-            anchor = getLaneAnchor(vertices)
+            # Make a copy of vertices to avoid modifying the original
+            vertices_copy = vertices.copy()
+            anchor = getLaneAnchor(vertices_copy)
+
+            # if image_id == "000022":
+            #    print("Found Image")
+
+            # if image_id == "000022":
+            #    draw_keypoints_on_image(image_id, gt_images_path, vertices, output_dir)
 
             if (
                 anchor[0] is not None and anchor[1] is not None
             ):  # Avoid lanes with undefined anchors and horizontal and vertical lanes.
                 anchor_points.append((anchor[0], lane["id"], anchor[1]))
                 valid_lanes.append(lane)
-            if image_id == "000022":
-                print(f"Image is {image_id}")
+        # if image_id == "000022":
+        #    print(f"Image is {image_id}")
 
         # Sort lanes by anchor x position
         anchor_points.sort()
+
+        if image_id == "000010":
+            print("Found Image")
 
         # Determine ego indexes
         ego_indexes = getEgoIndexes(anchor_points)
@@ -181,6 +194,9 @@ def classify_lanes(data, gt_images_path, output_dir):
             continue
 
         left_idx, right_idx = ego_indexes
+
+        if image_id == "000153":
+            print("Found Image")
 
         # Create a list to track which lanes have been merged
         merged_lanes = [False] * len(anchor_points)
@@ -194,6 +210,9 @@ def classify_lanes(data, gt_images_path, output_dir):
 
             current_slope = anchor_points[i][2]
             next_slope = anchor_points[i + 1][2]
+
+            if image_id == "000153" and (i == left_idx or i == left_idx - 1):
+                print("Image found")
 
             # Check if both slopes are valid (not None) and not perpendicular
             slopes_valid = (
@@ -278,8 +297,8 @@ def classify_lanes(data, gt_images_path, output_dir):
             else:
                 result[image_id]["other_lanes"].append(lane["poly2d"][0]["vertices"])
 
-        if image_id == "000022":
-            print(f"Image is {image_id}")
+        # if image_id == "000022":
+        #    print(f"Image is {image_id}")
     return result
 
 
@@ -315,9 +334,13 @@ def format_data(data, crop):
                 for lane in image_data[lane_type]:
                     formatted_lane = []
 
+                    if image_key == "000022":
+                        print(f"Image is {image_key}")
                     # Interpolate for very few points.
-                    if len(lane) < 8:
-                        lane = interpolated_list(lane, 8)
+                    if len(lane) < 10:
+                        lane = interpolated_list(
+                            lane, 5
+                        )  # 5 points between each pair of points.
 
                     for point in lane:
                         # Normalize x by width and y by height
@@ -332,12 +355,17 @@ def format_data(data, crop):
                             formatted_lane.append(
                                 [new_x / IMG_WIDTH, new_y / IMG_HEIGHT]
                             )
+                        else:
+                            # write complex logic to find projected point on cropped image.
+                            pass  # Placeholder for the complex logic
 
                     formatted_lanes.append(formatted_lane)
 
                 # Update the list in place
                 formatted_image[lane_type] = formatted_lanes
         formatted_data[image_key] = formatted_image
+        if image_key == "000022":
+            print(f"Image is {image_key}")
     return formatted_data
 
 
@@ -400,8 +428,9 @@ def getEgoIndexes(anchors):
            - If no lanes are past center, use the last two lanes
            - If there's only one lane, return an error message
     """
+    tolerance = 0.05  # 5% tolerance
     for i in range(len(anchors)):
-        if anchors[i][0] >= ORIGINAL_IMG_WIDTH / 2:
+        if anchors[i][0] >= (ORIGINAL_IMG_WIDTH - (tolerance * ORIGINAL_IMG_WIDTH)) / 2:
             if i == 0:
                 # First lane is already past the center
                 if len(anchors) >= 2:
@@ -423,21 +452,21 @@ def getEgoIndexes(anchors):
 def process_binary_mask(args):
     """
     Processes binary lane mask images from BDD100K dataset.
-    
+
     This function reads binary lane mask images, inverts them (assuming lanes are black
     and background is white in the original), crops them according to specified dimensions,
     and saves them with serialized filenames in the output directory.
-    
+
     Args:
         args: Command-line arguments containing:
             - labels_dir: Directory containing the BDD100K lane mask images
             - output_dir: Directory where processed images will be saved
             - crop: Tuple of (top, right, bottom, left) crop values in pixels
-    
+
     Output:
         Processed binary masks saved to {args.output_dir}/segmentation/ with
         serialized filenames (000000.png, 000001.png, etc.)
-    
+
     Note:
         The function inverts the binary masks to make lanes white (255) and
         background black (0) for consistency with the pipeline's requirements.
@@ -502,24 +531,26 @@ def saveGT(json_data_path, gt_images_path, args):
     os.makedirs(os.path.join(args.output_dir, "images"), exist_ok=True)
 
     with open(json_data_path, "r") as f:
-        lane_data = json.load(f)
+        data = json.load(f)
 
-    # Check first lane_data.
-    print(json.dumps(lane_data[:2], indent=4))
-    
+    # Check first data.
+    print(json.dumps(data[:2], indent=4))
 
-    print(f"Found {len(lane_data)} entries in lane_train.json")
+    print(f"Found {len(data)} entries in lane_train.json")
 
     img_id_counter = 0
     skipped_img_counter = 0
 
     # Process each image entry from the JSON file
-    for entry in lane_data:
+    for entry in data:
         image_id = str(str(img_id_counter).zfill(6))  # Format as 000000, 000001, etc.
         img_id_counter += 1
         if "name" not in entry:
             skipped_img_counter += 1
             continue
+
+        # if image_id == "000022":
+        #    print("Found Image")
 
         input_path = os.path.join(gt_images_path, entry["name"])  # Original image path
         entry["name"] = image_id
@@ -549,7 +580,8 @@ def saveGT(json_data_path, gt_images_path, args):
         f"Copied {img_id_counter} images to {os.path.join(args.output_dir, 'images')} and skipped {skipped_img_counter} images."
     )
 
-    return lane_data
+    return data
+
 
 # Create interpolation functions for x-coordinates
 def interpolate_x(y, vertices):
@@ -568,35 +600,55 @@ def interpolate_x(y, vertices):
 
 def interpolated_list(point_list, req_points):
     """
-    Creates an interpolated list of points with a specified number of points.
+    Takes original point list and inserts 3 interpolated points between
+    each consecutive pair of points in the original list.
+    Uses the linear equation between each specific pair of points.
 
     Args:
         point_list: List of [x, y] coordinates
-        req_points: Number of points in the resulting interpolated list
-
+        req_points: Number of interpolated points to insert between each pair of points
     Returns:
-        List of interpolated [x, y] coordinates
+        List of original points with interpolated points inserted
     """
     if not point_list or len(point_list) < 2:
-        return []
+        return point_list.copy()
 
-    # Sort according to y axis - create a new sorted list
-    sorted_list = sorted(point_list, key=lambda p: p[1])
+    result = []
 
-    # Correctly assign min and max y values
-    y_min = sorted_list[0][1]
-    y_max = sorted_list[-1][1]
+    # Process each pair of consecutive points in original ordering
+    for i in range(len(point_list) - 1):
+        p1 = point_list[i]
+        p2 = point_list[i + 1]
 
-    interpolated_points = []
-    for i in range(req_points):
-        y = y_min + (y_max - y_min) * i / (req_points - 1)
-        x = interpolate_x(y, sorted_list)
+        # Add the first point of this segment
+        result.append(p1.copy())
 
-        # Only add point if interpolation was successful
-        if x is not None:
-            interpolated_points.append([x, y])
+        # Get the linear equation between p1 and p2
+        x1, y1 = p1
+        x2, y2 = p2
 
-    return interpolated_points
+        # Add interpolated points between p1 and p2
+        for j in range(1, req_points + 1):
+            t = j / (
+                req_points + 1
+            )  # Choose t to be 1/req_points, 2/req_points, ..., req_points/req_points + 1
+
+            # Calculate y using linear interpolation
+            y = y1 + t * (y2 - y1)
+
+            # Calculate x using the linear equation between p1 and p2
+            if y2 - y1 == 0:  # Horizontal line
+                x = x1 + t * (x2 - x1)
+            else:
+                # Linear interpolation for x based on y
+                x = x1 + (x2 - x1) * (y - y1) / (y2 - y1)
+
+            result.append([x, y])
+
+    # Add the last point
+    result.append(point_list[-1].copy())
+
+    return result
 
 
 def merge_lane_lines(vertices1, vertices2):
@@ -684,7 +736,7 @@ if __name__ == "__main__":
 
     # Save ground truth images.
     gt_images_path = os.path.join(args.image_dir, "train")
-    lane_data = saveGT(
+    data = saveGT(
         json_data_path, gt_images_path, args
     )  # Do not enable if not required.
 
@@ -706,9 +758,7 @@ if __name__ == "__main__":
 
     # ============================== Identify EgoLanes ============================== #
     gt_images_path = os.path.join(args.output_dir, "images")
-    classified_lanes = classify_lanes(
-        lane_data, gt_images_path, output_dir=args.output_dir
-    )
+    classified_lanes = classify_lanes(data, gt_images_path, output_dir=args.output_dir)
 
     # # # ============================== Normalise, crop Image data  ============================== #
     formatted_data = format_data(classified_lanes, crop)
