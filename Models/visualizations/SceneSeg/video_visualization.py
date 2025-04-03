@@ -6,7 +6,7 @@ import sys
 import numpy as np
 from PIL import Image
 from argparse import ArgumentParser
-sys.path.append('..')
+sys.path.append('../..')
 from inference.scene_seg_infer import SceneSegNetworkInfer
 
 
