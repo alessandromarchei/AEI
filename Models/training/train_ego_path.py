@@ -147,7 +147,7 @@ def main():
     for epoch in range(0, NUM_EPOCHS):
 
         # Init dataset sample count
-        count_datasets = {
+        status_datasets = {
             dataset : {
                 "count" : 0,
                 "completed" : False
@@ -156,5 +156,58 @@ def main():
         }
 
         remaining_dataset = random.shuffle(VALID_DATASET_LIST.copy())
+        data_list_count = 0
 
         # Implement Coarse-to-fine Optimization
+        batch_size = coarse2FineOpt(
+            current_epoch = epoch,
+            max_epoch = NUM_EPOCHS,
+            init_batch_size = BATCH_SIZE_INIT
+        )
+
+        for i in range(SUM_N_TRAINS):
+
+            log_index = i + epoch * SUM_N_TRAINS
+
+            # Check and update status of current datasets
+            for dataset, status in status_datasets.items():
+                if (
+                    status["count"] == dict_data[dataset]["N_trains"] and
+                    status["completed"] == False
+                ):
+                    status_datasets[dataset]["completed"] = True
+                    remaining_dataset.remove(dataset)
+
+            if (len(remaining_dataset) <= data_list_count):
+                data_list_count = 0
+
+            # Read image/label
+            current_dataset = remaining_dataset[data_list_count]
+            if (status_datasets[current_dataset]["completed"] == False):
+                image, label = dict_data[current_dataset]["loader_instance"].getItem(
+                    index = status_datasets[current_dataset]["count"],
+                    is_train = True
+                )
+                status_datasets[current_dataset]["count"] += 1
+
+            # Assign data
+            trainer.set_data(image, label)
+
+            # Augment image
+            trainer.apply_augmentations(is_train = True)
+
+            # Tensor conversion
+            trainer.load_data(is_train = True)
+
+            # Run model and get loss
+            trainer.run_model()
+
+            # Backpropagate loss through network weights
+            trainer.loss_backward()
+
+            # Simulating batch size through gradient accumulation
+            if ((i + 1) % batch_size == 0):
+                trainer.run_optimizer()
+
+            # Log loss to TensorBoard
+            
