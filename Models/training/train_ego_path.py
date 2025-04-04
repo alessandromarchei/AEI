@@ -18,6 +18,7 @@ from argparse import ArgumentParser
 from PIL import Image
 from typing import Literal, get_args
 from Models.data_utils.load_data_ego_path import LoadDataEgoPath
+from Models.training.ego_path_trainer import EgoPathTrainer
 
 
 def main():
@@ -41,6 +42,22 @@ def main():
         dest = "root_all_datasets",
         help = "Root path where all EgoPath datasets are stored.",
         required = True
+    )
+    parser.add_argument(
+        "-e", "--epochs",
+        type = int,
+        dest = "num_epochs",
+        help = "Number of epochs",
+        default = 10,
+        required = False
+    )
+    parser.add_argument(
+        "-b", "--batch_size",
+        type = int,
+        dest = "batch_size",
+        help = "Batch size initially (will be gradually reduced via Coarse-to-fine Optimization)",
+        default = 32,
+        required = False
     )
     args = parser.parse_args()
 
@@ -92,13 +109,18 @@ def main():
         dict_data[dataset]["N_vals"] = dict_data[dataset]["loader_instance"].getItemCount()[1]
 
     # Count total samples
-    sum_N_trains = sum([
+    SUM_N_TRAINS = sum([
         metadata["N_trains"]
         for _, metadata in dict_data.items()
     ])
-    sum_N_vals = sum([
+    SUM_N_VALS = sum([
         metadata["N_vals"]
         for _, metadata in dict_data.items()
     ])
 
-    
+    # ====================== Training ====================== #
+
+    # Trainer instance
+    trainer = EgoPathTrainer()
+    trainer.zero_grad()             # Reset optimizer gradients
+
