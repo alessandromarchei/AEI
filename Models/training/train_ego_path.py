@@ -86,6 +86,30 @@ def main():
         default = 32,
         required = False
     )
+    parser.add_argument(
+        "-ll", "--log_loss",
+        type = int,
+        dest = "log_loss",
+        help = "Log loss to Tensorboard after this number of steps",
+        default = 500,
+        required = False
+    )
+    parser.add_argument(
+        "-lv", "--log_vis",
+        type = int,
+        dest = "log_visualization",
+        help = "Log image to Tensorboard after this number of steps",
+        default = 5000,
+        required = False
+    )
+    parser.add_argument(
+        "-lm", "--log_model",
+        type = int,
+        dest = "log_model",
+        help = "Save model and run val after this number of steps",
+        default = 11000,
+        required = False
+    )
     args = parser.parse_args()
 
     root_checkpoints = args.model_save_root_path
@@ -210,4 +234,3 @@ def main():
                 trainer.run_optimizer()
 
             # Log loss to TensorBoard
-            
