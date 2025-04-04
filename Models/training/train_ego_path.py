@@ -20,6 +20,33 @@ from typing import Literal, get_args
 from Models.data_utils.load_data_ego_path import LoadDataEgoPath
 from Models.training.ego_path_trainer import EgoPathTrainer
 
+VALID_DATASET_LIST = [
+    "BDD100K", 
+    "COMMA2K19", 
+    "CULANE", 
+    "CURVELANES", 
+    "ROADWORK", 
+    "TUSIMPLE"
+]
+
+
+# Helper for Coarse-to-fine Optimization (C2FO) - determine batch size
+def coarse2FineOpt(
+    current_epoch: int, 
+    max_epoch: int, 
+    init_batch_size: int
+):
+    # Available batches in decreasing order
+    available_batches = []
+    while (init_batch_size >= 1):
+        available_batches.append(init_batch_size)
+        init_batch_size = init_batch_size // 2
+
+    # Idea batch for this C2FO
+    idea_batch_index = int(current_epoch / max_epoch * len(available_batches))
+    
+    return available_batches[idea_batch_index]
+
 
 def main():
 
@@ -63,18 +90,10 @@ def main():
 
     root_checkpoints = args.model_save_root_path
     root_datasets = args.root_all_datasets
+    NUM_EPOCHS = args.num_epochs
+    BATCH_SIZE_INIT = args.batch_size
 
     # ================== Data acquisition ================== #
-
-    # Data path
-    list_datasets = [
-        "BDD100K", 
-        "COMMA2K19", 
-        "CULANE", 
-        "CURVELANES", 
-        "ROADWORK", 
-        "TUSIMPLE"
-    ]
 
     # Master dict to store dataset metadata
     dict_data = {
@@ -90,7 +109,7 @@ def main():
                 "image"
             ),
         }
-        for dataset in list_datasets
+        for dataset in VALID_DATASET_LIST
     }
 
     # Retrieve em all via LoadDataEgoPath
@@ -124,3 +143,18 @@ def main():
     trainer = EgoPathTrainer()
     trainer.zero_grad()             # Reset optimizer gradients
 
+    # Running thru epochs
+    for epoch in range(0, NUM_EPOCHS):
+
+        # Init dataset sample count
+        count_datasets = {
+            dataset : {
+                "count" : 0,
+                "completed" : False
+            }
+            for dataset in VALID_DATASET_LIST
+        }
+
+        remaining_dataset = random.shuffle(VALID_DATASET_LIST.copy())
+
+        # Implement Coarse-to-fine Optimization
