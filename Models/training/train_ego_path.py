@@ -116,6 +116,9 @@ def main():
     root_datasets = args.root_all_datasets
     NUM_EPOCHS = args.num_epochs
     BATCH_SIZE_INIT = args.batch_size
+    LOGSTEP_LOSS = args.log_loss
+    LOGSTEP_VIS = args.log_visualization
+    LOGSTEP_MODEL = args.log_model
 
     # ================== Data acquisition ================== #
 
@@ -229,8 +232,31 @@ def main():
             # Backpropagate loss through network weights
             trainer.loss_backward()
 
+            current_index = i + 1
+
             # Simulating batch size through gradient accumulation
-            if ((i + 1) % batch_size == 0):
+            if (current_index % batch_size == 0):
                 trainer.run_optimizer()
 
             # Log loss to TensorBoard
+            if (current_index % LOGSTEP_LOSS == 0):
+                trainer.log_loss(log_index)
+
+            # Log image to TensorBoard
+            if (current_index % LOGSTEP_VIS == 0):
+                trainer.save_visualization(log_index)
+
+            # Save model and run val across entire val dataset
+            if (current_index % LOGSTEP_MODEL == 0):
+
+                # Save model
+                model_save_path = os.path.join(
+                    root_checkpoints,
+                    f"iter_{log_index}_epoch_{epoch}_step_{i}.pth"
+                )
+                trainer.save_model(model_save_path)
+
+                # Validate
+                trainer.set_eval_mode()
+
+                
