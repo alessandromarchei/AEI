@@ -87,25 +87,25 @@ def main():
         required = False
     )
     parser.add_argument(
-        "-ll", "--log_loss",
+        "-ll", "--logstep_loss",
         type = int,
-        dest = "log_loss",
+        dest = "logstep_loss",
         help = "Log loss to Tensorboard after this number of steps",
         default = 500,
         required = False
     )
     parser.add_argument(
-        "-lv", "--log_vis",
+        "-lv", "--logstep_vis",
         type = int,
-        dest = "log_visualization",
+        dest = "logstep_vis",
         help = "Log image to Tensorboard after this number of steps",
         default = 5000,
         required = False
     )
     parser.add_argument(
-        "-lm", "--log_model",
+        "-lm", "--logstep_model",
         type = int,
-        dest = "log_model",
+        dest = "logstep_model",
         help = "Save model and run val after this number of steps",
         default = 11000,
         required = False
@@ -116,9 +116,9 @@ def main():
     root_datasets = args.root_all_datasets
     NUM_EPOCHS = args.num_epochs
     BATCH_SIZE_INIT = args.batch_size
-    LOGSTEP_LOSS = args.log_loss
-    LOGSTEP_VIS = args.log_visualization
-    LOGSTEP_MODEL = args.log_model
+    LOGSTEP_LOSS = args.logstep_loss
+    LOGSTEP_VIS = args.logstep_vis
+    LOGSTEP_MODEL = args.logstep_model
 
     # ================== Data acquisition ================== #
 
@@ -259,4 +259,56 @@ def main():
                 # Validate
                 trainer.set_eval_mode()
 
+                # Metrics
+                running_total_loss = 0          # total_loss = mAE_gradients * alpha + mAE_endpoint
+                running_gradients_loss = 0      # MAE between gradients of GT and pred at uniform samples
+                running_endpoint_loss = 0       # MAE between GT start & end points with pred 
                 
+                # Temporarily disable gradient computation for backpropagation
+                with torch.no_grad():
+
+                    # Compute val loss per dataset
+                    for dataset, metadata in dict_data:
+
+                        for val_index in range(metadata["N_vals"]):
+
+                            # Fetch image and label for val set
+                            image_val, label_val = metadata["loader_instance"].getItem(
+                                index = val_index,
+                                is_train = False
+                            )
+
+                            # Run val and calculate metrics
+                            endpoint_loss, gradient_loss, total_loss = trainer.valudate(
+                                image_val,
+                                label_val
+                            )
+
+                            # Accumulate those metrics
+                            running_endpoint_loss += endpoint_loss
+                            running_gradients_loss += gradient_loss
+                            running_total_loss += total_loss
+
+                    # Compute average loss of complete val set
+                    mAE_endpoint_loss = running_endpoint_loss / SUM_N_VALS
+                    mAE_gradients_loss = running_gradients_loss / SUM_N_VALS
+                    mAE_total_loss = running_total_loss / SUM_N_VALS
+
+                    # Logging average metrics
+                    trainer.log_mAE(
+                        log_index,
+                        mAE_endpoint_loss,
+                        mAE_gradients_loss,
+                        mAE_total_loss
+                    )
+
+                # Switch back to training
+                trainer.set_train_mode()
+
+            data_list_count += 1
+
+    trainer.cleanup()
+
+
+if __name__ == "__main__":
+    main()
