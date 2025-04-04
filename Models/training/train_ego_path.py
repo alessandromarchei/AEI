@@ -47,4 +47,58 @@ def main():
     root_checkpoints = args.model_save_root_path
     root_datasets = args.root_all_datasets
 
+    # ================== Data acquisition ================== #
+
+    # Data path
+    list_datasets = [
+        "BDD100K", 
+        "COMMA2K19", 
+        "CULANE", 
+        "CURVELANES", 
+        "ROADWORK", 
+        "TUSIMPLE"
+    ]
+
+    # Master dict to store dataset metadata
+    dict_data = {
+        dataset : {
+            "labels_filepath" : os.path.join(
+                root_datasets,
+                dataset,
+                "drivable_path.json"
+            ),
+            "images_dirpath" : os.path.join(
+                root_datasets,
+                dataset,
+                "image"
+            ),
+        }
+        for dataset in list_datasets
+    }
+
+    # Retrieve em all via LoadDataEgoPath
+
+    for dataset, metadata in dict_data.items():
+
+        # Loader instance
+        dict_data[dataset]["loader_instance"] = LoadDataEgoPath(
+            labels_filepath = metadata["labels_filepath"],
+            images_filepath = metadata["images_dirpath"],
+            dataset = dataset
+        )
+
+        # Num train/val
+        dict_data[dataset]["N_trains"] = dict_data[dataset]["loader_instance"].getItemCount()[0]
+        dict_data[dataset]["N_vals"] = dict_data[dataset]["loader_instance"].getItemCount()[1]
+
+    # Count total samples
+    sum_N_trains = sum([
+        metadata["N_trains"]
+        for _, metadata in dict_data.items()
+    ])
+    sum_N_vals = sum([
+        metadata["N_vals"]
+        for _, metadata in dict_data.items()
+    ])
+
     
