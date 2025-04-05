@@ -12,7 +12,7 @@ Main script for training SceneSeg neural network
 
 *-s , --model_save_root_path* : root path where pytorch checkpoint file should be saved
 
-*-r , --root* : path to folder where data training data is stored
+*-r , --root* : path to folder where training data is stored
 
 ## test_validate_scene_seg.py
 
@@ -28,7 +28,7 @@ Script to run SceneSeg neural network on full validation and test data and calcu
 
 *-c , --checkpoint_path* : path to Scene3D weights file for training from saved checkpoint
 
-*-r , --root* : path to folder where data training data is stored
+*-r , --root* : path to folder where training data is stored
 
 ## train_scene_3d.py
 
@@ -55,7 +55,7 @@ Main script for training Scene3D neural network
 
 *-c , --checkpoint_path* : path to Scene3D weights file for training from saved checkpoint
 
-*-r , --root* : path to folder where data training data is stored
+*-r , --root* : path to folder where training data is stored
 
 *-t , --test_images_save_root_path* : root path where test images are stored
 
