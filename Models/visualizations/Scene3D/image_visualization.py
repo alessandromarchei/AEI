@@ -4,6 +4,7 @@
 import cv2
 import sys
 import numpy as np
+from argparse import ArgumentParser
 import cmapy
 from PIL import Image
 sys.path.append('../..')
@@ -12,12 +13,17 @@ from inference.scene_3d_infer import Scene3DNetworkInfer
 
 def main(): 
 
+    parser = ArgumentParser()
+    parser.add_argument("-p", "--model_checkpoint_path", dest="model_checkpoint_path", help="path to pytorch checkpoint file to load model dict")
+    parser.add_argument("-i", "--input_image_filepath", dest="input_image_filepath", help="path to input image which will be processed by SceneSeg")
+    args = parser.parse_args() 
+
     # Saved model checkpoint path
-    model_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Scene3D/iter_1103999_epoch_2_step_175781.pth'
+    model_checkpoint_path = args.model_checkpoint_path
     model = Scene3DNetworkInfer(checkpoint_path=model_checkpoint_path)
   
     # Reading input image
-    input_image_filepath = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/test_image.jpg'
+    input_image_filepath = args.input_image_filepath
     frame = cv2.imread(input_image_filepath, cv2.IMREAD_COLOR)
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     image_pil = Image.fromarray(image)
