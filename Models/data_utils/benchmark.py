@@ -49,9 +49,15 @@ def main():
     # Argument parser for data root path and save path
     parser = ArgumentParser()
     parser.add_argument("-n", "--name", dest="network_name", help="specify the name of the network which will be benchmarked")
+    parser.add_argument("-p", "--precision", dest="precision",  const="fp32", help="specify the name of the network which will be benchmarked")
     args = parser.parse_args()
-    model_name = args.network_name
 
+    model_name = args.network_name
+    precision = args.precision
+
+    if(precision != 'fp16' and precision != 'fp32'):
+        raise Exception("Please specify precision as fp32 or fp16")
+    
     # Device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using {device} for inference')
@@ -77,7 +83,7 @@ def main():
     input_data = input_data.to(device)
 
     # Run speed benchmark
-    benchmark(model, input_data, 'fp32', 50, 1000)
+    benchmark(model, input_data, precision, 50, 1000)
 
 if __name__ == '__main__':
   main()
