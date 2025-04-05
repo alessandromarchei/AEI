@@ -1,3 +1,5 @@
+# SceneSeg
+
 ## train_scene_seg.py
 
 Main script for training SceneSeg neural network
@@ -29,6 +31,12 @@ Script to run SceneSeg neural network on full validation and test data and calcu
 *-c , --checkpoint_path* : path to Scene3D weights file for training from saved checkpoint
 
 *-r , --root* : path to folder where training data is stored
+
+## scene_seg_trainer.py
+
+Helper class for training SceneSeg neural network
+
+# Scene3D
 
 ## train_scene_3d.py
 
@@ -65,7 +73,3 @@ Main script for training Scene3D neural network
 ## scene_3d_trainer.py
 
 Helper class for training Scene3D
-
-## scene_seg_trainer.py
-
-Helper class for training SceneSeg neural network
