@@ -3,7 +3,7 @@
 ## SceneSeg - [Link to Download Weights](https://drive.google.com/file/d/1vCZMdtd8ZbSyHn1LCZrbNKMK7PQvJHxj/view?usp=sharing)
 ## Scene3D - [Link to Download Weights](https://drive.google.com/file/d/1MrKhfEkR0fVJt-SdZEc0QwjwVDumPf7B/view?usp=sharing)
 
-# Folders
+## Description
 
 ### data_utils
 Helper classes and scripts related to checking data, benchmarking, and data loading
