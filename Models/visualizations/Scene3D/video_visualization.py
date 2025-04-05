@@ -35,6 +35,9 @@ def main():
 
     # Visualize flag
     vis = True
+
+    # Transparency factor
+    alpha = 0.97
  
     # Read until video is completed
     while(cap.isOpened()):
@@ -55,7 +58,9 @@ def main():
             prediction_image = 255.0*((prediction - np.min(prediction))/ (np.max(prediction) - np.min(prediction)))
             prediction_image = prediction_image.astype(np.uint8)
             vis_obj = cv2.applyColorMap(prediction_image, cmapy.cmap('viridis'))
-            image_vis_obj = cv2.resize(vis_obj, (1280, 720))
+            vis_obj = cv2.resize(vis_obj, (1280, 720))
+            image_vis_obj = cv2.addWeighted(vis_obj, alpha, frame, 1 - alpha, 0)
+            
 
             if(vis):
                 cv2.imshow('Depth', image_vis_obj)
