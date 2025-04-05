@@ -1,18 +1,34 @@
-## scene_seg_trainer.py
-
-Helper class for training SceneSeg neural network
-
 ## train_scene_seg.py
 
 Main script for training SceneSeg neural network
+
+### Example usage
+
+```bash
+  python3 train_scene_seg.py -s /model_save_path -r /data_root_path
+```
+
+### Parameters:
+
+*-s , --model_save_root_path* : root path where pytorch checkpoint file should be saved
+
+*-r , --root* : path to folder where data training data is stored
 
 ## test_validate_scene_seg.py
 
 Script to run SceneSeg neural network on full validation and test data and calculate key metrics
 
-## scene_3d_trainer.py
+### Example usage
 
-Helper class for training Scene3D
+```bash
+  python3 test_validate_scene_seg.py -c /path_to_SceneSeg_saved_network_weights.pth -r /data_root_path
+```
+
+### Parameters:
+
+*-c , --checkpoint_path* : path to Scene3D weights file for training from saved checkpoint
+
+*-r , --root* : path to folder where data training data is stored
 
 ## train_scene_3d.py
 
@@ -44,3 +60,12 @@ Main script for training Scene3D neural network
 *-t , --test_images_save_root_path* : root path where test images are stored
 
 *-l , --load_from_save* : flag for whether model is being loaded from a Scene3D checkpoint file
+
+
+## scene_3d_trainer.py
+
+Helper class for training Scene3D
+
+## scene_seg_trainer.py
+
+Helper class for training SceneSeg neural network
