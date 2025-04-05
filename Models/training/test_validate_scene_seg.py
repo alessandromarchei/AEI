@@ -11,12 +11,12 @@ from training.scene_seg_trainer import SceneSegTrainer
 def main():
 
     parser = ArgumentParser()
-    parser.add_argument("-p", "--model_checkpoint_path", dest="model_checkpoint_path", help="path to pytorch checkpoint file to load model dict")
+    parser.add_argument("-c", "--checkpoint_path", dest="checkpoint_path", help="path to pytorch checkpoint file to load model dict")
     parser.add_argument("-r", "--root", dest="root", help="root path to folder where data training data is stored")
     args = parser.parse_args()
 
     # Saved model checkpoint path
-    model_checkpoint_path = args.model_checkpoint_path
+    checkpoint_path = args.checkpoint_path
     
     # Root path
     root = args.root
@@ -83,7 +83,7 @@ def main():
     print(total_val_samples, ': total validation samples')
 
     # Trainer Class
-    trainer = SceneSegTrainer(checkpoint_path=model_checkpoint_path)
+    trainer = SceneSegTrainer(checkpoint_path=checkpoint_path)
     trainer.zero_grad()
     
     # Setting model to evaluation mode
