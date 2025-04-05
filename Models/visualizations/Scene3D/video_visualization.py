@@ -13,17 +13,24 @@ from inference.scene_3d_infer import Scene3DNetworkInfer
 
 def main(): 
 
+    parser = ArgumentParser()
+    parser.add_argument("-p", "--model_checkpoint_path", dest="model_checkpoint_path", help="path to pytorch checkpoint file to load model dict")
+    parser.add_argument("-i", "--video_filepath", dest="video_filepath", help="path to input video which will be processed by SceneSeg")
+    parser.add_argument("-o", "--output_file", dest="output_file", help="path to output video visualization file, must include output file name")
+    parser.add_argument('-v', "--vis", action='store_true', help="flag for whether to show frame by frame visualization while processing is occuring")
+    args = parser.parse_args() 
+
     # Saved model checkpoint path
-    model_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Scene3D/24_03_2025/model/iter_1103999_epoch_2_step_175781.pth'
+    model_checkpoint_path = args.model_checkpoint_path
     model = Scene3DNetworkInfer(checkpoint_path=model_checkpoint_path)
     
     # Create a VideoCapture object and read from input file
     # If the input is taken from the camera, pass 0 instead of the video file name.
-    video_filepath = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Road_Driving_Scenes_Normal.mp4'
+    video_filepath = args.video_filepath
     cap = cv2.VideoCapture(video_filepath)
 
     # Output filepath
-    output_filepath_obj = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Road_Driving_Scenes_Normal_Depth_v2' + '.avi'
+    output_filepath_obj = args.output_file + '.avi'
 
 
     writer_obj = cv2.VideoWriter(output_filepath_obj,
