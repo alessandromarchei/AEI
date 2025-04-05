@@ -49,7 +49,7 @@ def main():
     # Argument parser for data root path and save path
     parser = ArgumentParser()
     parser.add_argument("-n", "--name", dest="network_name", help="specify the name of the network which will be benchmarked")
-    parser.add_argument("-p", "--precision", dest="precision",  const="fp32", help="specify the name of the network which will be benchmarked")
+    parser.add_argument("-p", "--precision", dest="precision",  default="fp32", help="set the precision of the network as fp32 or fp16")
     args = parser.parse_args()
 
     model_name = args.network_name
