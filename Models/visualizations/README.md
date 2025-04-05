@@ -8,7 +8,11 @@ Read an image using OpenCV, run the network and visualize the output and display
 
 ### Example usage
 ```bash
-  python3 image_visualization.py -p /path/to/model/weights.pth -i /path/to/image.jpg
+  python3 Scene3D/image_visualization.py -p /path/to/model/weights.pth -i /path/to/image.jpg
+```
+
+```bash
+  python3 SceneSeg/image_visualization.py -p /path/to/model/weights.pth -i /path/to/image.jpg
 ```
 ### Parameters:
 
@@ -21,7 +25,11 @@ Read a video file using OpenCV, run the network and visualize the output and sav
 
 ### Example usage
 ```bash
-  python3 video_visualization.py -p /path/to/model/weights.pth -i /path/to/raw_video.mp4 -o /path/to/saved_video.mp4 -v
+  python3 Scene3D/video_visualization.py -p /path/to/model/weights.pth -i /path/to/raw_video.mp4 -o /path/to/saved_video.mp4 -v
+```
+
+```bash
+  python3 SceneSeg/video_visualization.py -p /path/to/model/weights.pth -i /path/to/image.jpg
 ```
 ### Parameters:
 
