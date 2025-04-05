@@ -40,9 +40,6 @@ def main():
     if (cap.isOpened()== False): 
         print("Error opening video stream or file")
 
-    # Visualize flag
-    vis = True
-
     # Transparency factor
     alpha = 0.97
  
@@ -69,7 +66,7 @@ def main():
             image_vis_obj = cv2.addWeighted(vis_obj, alpha, frame, 1 - alpha, 0)
             
 
-            if(vis):
+            if(args.vis):
                 cv2.imshow('Depth', image_vis_obj)
                 cv2.waitKey(10)
 
