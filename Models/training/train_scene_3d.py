@@ -4,6 +4,7 @@
 import torch
 import random
 import pathlib
+from argparse import ArgumentParser
 import sys
 sys.path.append('..')
 from data_utils.load_data_scene_3d import LoadDataScene3D
@@ -11,17 +12,31 @@ from training.scene_3d_trainer import Scene3DTrainer
 
 def main():
 
+    parser = ArgumentParser()
+    parser.add_argument("-s", "--model_save_root_path", dest="model_save_root_path", help="root path where pytorch checkpoint file should be saved")
+    parser.add_argument("-m", "--pretrained_checkpoint_path", dest="pretrained_checkpoint_path", help="path to SceneSeg weights file for pre-trained backbone")
+    parser.add_argument("-c", "--checkpoint_path", dest="checkpoint_path", help="path to Scene3D weights file for training from saved checkpoint")
+    parser.add_argument("-r", "--root", dest="root", help="root path to folder where data training data is stored")
+    parser.add_argument("-t", "--test_images_save_root_path", dest="test_images_save_root_path", help="root path where test images are stored")
+    parser.add_argument('-l', "--load_from_save", action='store_true', help="flag for whether model is being loaded from a Scene3D checkpoint file")
+    args = parser.parse_args()
+
     # Root path
-    root = '/mnt/media/Scene3D/'
+    root = args.root
 
     # Model save path
-    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Scene3D/24_03_2025/model/'
+    model_save_root_path = args.model_save_root_path
 
     # Test images path
-    test_images_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/Scene3D/test/'
+    test_images_save_root_path = args.test_images_save_root_path
     test_images_filepath = root + 'Test/'
     test_images = sorted([f for f in pathlib.Path(test_images_filepath).glob("*")])
     num_test_images = len(test_images)
+
+    # Load from checkpoint
+    load_from_checkpoint = False
+    if(args.load_from_save):
+        load_from_checkpoint = True
 
     # Data path
     diverse_labels_filepath = root + 'Diverse/relative-depth/'
@@ -41,12 +56,16 @@ def main():
     print(num_test_images, ': Total samples for visual testing')
 
     # Pre-trained model checkpoint path
-    root_path = \
-        '/home/zain/Autoware/Privately_Owned_Vehicles/Models/exports/SceneSeg/run_1_batch_decay_Oct18_02-46-35/'
-    pretrained_checkpoint_path = root_path + 'iter_140215_epoch_4_step_15999.pth'
+    pretrained_checkpoint_path = args.pretrained_checkpoint_path
+    checkpoint_path = args.checkpoint_path
 
     # Trainer Class
-    trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
+    trainer = 0
+    if(load_from_checkpoint == False):
+        trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
+    else:
+        trainer = Scene3DTrainer(checkpoint_path=checkpoint_path, is_pretrained=False)
+
     trainer.zero_grad()
     
     # Total training epochs and batch size
