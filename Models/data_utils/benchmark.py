@@ -29,10 +29,12 @@ def benchmark(model, input_data, dtype='fp32', nwarmup=50, nruns=1000):
 
     with torch.no_grad():
         for i in range(1, nruns+1):
+            
             start_time = time.time()
             output = model(input_data)
             torch.cuda.synchronize()
             end_time = time.time()
+            
             timings.append(end_time - start_time)
 
             if i%100==0:
