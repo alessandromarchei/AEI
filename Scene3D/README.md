@@ -10,12 +10,12 @@ Please click the video link to play - [***Video link***](https://drive.google.co
 Please see the [*Models*](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/Models) folder to access the pre-trained network weights for Scene3D as well as scripts for network training, inference and visualization of network predictions.
 
 ## Performance Results
-Scene3D was trained on a diverse dataset comprised of multiple open-source datasets, including Mapillary BDD100K, Mapillary Vistas, ROADWork, Comma10K, KITTI, DDAD, Driving Stereo, Indian Driving Dataset, Zenesact Open Dataset and the Mapillary Planet Scale Dataset. RGB images from these datasets were processed using DepthAnythingV2 VIT-Large model to create a ground truth relative depth map pseudo labels - resulting in 488,535 total samples, of which 24,426 samples were set aside for validation.
+Scene3D was trained on a diverse dataset comprised of multiple open-source datasets, including Mapillary BDD100K, Mapillary Vistas, ROADWork, Comma10K, KITTI, DDAD, Driving Stereo, Indian Driving Dataset, Zenesact Open Dataset and the Mapillary Planet Scale Dataset. RGB images from these datasets were processed using DepthAnythingV2 VIT-Large model to create ground truth relative depth map pseudo labels - resulting in 488,535 total samples, of which 24,426 samples were set aside for validation. In essence, we perform a model distillation from DepthAnythingV2 Large, which employs a computationally heavy transformer architecture originally trained on 62 Million images, to a lightweight, convolutional neural network architecture which is real-time capable on edge hardware.
 
-During training, Scene3D estimates a relative depth map which is compared with the ground truth pseudo labels from DepthAnything to calculate the network loss. We utilize 2 loss functions, a scale invariant loss and an edge loss:
+During training, Scene3D estimates a relative depth map which is compared with the ground truth pseudo labels from DepthAnything to calculate the network loss. We utilize 2 loss functions, a Scale Invariant Loss and an Edge Preservation Loss:
 
 ### Scale Invariant Loss
-Multiple scale and scale shift invariant losses were tried, however, we found that the best results were achieved by applying min-max scaling to the predicted and ground truth depth pseudo label and then calcuating a robust mean absolute error (ignoring the top 10% of erroneous pixels as they were likely caused by erros in the ground truth pseudo labels)
+Multiple scale and scale shift invariant losses were tried, however, we found that the best results were achieved by applying min-max scaling to the predicted and ground truth depth pseudo label and then calcuating a robust mean absolute error (ignoring the top 10% of erroneous pixels as they were likely caused by errors in the ground truth pseudo labels)
 
 ### Edge Preservation Loss
 In order to preserve sharp edges in the depth map, an edge preservation loss was applied which applies a 3x3 derivative kernel in x and y directions to calculate the edge gradients in the prediction and ground truth depth pseudo label and calculates the mean absolute error. To ensure smoothness and for regularization, this edge preservation loss was applied at multiple image scales (full-size, 1/2 , 1/4, 1/8). The final edge preservation loss was calculated as an average between the individual edge losses at multiple scales.
@@ -24,12 +24,15 @@ In order to preserve sharp edges in the depth map, an edge preservation loss was
 The total loss is set to a weighted sum of the Scale Invariant Loss and Edge Preservation Loss to ensure both losses are of similar magnitude during training.
 
 ### Training Details
-The network was trained in 2 stages, during the first stage the batch size was set to 24 and the learning rate was set to 1e-4. The best network from stage 1 (as measured on validation dataset results) was finetuned in stage 2 with a batch size of 3 and a learning rate of 1.25e-5
+The network was trained in 2 stages, during the first stage the batch size was set to 24 and the learning rate was set to 1e-4. The best network from stage 1 (as measured on validation dataset results) was finetuned in stage 2 with a batch size of 3 and a learning rate of 1.25e-5. Heavy data augmentations were used to increase the network's robustness to noise and improve generalization. Furthermore, a random horiztonal grid-flip augmentation was applied in which the image was split in half and the left and right halves of the image were swapped. This resulted in variations of depth distributions for the scene and prevented the network from over-fitting to a front facing camera perspective. During the second stage of training, augmentations were heavily pruned, and only a random horizontal flip augmentation was retained.
 
 ### Validation Set Performance - Loss
 | Total Loss | Scale Invariant Loss | Edge Preservation Loss |
 |------------|----------------------|------------------------|
 | **0.08408** | 0.07004 | 0.01404 | 
+
+### Further Observations
+Typically, DepthAnything V2 model predictions suffer from flickering artefacts when run sequentially on frame-by-frame video predictions. In order to mitigate this, the authors introduced a new version of the model which adds Temporal Attention. We find however, that altough Scene3D was trained using depth pseudo labels from DepthAnything V2 without Temporal Attention, flickering artefacs are no present in Scene3D predictions. This is likely due to the fact that Scene3D is able to learn more gernalizable features which are domain specific (on-road driving data) and capture more detailed context related to driving scenes.
 
 ### Inference Speed
 Inference speed tests were performed on a laptop equipped with an RTX3060 Mobile Gaming GPU, and an AMD Ryzen 7 5800H CPU. 
