@@ -1,18 +1,18 @@
 # Visualizations
-Contains various scripts to run inference using trained models and create visualizations, including single image visualzation, video visualization and if applicable, pointcloud visualization.
+Contains various scripts to run inference using trained models and create visualizations, including single image visualzation, video visualization and if applicable, pointcloud visualization
 
-# Examples - identical interface for SceneSeg and Scene3D
+# Examples
 
 ## image_visualization.py
 Read an image using OpenCV, run the network and visualize the output and display in an OpenCV window
 
 ### Example usage
 ```bash
-  python3 Scene3D/image_visualization.py -p /path/to/model/weights.pth -i /path/to/image.jpg
+  python3 Scene3D/image_visualization.py -p /path/to/Scene3D/weights.pth -i /path/to/image.jpg
 ```
 
 ```bash
-  python3 SceneSeg/image_visualization.py -p /path/to/model/weights.pth -i /path/to/image.jpg
+  python3 SceneSeg/image_visualization.py -p /path/to/SceneSeg/weights.pth -i /path/to/image.jpg
 ```
 ### Parameters:
 
@@ -25,11 +25,11 @@ Read a video file using OpenCV, run the network and visualize the output and sav
 
 ### Example usage
 ```bash
-  python3 Scene3D/video_visualization.py -p /path/to/model/weights.pth -i /path/to/raw_video.mp4 -o /path/to/saved_video.mp4 -v
+  python3 Scene3D/video_visualization.py -p /path/to/Scene3D/weights.pth -i /path/to/raw_video.mp4 -o /path/to/saved_video.mp4 -v
 ```
 
 ```bash
-  python3 SceneSeg/video_visualization.py -p /path/to/model/weights.pth -i /path/to/raw_video.mp4 -o /path/to/saved_video.mp4 -v
+  python3 SceneSeg/video_visualization.py -p /path/to/SceneSeg/weights.pth -i /path/to/raw_video.mp4 -o /path/to/saved_video.mp4 -v
 ```
 ### Parameters:
 
