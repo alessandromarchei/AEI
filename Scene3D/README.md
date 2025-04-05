@@ -7,7 +7,7 @@ Depth estimation is an essential technology for safe operation of self-driving c
 Please click the video link to play - [***Video link***](https://drive.google.com/file/d/19E57_ECVF3ImMGY8TNmg7dqixH1ej8MB/view?usp=drive_link)
 
 ## Demo, Training, Inference, Visualization
-Please see the [*Models*](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/Models) folder to access the pre-trained network weights for SceneSeg as well as scripts for network training, inference and visualization of network predictions.
+Please see the [*Models*](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/Models) folder to access the pre-trained network weights for Scene3D as well as scripts for network training, inference and visualization of network predictions.
 
 ## Performance Results
 Scene3D was trained on a diverse dataset comprised of multiple open-source datasets, including Mapillary BDD100K, Mapillary Vistas, ROADWork, Comma10K, KITTI, DDAD, Driving Stereo, Indian Driving Dataset, Zenesact Open Dataset and the Mapillary Planet Scale Dataset. RGB images from these datasets were processed using DepthAnythingV2 VIT-Large model to create a ground truth relative depth map pseudo labels - resulting in 488,535 total samples, of which 24,426 samples were set aside for validation.
@@ -35,7 +35,7 @@ The network was trained in 2 stages, during the first stage the batch size was s
 Inference speed tests were performed on a laptop equipped with an RTX3060 Mobile Gaming GPU, and an AMD Ryzen 7 5800H CPU. 
 
 #### FP32 Precision
-At FP32 precision, SceneSeg achieved 15.1 Frames Per Second inference speed
+At FP32 precision, Scene3D achieved 15.1 Frames Per Second inference speed
 
 #### FP16 Precision
-At FP16 precision, SceneSeg achieved 23.9 Frames Per Second inference speed
+At FP16 precision, Scene3D achieved 23.9 Frames Per Second inference speed
