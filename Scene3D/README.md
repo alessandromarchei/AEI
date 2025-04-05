@@ -33,7 +33,7 @@ The network was trained in 2 stages, during the first stage the batch size was s
 Inference speed tests were performed on a laptop equipped with an RTX3060 Mobile Gaming GPU, and an AMD Ryzen 7 5800H CPU. 
 
 #### FP32 Precision
-At FP32 precision, SceneSeg achieved 18.1 Frames Per Second inference speed
+At FP32 precision, SceneSeg achieved 15.1 Frames Per Second inference speed
 
 #### FP16 Precision
-At FP16 precision, SceneSeg achieved 26.7 Frames Per Second inference speed
+At FP16 precision, SceneSeg achieved 23.9 Frames Per Second inference speed
