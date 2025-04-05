@@ -9,6 +9,9 @@ Script to perform a sanity check on data for processing, ensuring that data is r
 ## load_data_scene_seg.py
 Helper class for the [SceneSeg Neural network](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/SceneSeg) to load multiple datasets, separate data into training and validation splits and extract a Region of Interest (ROI) from images
 
+## load_data_scene_3d.py
+Helper class for the [Scene3D Neural network](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/Scene3D) to load dataset and separate data into training and validation splits
+
 ## load_data_ego_path.py
 
 Helper class for the [EgoPath detection network](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/EgoPath) to load multiple datasets, separate data into training and validation splits, before feeding them into the network training.
@@ -41,4 +44,14 @@ Please note that in order for `LoadDataEgoPath` class to work properly, the labe
 ```
 
 ## benchmark.py
-Script to print model layers, number of parameters, and measure inference speed of model at either FP32 or FP16 precision
+Script to print model layers, number of parameters, and measure inference speed of model at either FP32 or FP16 precision.
+
+### Example usage
+```bash
+  python3 benchmark.py -n SceneSeg -p fp32
+```
+### Parameters:
+
+*-n , --name* : name of the network (SceneSeg, Scene3D)
+
+*-p , --precision* : precision of the network at which to perform benchmarking (fp32, fp16)
