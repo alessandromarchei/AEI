@@ -5,22 +5,22 @@
 
 # Folders
 
-### /data_utils
+### data_utils
 Helper classes and scripts related to checking data, benchmarking, and data loading
 
-### /exports
+### exports
 Code to create different export formats for models
 
-### /inference
+### inference
 Helper classes to run model inference
 
-### /model_components
+### model_components
 Classes defining layers and structure for individual blocks making up models, as well as overall classes for full models
 
-### /training
+### training
 Helper classes for training as well as main train scripts for models
 
-### /visualizations
+### visualizations
 Examples of running inference and creating visualization output for single image and video from model predictions
 
 
