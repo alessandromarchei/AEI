@@ -9,8 +9,7 @@ from pytorch_model_summary import summary
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
-from model_components.super_depth_network import SuperDepthNetwork
-
+from model_components.scene_3d_network import Scene3DNetwork
 
 def benchmark(model, input_data, dtype='fp32', nwarmup=50, nruns=1000):
 
@@ -60,9 +59,9 @@ def main():
     
     if(model_name == 'SceneSeg'):
         model = SceneSegNetwork()
-    elif (model_name == 'SuperDepth'):
+    elif (model_name == 'Scene3D'):
         sceneSegNetwork = SceneSegNetwork()
-        model = SuperDepthNetwork(sceneSegNetwork)
+        model = Scene3DNetwork(sceneSegNetwork)
     else:
         raise Exception("Model name not specified correctly, please check")
     
