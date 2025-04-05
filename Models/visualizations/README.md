@@ -29,7 +29,7 @@ Read a video file using OpenCV, run the network and visualize the output and sav
 ```
 
 ```bash
-  python3 SceneSeg/video_visualization.py -p /path/to/model/weights.pth -i /path/to/image.jpg
+  python3 SceneSeg/video_visualization.py -p /path/to/model/weights.pth -i /path/to/raw_video.mp4 -o /path/to/saved_video.mp4 -v
 ```
 ### Parameters:
 
