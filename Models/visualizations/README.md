@@ -25,11 +25,11 @@ Read a video file using OpenCV, run the network and visualize the output and sav
 
 ### Example usage
 ```bash
-  python3 Scene3D/video_visualization.py -p /path/to/Scene3D/weights.pth -i /path/to/raw_video.mp4 -o /path/to/saved_video.mp4 -v
+  python3 Scene3D/video_visualization.py -p /path/to/Scene3D/weights.pth -i /path/to/raw_video.mp4 -o /path/to/output/video_name -v
 ```
 
 ```bash
-  python3 SceneSeg/video_visualization.py -p /path/to/SceneSeg/weights.pth -i /path/to/raw_video.mp4 -o /path/to/saved_video.mp4 -v
+  python3 SceneSeg/video_visualization.py -p /path/to/SceneSeg/weights.pth -i /path/to/raw_video.mp4 -o /path/to/output/video_name -v
 ```
 ### Parameters:
 
