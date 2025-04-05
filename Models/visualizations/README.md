@@ -17,7 +17,7 @@ Read an image using OpenCV, run the network and visualize the output and display
 *-i , --input_image_filepath* : path input image to be processed and visualized (.jpg and .png formats supported)
 
 ## video_visualization.py
-Read a video file using OpenCV, run the network and visualize the output and save the visualization frames as a video, optionally display in-progress frames in an OpenCV window
+Read a video file using OpenCV, run the network and visualize the output and save the visualization frames as a video in *.avi* format, optionally display in-progress frames in an OpenCV window
 
 ### Example usage
 ```bash
