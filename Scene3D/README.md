@@ -32,7 +32,7 @@ The network was trained in 2 stages, during the first stage the batch size was s
 | **0.08408** | 0.07004 | 0.01404 | 
 
 ### Further Observations
-Typically, DepthAnything V2 model predictions suffer from flickering artefacts when run sequentially on frame-by-frame video predictions. In order to mitigate this, the authors introduced a new version of the model which adds Temporal Attention. We find however, that altough Scene3D was trained using depth pseudo labels from DepthAnything V2 without Temporal Attention, flickering artefacs are no present in Scene3D predictions. This is likely due to the fact that Scene3D is able to learn more gernalizable features which are domain specific (on-road driving data) and capture more detailed context related to driving scenes.
+Typically, DepthAnything V2 model predictions suffer from flickering artefacts when run sequentially on frame-by-frame video predictions. In order to mitigate this, the authors introduced a new version of the model which adds Temporal Attention. We find however, that altough Scene3D was trained using depth pseudo labels from DepthAnything V2 without Temporal Attention, flickering artefacs are not present in Scene3D predictions. This is likely due to the fact that Scene3D is able to learn more gernalizable features which are domain specific (on-road driving data only) and capture more detailed context related to driving scenes. Furthermore, we do not apply a shift invariant loss, so it is also likely that Scene3D has learned starting road depth visible in the bottom of the image as an anchor for the depth of the scene.
 
 ### Inference Speed
 Inference speed tests were performed on a laptop equipped with an RTX3060 Mobile Gaming GPU, and an AMD Ryzen 7 5800H CPU. 
