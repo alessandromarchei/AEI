@@ -148,6 +148,10 @@ def classify_lanes(data, gt_images_path, output_dir):
 
         # Collect valid lanes and their anchor points
         valid_lanes = []
+
+        if image_id == "000010":
+            print("Found Image")
+
         for lane in entry["labels"]:
             if "poly2d" not in lane:
                 KeyError(f"poly2d not present for Image {image_id}")
@@ -195,7 +199,7 @@ def classify_lanes(data, gt_images_path, output_dir):
 
         left_idx, right_idx = ego_indexes
 
-        if image_id == "000153":
+        if image_id == "000149":
             print("Found Image")
 
         # Create a list to track which lanes have been merged
@@ -211,7 +215,7 @@ def classify_lanes(data, gt_images_path, output_dir):
             current_slope = anchor_points[i][2]
             next_slope = anchor_points[i + 1][2]
 
-            if image_id == "000153" and (i == left_idx or i == left_idx - 1):
+            if image_id == "000006":
                 print("Image found")
 
             # Check if both slopes are valid (not None) and not perpendicular
@@ -428,9 +432,9 @@ def getEgoIndexes(anchors):
            - If no lanes are past center, use the last two lanes
            - If there's only one lane, return an error message
     """
-    tolerance = 0.05  # 5% tolerance
+    tolerance = 0.03  # 3% tolerance
     for i in range(len(anchors)):
-        if anchors[i][0] >= (ORIGINAL_IMG_WIDTH - (tolerance * ORIGINAL_IMG_WIDTH)) / 2:
+        if anchors[i][0] >= (IMG_WIDTH - (tolerance * IMG_WIDTH)) / 2:
             if i == 0:
                 # First lane is already past the center
                 if len(anchors) >= 2:
@@ -442,8 +446,7 @@ def getEgoIndexes(anchors):
 
     # If we get here, no lanes are past the center
     if len(anchors) >= 2:
-        # Use the last two lanes as ego lanes
-        return (len(anchors) - 2, len(anchors) - 1)
+        return (len(anchors) - 1, None)
     elif len(anchors) == 1:
         return (0, None)
     return "Unhandled Edge Case"
@@ -549,8 +552,8 @@ def saveGT(json_data_path, gt_images_path, args):
             skipped_img_counter += 1
             continue
 
-        # if image_id == "000022":
-        #    print("Found Image")
+        if image_id == "000010":
+           print("Found Image")
 
         input_path = os.path.join(gt_images_path, entry["name"])  # Original image path
         entry["name"] = image_id
