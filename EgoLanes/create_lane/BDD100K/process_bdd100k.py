@@ -14,9 +14,7 @@ from utils import *
 def custom_warning_format(message, category, filename, lineno, line=None):
     return f"WARNING : {message}\n"
 
-
 warnings.formatwarning = custom_warning_format
-
 
 def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", crop=None):
     """
@@ -125,7 +123,7 @@ def classify_lanes(data, gt_images_path, output_dir):
     # Define threshold for slope comparison
     SLOPE_THRESHOLD = 0.6
     DISTANCE_THRESHOLD = (
-        0.15 * ORIGINAL_IMG_WIDTH
+        0.22 * IMG_WIDTH
     )  # For parallel lanes that shouldn't be merged
 
     for entry in data:
@@ -161,8 +159,7 @@ def classify_lanes(data, gt_images_path, output_dir):
                 continue
 
             vertices = lane["poly2d"][0]["vertices"]
-            vertices_copy = vertices.copy()
-            anchor = getLaneAnchor(vertices_copy)
+            anchor = getLaneAnchor(vertices)
 
             if anchor[0] is not None and anchor[1] is not None:
                 valid_lanes.append(
@@ -243,8 +240,7 @@ def classify_lanes(data, gt_images_path, output_dir):
                     )
                 if len(merged_vertices) > 1:
                     # Recalculate anchor for the merged lane
-                    merged_vertices_copy = merged_vertices.copy()
-                    merged_anchor = getLaneAnchor(merged_vertices_copy)
+                    merged_anchor = getLaneAnchor(merged_vertices)
 
                     merged_lanes.append(
                         {"vertices": merged_vertices, "anchor_x": merged_anchor[0]}
@@ -276,7 +272,7 @@ def classify_lanes(data, gt_images_path, output_dir):
             # Get left and right ego lanes using getEgoIndexes
             ego_indexes = getEgoIndexes(anchor_points)
 
-            if image_id == "000002":
+            if image_id == "000218":
                 print("Image found")
 
             # Skip if ego_indexes indicates an error
@@ -375,17 +371,19 @@ def getLaneAnchor(lane):
 
     """
     # Sort lane keypoints in decreasing order of y coordinates.
-    lane.sort(key=lambda point: point[1], reverse=True)
 
-    (x2, y2) = lane[0]
-    (x1, y1) = lane[1]
+    lane_copy = lane.copy()
+    lane_copy.sort(key=lambda point: point[1], reverse=True)
+
+    (x2, y2) = lane_copy[0]
+    (x1, y1) = lane_copy[1]
 
     num_vertical = 0
     num_horizontal = 0
 
-    for i in range(1, len(lane) - 1, 1):
-        if lane[i][0] != x2:
-            (x1, y1) = lane[i]
+    for i in range(1, len(lane_copy) - 1, 1):
+        if lane_copy[i][0] != x2:
+            (x1, y1) = lane_copy[i]
             break
     if x1 == x2:
         num_vertical += 1
@@ -551,7 +549,7 @@ def saveGT(json_data_path, gt_images_path, args):
             skipped_img_counter += 1
             continue
 
-        if image_id == "000010":
+        if image_id == "000200":
             print("Found Image")
 
         input_path = os.path.join(gt_images_path, entry["name"])  # Original image path
