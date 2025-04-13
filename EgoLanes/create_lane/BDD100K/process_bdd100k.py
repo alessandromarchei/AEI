@@ -38,13 +38,14 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
     }
     lane_width = 5
 
+    # To stop loop with required images.
     img_id_counter = 0
 
     for image_id, lanes in classified_lanes.items():
         image_path = os.path.join(gt_images_path, image_id + ".png")
         img_id_counter += 1
 
-        if img_id_counter == 500:
+        if img_id_counter == 1000:
             break
 
         if not os.path.exists(image_path):
@@ -123,7 +124,7 @@ def classify_lanes(data, gt_images_path, output_dir):
     # Define threshold for slope comparison
     SLOPE_THRESHOLD = 0.6
     DISTANCE_THRESHOLD = (
-        0.22 * IMG_WIDTH
+        0.25 * IMG_WIDTH
     )  # For parallel lanes that shouldn't be merged
 
     for entry in data:
@@ -142,7 +143,7 @@ def classify_lanes(data, gt_images_path, output_dir):
             KeyError(f"labels not present for Image {image_id}")
             continue
 
-        # First collect all valid lanes
+        # First collect all valid lanes(lanes with parallel lane direction)
         valid_lanes = []
         for lane in entry["labels"]:
             if "poly2d" not in lane:
@@ -174,21 +175,27 @@ def classify_lanes(data, gt_images_path, output_dir):
 
         # First merge similar lanes
         merged_lanes = []
+
+        # Keep an array to track which lanes have been merged with current lane.
         processed = [False] * len(valid_lanes)
 
         # Sort lanes by anchor x position
         valid_lanes.sort(key=lambda lane: lane["anchor_x"])
 
-        # if image_id == "000010" or image_id == "000006":
-        #     print(f"Processing image {image_id}, found {len(valid_lanes)} valid lanes")
+        # For debugging.
+        if image_id == "000493":
+            print(f"Processing image {image_id}, found {len(valid_lanes)} valid lanes")
 
         i = 0
+        # Check if current lane i can be merged with any of the next lanes in valid_lanes list.
         while i < len(valid_lanes):
             if processed[i]:
                 i += 1
                 continue
 
             current_lane = valid_lanes[i]
+
+            # This group contains all the lanes that could be merged.
             merged_group = [current_lane]
             processed[i] = True
 
@@ -212,7 +219,6 @@ def classify_lanes(data, gt_images_path, output_dir):
                     )
 
                     # Check if slopes are similar
-                    slopes_similar = False
                     if slopes_valid:
                         angle_radians = math.atan(
                             abs(
@@ -228,7 +234,8 @@ def classify_lanes(data, gt_images_path, output_dir):
 
                 j += 1
 
-            if image_id == "000145":
+            # For debugging purposes.
+            if image_id == "000493":
                 print("Image found")
 
             # Merge all lanes in the group
@@ -259,7 +266,9 @@ def classify_lanes(data, gt_images_path, output_dir):
         # Sort merged lanes by anchor x position
         merged_lanes.sort(key=lambda lane: lane["anchor_x"])
 
-        # Now classify the merged lanes using getEgoIndexes logic
+
+
+        # Now classify the merged lanes using anchor points logic
         if len(merged_lanes) > 0:
             # Prepare anchor points in the format expected by getEgoIndexes
             # getEgoIndexes expects a list of tuples (x_position, lane_id, slope)
@@ -272,6 +281,7 @@ def classify_lanes(data, gt_images_path, output_dir):
             # Get left and right ego lanes using getEgoIndexes
             ego_indexes = getEgoIndexes(anchor_points)
 
+            # For debugging purposes.
             if image_id == "000218":
                 print("Image found")
 
@@ -289,11 +299,6 @@ def classify_lanes(data, gt_images_path, output_dir):
                     result[image_id]["egoright_lane"].append(lane["vertices"])
                 else:
                     result[image_id]["other_lanes"].append(lane["vertices"])
-
-        # if image_id == "000149":
-        #     print(
-        #         f"Processed image {image_id}, classified {len(merged_lanes)} merged lanes"
-        #     )
 
     return result
 
@@ -330,6 +335,7 @@ def format_data(data, crop):
                 for lane in image_data[lane_type]:
                     formatted_lane = []
 
+                    # For debugging purposes.
                     if image_key == "000022":
                         print(f"Image is {image_key}")
                     # Interpolate for very few points.
@@ -360,8 +366,6 @@ def format_data(data, crop):
                 # Update the list in place
                 formatted_image[lane_type] = formatted_lanes
         formatted_data[image_key] = formatted_image
-        if image_key == "000022":
-            print(f"Image is {image_key}")
     return formatted_data
 
 
@@ -377,6 +381,7 @@ def getLaneAnchor(lane):
 
     (x2, y2) = lane_copy[0]
     (x1, y1) = lane_copy[1]
+
 
     num_vertical = 0
     num_horizontal = 0
@@ -431,7 +436,7 @@ def getEgoIndexes(anchors):
     """
     tolerance = 0.03  # 3% tolerance
     for i in range(len(anchors)):
-        if anchors[i][0] >= (IMG_WIDTH - (tolerance * IMG_WIDTH)) / 2:
+        if anchors[i][0] >= (ORIGINAL_IMG_WIDTH - (tolerance * ORIGINAL_IMG_WIDTH)) / 2:
             if i == 0:
                 # First lane is already past the center
                 if len(anchors) >= 2:
@@ -495,7 +500,7 @@ def process_binary_mask(args):
         )  # Original image path
         image_id = str(str(img_id_counter).zfill(6))
         img_id_counter += 1
-        if img_id_counter == 500:
+        if img_id_counter == 1000:
             break
         output_path = os.path.join(args.output_dir, "segmentation", f"{image_id}.png")
 
@@ -549,7 +554,7 @@ def saveGT(json_data_path, gt_images_path, args):
             skipped_img_counter += 1
             continue
 
-        if image_id == "000200":
+        if image_id == "000031":
             print("Found Image")
 
         input_path = os.path.join(gt_images_path, entry["name"])  # Original image path
@@ -573,7 +578,7 @@ def saveGT(json_data_path, gt_images_path, args):
         else:
             skipped_img_counter += 1
             continue
-        if img_id_counter == 500:
+        if img_id_counter == 1000:
             break
 
     print(
@@ -779,7 +784,7 @@ if __name__ == "__main__":
     }
 
     # ============================== Save binary mask ============================== #
-    # process_binary_mask(args)
+    process_binary_mask(args)
 
     # ============================== Identify EgoLanes ============================== #
     gt_images_path = os.path.join(args.output_dir, "images")
@@ -795,7 +800,7 @@ if __name__ == "__main__":
     # # # ============================== Save result JSON ============================== #
 
     # Save classified lanes as new JSON file
-    # output_file = os.path.join(args.output_dir, "bdd100k_egolanes_train.json")
+    output_file = os.path.join(args.output_dir, "bdd100k_egolanes_train.json")
 
-    # with open(output_file, "w") as f:
-    #     json.dump(formatted_data, f, indent=4)
+    with open(output_file, "w") as f:
+        json.dump(formatted_data, f, indent=4)
