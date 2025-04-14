@@ -3,3 +3,4 @@ Self-driving cars most often rely on lane detection to detect the driving path, 
 
 EgoPath is a neural network which processes raw camera image frames and directly predicts the driving path in an end-to-end manner, allowing for safe autonomous driving in challenging road conditions where lane detection alone is insufficient.
 
+The EgoPath network comprises a total of 3.17 Billion Floating Point Operations.

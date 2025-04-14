@@ -41,7 +41,7 @@ Mean Intersection Over Union (mIoU) scores are provided for both validation and 
 | Class Average | **78.5** |
 
 ### Inference Speed
-Inference speed tests were performed on a laptop equipped with an RTX3060 Mobile Gaming GPU, and an AMD Ryzen 7 5800H CPU. 
+Inference speed tests were performed on a laptop equipped with an RTX3060 Mobile Gaming GPU, and an AMD Ryzen 7 5800H CPU. The SceneSeg network comprises a total of 223.43 Billion Floating Point Operations.
 
 #### FP32 Precision
 At FP32 precision, SceneSeg achieved 18.1 Frames Per Second inference speed
