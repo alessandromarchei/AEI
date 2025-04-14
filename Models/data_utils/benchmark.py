@@ -5,6 +5,7 @@ import torch
 import time
 import numpy as np
 from argparse import ArgumentParser
+from thop import profile
 from pytorch_model_summary import summary
 import sys
 sys.path.append('..')
@@ -81,6 +82,9 @@ def main():
     input_shape=(1, 3, 320, 640)
     input_data = torch.randn(input_shape)
     input_data = input_data.to(device)
+
+    total_ops, _ = profile(model, (input_data,), verbose=False)
+    print( model_name, "FLOPs(G): ", "%.2f" % (total_ops / (1000 ** 3)))
 
     # Run speed benchmark
     benchmark(model, input_data, precision, 50, 1000)
