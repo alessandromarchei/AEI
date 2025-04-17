@@ -1,8 +1,11 @@
-# SceneSeg Trace and Save
-A script to load the SceneSeg network checkpoint file, trace and then export as a *.pt file , and an *.onnx file.
+# Exports
+This folder contains scripts and code examples which demonstrate how to convert, export and run the AutoSeg Vision Foundation model networks in various formats
 
-## Instructions
-The script can be run with the following command line arguments:
-```
-python3 traced_script_module_save.py -p <_network_checkpoint_file_name.pth_> -i <_test_image_file_name.png_> -o1 <_pt_output_trace_file_name.pt_> -o2 <_onnx_output_trace_file_name.onnx_>
-```
+## export_utils
+Helpful scripts related to format conversion and exporting of Pytorch models
+
+## libtorch
+Code for using libTorch C++ to load model and inference
+
+## onnx_rt
+Code for using ONNX Runtime to load model and inference on the following ONNX Runtime Execution Providers
