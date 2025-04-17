@@ -60,29 +60,14 @@ def main():
     model = model.to(device)
     model = model.eval()
 
-    # Image loader Helper
-    image_loader = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ]
-    )
-
-    # Reading input image
-    input_image_filepath = args.input_image_filepath
-    frame = cv2.imread(input_image_filepath, cv2.IMREAD_COLOR)
-    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image_pil = Image.fromarray(image)
-    image_pil = image_pil.resize((640, 320))
-
-    # Prepare input image
-    image_tensor = image_loader(image_pil)
-    image_tensor = image_tensor.unsqueeze(0)
-    image_tensor = image_tensor.to(device)
+    # Fake input data
+    input_shape=(1, 3, 320, 640)
+    input_data = torch.randn(input_shape)
+    input_data = input_data.to(device)
 
     # Torch Export
     # Run and Trace the model with input image
-    traced_script_module = torch.jit.trace(model, image_tensor)
+    traced_script_module = torch.jit.trace(model, input_data)
     traced_script_module.save(traced_model_save_path) 
     print("INFO: Torch Trace Export file generated successfully.")
 
