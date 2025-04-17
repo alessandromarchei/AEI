@@ -9,7 +9,7 @@ from model_components.ego_path_network import EgoPathNetwork
 
 
 ##
-## Example Usage: "python3 traced_script_module_save.py -p _checkpoint_file_.pth  -o _output_trace_file.pt"
+## Example Usage: "python3 traced_script_module_save.py -n SceneSeg -p _checkpoint_file_.pth  -o _output_trace_file.pt"
 ##
 
 def main(): 
