@@ -7,7 +7,7 @@ A script to load a pytorch model from among the AutoSeg Vision Foundation Model 
 ```
 
 ### convert_pytorch_to_onnx.py
-A script to load a pytorch model from among the AutoSeg Vision Foundation Model networks and convert and export that model to ONNX format at FP32 precision
+A script to load a pytorch model from among the AutoSeg Vision Foundation Model networks and convert and export that model to ONNX format at FP32 precision as a *.onnx file.
 
 ### Example Usage
 ```bash
