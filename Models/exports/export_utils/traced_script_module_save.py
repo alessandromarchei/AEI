@@ -70,9 +70,10 @@ def main():
 
     # Torch Export
     # Run and Trace the model with input image
+    print('Tracing model')
     traced_script_module = torch.jit.trace(model, input_data)
     traced_script_module.save(traced_model_save_path) 
-    print("INFO: Torch Trace Export file generated successfully.")
+    print("Torch Trace Export file generated successfully.")
 
 
 if __name__ == '__main__':
