@@ -16,12 +16,12 @@ def main():
 
     # Command line arguments
     parser = ArgumentParser()
+        
+    parser.add_argument("-n", "--name", dest="network_name", required=True, \
+                        help="specify the name of the network which will be benchmarked")
 
     parser.add_argument("-p", "--model_checkpoint_path", dest="model_checkpoint_path", required=True, \
                         help="path to pytorch checkpoint file to load model dict")
-    
-    parser.add_argument("-n", "--name", dest="network_name", required=True, \
-                        help="specify the name of the network which will be benchmarked")
     
     parser.add_argument("-o", "--output_pt_trace_filepath", dest="output_pt_trace_filepath", required=True, \
                         help="path to *.pt output trace file generated")
