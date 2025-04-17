@@ -5,7 +5,7 @@ import torch
 import onnx
 from argparse import ArgumentParser
 import sys
-sys.path.append('..')
+sys.path.append('../..')
 from model_components.scene_seg_network import SceneSegNetwork
 from model_components.scene_3d_network import Scene3DNetwork
 from model_components.ego_path_network import EgoPathNetwork
