@@ -117,41 +117,167 @@ python process_bdd100k.py --image_dir /path/to/bdd100k/images/100k/ \
 ## Core functions
 
 ### `classify_lanes()`
-The heart of the script, this function analyzes lane markings to determine which ones represent the ego-vehicle's lane boundaries. It:
-- Calculates anchor points for each lane by projecting them to the bottom of the image
-- Identifies lanes closest to the image center as ego-vehicle lanes
-- Merges adjacent lanes with similar slopes using angle-based comparison
-- Handles special cases like when lanes extend beyond image boundaries
-- Organizes lanes into structured categories for downstream processing
+Classify lanes from BDD100K dataset, filtering out vertical lanes and processing
+the remaining lanes to identify their positions relative to the ego vehicle.
+First merges similar lanes, then classifies them as ego left, ego right, or other.
+
+- Args:
+    data: List of dictionaries containing lane annotations from BDD100K
+    gt_images_path: Path to the ground truth images
+    output_dir: Directory to save the processed results
+
+- Returns:
+    Dictionary mapping image IDs to classified lane data
 
 ### `getLaneAnchor()`
-Determines the "anchor point" of each lane by:
-- Sorting lane points by y-coordinate (from bottom to top of image)
-- Calculating the slope and y-intercept from the lowest two points
-- Extrapolating to find where the lane would intersect the bottom of the image
-- Handling special cases for vertical and horizontal lanes
-- Returning the x-coordinate of this intersection as the lane's anchor point
-This anchor is crucial for determining lane positions relative to the vehicle and establishing lane order from left to right.
+Determine the anchor point of a lane by finding where it intersects with the bottom of the image.
+
+This function calculates where a lane would intersect with the bottom of the image by:
+1. Sorting lane points by y-coordinate (from bottom to top)
+2. Finding the slope and y-intercept using the lowest two valid points
+3. Extrapolating to find the x-coordinate where y = image height
+
+- Args:
+    lane (list): List of [x, y] coordinate pairs representing the lane points
+
+- Returns:
+    tuple: (x0, a, b) where:
+        - x0: x-coordinate where lane intersects bottom of image
+        - a: slope of the lane
+        - b: y-intercept of the lane
+    OR (x1, None, None) if the lane is vertical or horizontal
+
+- Note:
+    - For vertical lanes (x1 = x2), returns (x1, None, None)
+    - For horizontal lanes (a = 0), returns (x1, None, None)
 
 ### `getEgoIndexes()`
-Identifies which lanes represent the ego-vehicle's lane boundaries by:
-- Examining the sorted list of lane anchors (from left to right)
-- Finding the first lane with an anchor position right of image center
-- Taking this lane and the one before it as the ego-right and ego-left lanes
-- Handling edge cases (e.g., all lanes on one side of the image, single lane)
-- Returning indices of the two lanes that bound the ego-vehicle's path
-This function effectively determines which lanes are most relevant for the vehicle's immediate trajectory.
+Identifies the two ego lanes (left and right) from sorted anchor points.
+
+  This function determines which lanes are the ego-vehicle lanes by finding
+  the lanes closest to the center of the image (ORIGINAL_IMG_WIDTH/2).
+
+  - Args:
+      anchors: List of tuples (x_position, lane_id, slope), sorted by x_position.
+              Each tuple represents a lane with its anchor point x-coordinate,
+              unique ID, and slope.
+
+  - Returns:
+      tuple: (left_idx, right_idx) - Indices of the left and right ego lanes
+              in the anchors list.
+      str: Error message if proper ego lanes cannot be determined.
+
+  - Logic:
+      1. Iterate through sorted anchors to find the first lane with x-position
+          greater than or equal to the image center.
+      2. This lane and the one before it are considered the ego lanes.
+      3. Special cases:
+          - If the first lane is already past center (i=0), use it and the next lane
+            if available, otherwise return (None, 0)
+          - If no lanes are past center, use the last lane as the left ego lane
+            and return right as None
+          - If there's only one lane, it's considered the left ego lane
+          - If no lanes are available, return "Unhandled Edge Case"
 
 ### `interpolated_list()`
-Ensures lane continuity by creating evenly-spaced points along sparse lane markings. It:
-- Takes minimal points and generates a specified number of interpolated points
-- Sorts points by y-coordinate to handle both straight and curved lanes
-- Uses linear interpolation between adjacent points to create smooth transitions
-- Critical for maintaining lane integrity after cropping operations
+Takes original point list and inserts 3 interpolated points between
+  each consecutive pair of points in the original list.
+  Uses the linear equation between each specific pair of points.
+  - Args:
+      point_list: List of [x, y] coordinates
+      req_points: Number of interpolated points to insert between each pair of points
+  - Returns:
+      List of original points with interpolated points inserted
 
 ### `format_data()`
-Prepares the final output by normalizing and formatting lane data. It:
-- Applies cropping parameters to focus on relevant image regions
-- Normalizes coordinates to 0-1 range for consistent model training
-- Automatically interpolates lanes with too few points
-- Creates the standardized data structure used in the output JSON file
+Normalize all keypoints in the data by dividing x-coordinates by img_width
+and y-coordinates by img_height to scale them between 0 and 1.
+
+- Args:
+    data (dict): Dictionary containing image data with keypoints and dimensions
+    crop (dict): Dictionary specifying cropping boundaries (TOP, RIGHT, BOTTOM, LEFT)
+
+- Returns:
+    dict: Dictionary with the same structure but normalized keypoints and sequential image keys
+
+### `merge_lane_lines()`
+Merge two lane lines into a single lane by interpolating and averaging points.
+- Args:
+    vertices1: List of [x, y] coordinates for first lane
+    vertices2: List of [x, y] coordinates for second lane
+- Returns:
+    List of merged [x, y] coordinates
+
+
+### `interpolate_x()`
+Interpolate x-coordinate for a given y-coordinate using linear interpolation between vertices.
+
+This function takes a y-coordinate and a list of vertices, and returns the corresponding
+x-coordinate by linearly interpolating between the two vertices that bound the given y-coordinate.
+If the y-coordinate is outside the range of vertices or if the vertices form a horizontal line,
+it returns None.
+
+- Args:
+    y (float): The y-coordinate for which to find the corresponding x-coordinate
+    vertices (list): List of [x, y] coordinate pairs representing the vertices of a line
+
+- Returns:
+    float or None: The interpolated x-coordinate if successful, None if interpolation is not possible
+
+### `saveGT()`
+Copies images from gt_images_path to the output directory with serialized filenames.
+Uses image names from lane_train.json instead of reading directory contents.
+
+- Args:
+    gt_images_path (str): Path to the directory containing ground truth images.
+    args: Command-line arguments containing output_dir and labels_dir.
+
+
+### `process_binary_mask()`
+Processes binary lane mask images from BDD100K dataset.
+
+This function reads binary lane mask images, inverts them (assuming lanes are black
+and background is white in the original), crops them according to specified dimensions,
+and saves them with serialized filenames in the output directory.
+
+Args:
+    args: Command-line arguments containing:
+        - labels_dir: Directory containing the BDD100K lane mask images
+        - output_dir: Directory where processed images will be saved
+        - crop: Tuple of (top, right, bottom, left) crop values in pixels
+
+Output:
+    Processed binary masks saved to {args.output_dir}/segmentation/ with
+    serialized filenames (000000.png, 000001.png, etc.)
+
+### `annotateGT()`
+
+Annotates ground truth images with lane lines and saves them to the specified output directory.
+
+This function takes classified lane data and creates visual annotations on the corresponding
+ground truth images. Each lane type (ego left, ego right, and other lanes) is drawn with
+a distinct color for easy visualization. The images can be optionally cropped before
+annotation.
+
+- Args:
+    classified_lanes (dict): Dictionary mapping image IDs to lane data, where each lane
+        is classified as 'egoleft_lane', 'egoright_lane', or 'other_lanes'
+    gt_images_path (str): Path to the directory containing the ground truth images
+    output_dir (str, optional): Directory to save annotated images. Defaults to "visualization"
+    crop (dict, optional): Dictionary specifying cropping boundaries with keys:
+        - TOP: Pixels to crop from top
+        - RIGHT: Pixels to crop from right
+        - BOTTOM: Pixels to crop from bottom
+        - LEFT: Pixels to crop from left
+
+- Returns:
+    None
+
+- Note:
+    - Ego left lanes are drawn in green
+    - Ego right lanes are drawn in blue
+    - Other lanes are drawn in yellow
+    - Each lane is drawn with a width of 5 pixels
+
+
+

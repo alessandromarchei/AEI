@@ -17,16 +17,6 @@ def custom_warning_format(message, category, filename, lineno, line=None):
 warnings.formatwarning = custom_warning_format
 
 def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", crop=None):
-    """
-    Annotates ground truth images with lane lines and saves them to the specified output directory.
-
-    :param classified_lanes: Dictionary containing lane keypoints classified by lane type.
-    :param gt_images_path: Path to the directory containing ground truth images.
-    :param output_dir: Directory to save annotated images, defaults to "visualization".
-    :param crop: Optional dictionary with TOP, RIGHT, BOTTOM, LEFT values for image cropping.
-    :return: None
-    """
-
     # Create output directory if it doesn't exist
     os.makedirs(os.path.join(output_dir, "visualization"), exist_ok=True)
 
@@ -107,19 +97,6 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
 
 
 def classify_lanes(data, gt_images_path, output_dir):
-    """
-    Classify lanes from BDD100K dataset, filtering out vertical lanes and processing
-    the remaining lanes to identify their positions relative to the ego vehicle.
-    First merges similar lanes, then classifies them as ego left, ego right, or other.
-
-    Args:
-        data: List of dictionaries containing lane annotations from BDD100K
-        gt_images_path: Path to the ground truth images
-        output_dir: Directory to save the processed results
-
-    Returns:
-        Dictionary mapping image IDs to classified lane data
-    """
     result = {}
     # Define threshold for slope comparison
     SLOPE_THRESHOLD = 0.6
@@ -304,17 +281,6 @@ def classify_lanes(data, gt_images_path, output_dir):
 
 
 def format_data(data, crop):
-    """
-    Normalize all keypoints in the data by dividing x-coordinates by img_width
-    and y-coordinates by img_height to scale them between 0 and 1.
-
-    Args:
-        data (dict): Dictionary containing image data with keypoints and dimensions
-        crop (dict): Dictionary specifying cropping boundaries (TOP, RIGHT, BOTTOM, LEFT)
-
-    Returns:
-        dict: Dictionary with the same structure but normalized keypoints and sequential image keys
-    """
     formatted_data = {}
 
     if crop:
@@ -370,10 +336,6 @@ def format_data(data, crop):
 
 
 def getLaneAnchor(lane):
-    """
-    Determine "anchor" point of a lane.
-
-    """
     # Sort lane keypoints in decreasing order of y coordinates.
 
     lane_copy = lane.copy()
@@ -406,34 +368,6 @@ def getLaneAnchor(lane):
 
 
 def getEgoIndexes(anchors):
-    """
-    Identifies the two ego lanes (left and right) from sorted anchor points.
-
-    This function determines which lanes are the ego-vehicle lanes by finding
-    the lanes closest to the center of the image (ORIGINAL_IMG_WIDTH/2).
-
-    Args:
-        anchors: List of tuples (x_position, lane_id, slope), sorted by x_position.
-                Each tuple represents a lane with its anchor point x-coordinate,
-                unique ID, and slope.
-
-    Returns:
-        tuple: (left_idx, right_idx) - Indices of the left and right ego lanes
-               in the anchors list.
-        str: Error message if proper ego lanes cannot be determined.
-
-    Logic:
-        1. Iterate through sorted anchors to find the first lane with x-position
-           greater than or equal to the image center.
-        2. This lane and the one before it are considered the ego lanes.
-        3. Special cases:
-           - If the first lane is already past center (i=0), use it and the next lane
-             if available, otherwise return (None, 0)
-           - If no lanes are past center, use the last lane as the left ego lane
-             and return right as None
-           - If there's only one lane, it's considered the left ego lane
-           - If no lanes are available, return "Unhandled Edge Case"
-    """
     tolerance = 0.03  # 3% tolerance
     for i in range(len(anchors)):
         if anchors[i][0] >= (ORIGINAL_IMG_WIDTH - (tolerance * ORIGINAL_IMG_WIDTH)) / 2:
@@ -455,27 +389,6 @@ def getEgoIndexes(anchors):
 
 
 def process_binary_mask(args):
-    """
-    Processes binary lane mask images from BDD100K dataset.
-
-    This function reads binary lane mask images, inverts them (assuming lanes are black
-    and background is white in the original), crops them according to specified dimensions,
-    and saves them with serialized filenames in the output directory.
-
-    Args:
-        args: Command-line arguments containing:
-            - labels_dir: Directory containing the BDD100K lane mask images
-            - output_dir: Directory where processed images will be saved
-            - crop: Tuple of (top, right, bottom, left) crop values in pixels
-
-    Output:
-        Processed binary masks saved to {args.output_dir}/segmentation/ with
-        serialized filenames (000000.png, 000001.png, etc.)
-
-    Note:
-        The function inverts the binary masks to make lanes white (255) and
-        background black (0) for consistency with the pipeline's requirements.
-    """
 
     CROP_TOP, CROP_RIGHT, CROP_BOTTOM, CROP_LEFT = args.crop
 
@@ -524,14 +437,6 @@ def process_binary_mask(args):
 
 
 def saveGT(json_data_path, gt_images_path, args):
-    """
-    Copies images from gt_images_path to the output directory with serialized filenames.
-    Uses image names from lane_train.json instead of reading directory contents.
-
-    Args:
-        gt_images_path (str): Path to the directory containing ground truth images.
-        args: Command-line arguments containing output_dir and labels_dir.
-    """
     # Create output directory if it doesn't exist
     os.makedirs(os.path.join(args.output_dir, "images"), exist_ok=True)
 
@@ -554,6 +459,7 @@ def saveGT(json_data_path, gt_images_path, args):
             skipped_img_counter += 1
             continue
 
+        # For debugging purposes.
         if image_id == "000031":
             print("Found Image")
 
@@ -567,6 +473,7 @@ def saveGT(json_data_path, gt_images_path, args):
             )
             continue
 
+        # Save gt images with serialized names
         output_path = os.path.join(args.output_dir, "images", f"{image_id}.png")
 
         # Read the image
@@ -578,6 +485,8 @@ def saveGT(json_data_path, gt_images_path, args):
         else:
             skipped_img_counter += 1
             continue
+
+        # Remove, Early stopping
         if img_id_counter == 1000:
             break
 
@@ -590,7 +499,6 @@ def saveGT(json_data_path, gt_images_path, args):
 
 # Create interpolation functions for x-coordinates
 def interpolate_x(y, vertices):
-    """Get x value at given y using linear interpolation"""
     for i in range(len(vertices) - 1):
         y1, y2 = vertices[i][1], vertices[i + 1][1]
         if y1 <= y <= y2:
@@ -604,17 +512,6 @@ def interpolate_x(y, vertices):
 
 
 def interpolated_list(point_list, req_points):
-    """
-    Takes original point list and inserts 3 interpolated points between
-    each consecutive pair of points in the original list.
-    Uses the linear equation between each specific pair of points.
-
-    Args:
-        point_list: List of [x, y] coordinates
-        req_points: Number of interpolated points to insert between each pair of points
-    Returns:
-        List of original points with interpolated points inserted
-    """
     if not point_list or len(point_list) < 2:
         return point_list.copy()
 
@@ -657,15 +554,6 @@ def interpolated_list(point_list, req_points):
 
 
 def merge_lane_lines(vertices1, vertices2):
-    """
-    Merge two lane lines into a single lane by interpolating and averaging points.
-
-    Args:
-        vertices1: List of [x, y] coordinates for first lane
-        vertices2: List of [x, y] coordinates for second lane
-    Returns:
-        List of merged [x, y] coordinates
-    """
     # Check for empty inputs
     if not vertices1 or not vertices2:
         return vertices1 if vertices1 else vertices2
@@ -764,6 +652,8 @@ if __name__ == "__main__":
         args.labels_dir, "lane", "polygons", "lane_train.json"
     )
 
+    # ============================== Save ground truth images ============================== #
+
     # Save ground truth images.
     gt_images_path = os.path.join(args.image_dir, "train")
     data = saveGT(
@@ -784,9 +674,9 @@ if __name__ == "__main__":
     }
 
     # ============================== Save binary mask ============================== #
-    process_binary_mask(args)
+    process_binary_mask(args) # Todo - source of images names should be lane_train.json and not images directory.
 
-    # ============================== Identify EgoLanes ============================== #
+    # ============================== Merge and classify lane lines ============================== #
     gt_images_path = os.path.join(args.output_dir, "images")
     classified_lanes = classify_lanes(data, gt_images_path, output_dir=args.output_dir)
 
@@ -800,7 +690,7 @@ if __name__ == "__main__":
     # # # ============================== Save result JSON ============================== #
 
     # Save classified lanes as new JSON file
-    output_file = os.path.join(args.output_dir, "bdd100k_egolanes_train.json")
+    output_file = os.path.join(args.output_dir, "drivable_path.json")
 
     with open(output_file, "w") as f:
         json.dump(formatted_data, f, indent=4)
