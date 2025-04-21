@@ -7,7 +7,6 @@ from PIL import Image, ImageDraw
 import copy
 import sys
 import math
-from utils import *
 
 
 # Custom warning format cuz the default one is wayyyyyy too verbose
@@ -37,7 +36,7 @@ def annotateGT(classified_lanes, gt_images_path, output_dir="visualization", cro
         image_path = os.path.join(gt_images_path, image_id + ".png")
         img_id_counter += 1
 
-        if img_id_counter == 100:
+        if img_id_counter == STOP_AT:
             break
 
         if not os.path.exists(image_path):
@@ -117,7 +116,7 @@ def classify_lanes(data, gt_images_path, output_dir):
     for entry in data:
         image_id = entry["name"]
         img_id_counter += 1
-        if img_id_counter == 100:
+        if img_id_counter == STOP_AT:
             break
 
         # Initialize result structure
@@ -171,10 +170,6 @@ def classify_lanes(data, gt_images_path, output_dir):
         # Sort lanes by anchor x position
         valid_lanes.sort(key=lambda lane: lane["anchor_x"])
 
-        # For debugging.
-        if image_id == "000493":
-            print(f"Processing image {image_id}, found {len(valid_lanes)} valid lanes")
-
         i = 0
         # Check if current lane i can be merged with any of the next lanes in valid_lanes list.
 
@@ -224,10 +219,6 @@ def classify_lanes(data, gt_images_path, output_dir):
 
                 j += 1
 
-            # For debugging purposes.
-            if image_id == "000493":
-                print("Image found")
-
             # Merge all lanes in the group
             if len(merged_group) > 1:
                 merged_vertices = merged_group[0]["vertices"]
@@ -269,10 +260,6 @@ def classify_lanes(data, gt_images_path, output_dir):
             # Get left and right ego lanes using getEgoIndexes
             ego_indexes = getEgoIndexes(anchor_points)
 
-            # For debugging purposes.
-            if image_id == "000218":
-                print("Image found")
-
             # Skip if ego_indexes indicates an error
             if isinstance(ego_indexes, str):
                 continue
@@ -295,6 +282,26 @@ def classify_lanes(data, gt_images_path, output_dir):
     return result
 
 
+def process_lane_keypoints(lane, CROP_LEFT, CROP_RIGHT, CROP_TOP, CROP_BOTTOM):
+    formatted_lane = []
+
+    # Interpolate for very few points
+    if len(lane) < 10:
+        lane = interpolated_list(lane, 5)  # 5 points between each pair of points
+
+    for point in lane:
+        # Normalize x by width and y by height
+        if (CROP_LEFT <= point[0] <= (ORIGINAL_IMG_WIDTH - CROP_RIGHT)) and (
+            CROP_TOP <= point[1] <= (ORIGINAL_IMG_HEIGHT - CROP_BOTTOM)
+        ):
+            new_x = point[0] - CROP_LEFT
+            new_y = point[1] - CROP_TOP
+            # Normalize and crop
+            formatted_lane.append([new_x / IMG_WIDTH, new_y / IMG_HEIGHT])
+
+    return formatted_lane
+
+
 def format_data(data, crop):
     formatted_data = {}
 
@@ -311,77 +318,22 @@ def format_data(data, crop):
         # Normalize lane keypoints
         for lane_type in ["egoleft_lane", "egoright_lane", "other_lanes"]:
             if lane_type in image_data:
-                formatted_lanes = []
-
                 if lane_type in ["egoleft_lane", "egoright_lane"]:
                     # Handle ego lanes which contain direct keypoints
                     lane = image_data[lane_type]
-                    formatted_lane = []
-
-                    # For debugging purposes.
-                    if image_key == "000022":
-                        print(f"Image is {image_key}")
-                    # Interpolate for very few points.
-                    if len(lane) < 10:
-                        lane = interpolated_list(
-                            lane, 5
-                        )  # 5 points between each pair of points.
-
-                    for point in lane:
-                        # Normalize x by width and y by height
-                        if (
-                            CROP_LEFT <= point[0] <= (ORIGINAL_IMG_WIDTH - CROP_RIGHT)
-                        ) and (
-                            CROP_TOP <= point[1] <= (ORIGINAL_IMG_HEIGHT - CROP_BOTTOM)
-                        ):
-                            new_x = point[0] - CROP_LEFT
-                            new_y = point[1] - CROP_TOP
-                            # Normalize and crop
-                            formatted_lane.append(
-                                [new_x / IMG_WIDTH, new_y / IMG_HEIGHT]
-                            )
-                        else:
-                            # write complex logic to find projected point on cropped image.
-                            pass  # Placeholder for the complex logic
-
-                    formatted_image[lane_type] = formatted_lane
+                    formatted_image[lane_type] = process_lane_keypoints(
+                        lane, CROP_LEFT, CROP_RIGHT, CROP_TOP, CROP_BOTTOM
+                    )
                 else:
                     # Handle other lanes which are in a list
+                    formatted_lanes = []
                     for lane in image_data[lane_type]:
-                        formatted_lane = []
-
-                        # For debugging purposes.
-                        if image_key == "000022":
-                            print(f"Image is {image_key}")
-                        # Interpolate for very few points.
-                        if len(lane) < 10:
-                            lane = interpolated_list(
-                                lane, 5
-                            )  # 5 points between each pair of points.
-
-                        for point in lane:
-                            # Normalize x by width and y by height
-                            if (
-                                CROP_LEFT
-                                <= point[0]
-                                <= (ORIGINAL_IMG_WIDTH - CROP_RIGHT)
-                            ) and (
-                                CROP_TOP
-                                <= point[1]
-                                <= (ORIGINAL_IMG_HEIGHT - CROP_BOTTOM)
-                            ):
-                                new_x = point[0] - CROP_LEFT
-                                new_y = point[1] - CROP_TOP
-                                # Normalize and crop
-                                formatted_lane.append(
-                                    [new_x / IMG_WIDTH, new_y / IMG_HEIGHT]
-                                )
-                            else:
-                                # write complex logic to find projected point on cropped image.
-                                pass  # Placeholder for the complex logic
-
+                        formatted_lane = process_lane_keypoints(
+                            lane, CROP_LEFT, CROP_RIGHT, CROP_TOP, CROP_BOTTOM
+                        )
                         formatted_lanes.append(formatted_lane)
                     formatted_image[lane_type] = formatted_lanes
+
         formatted_data[image_key] = formatted_image
     return formatted_data
 
@@ -408,10 +360,11 @@ def getLaneAnchor(lane):
     # Get slope and intercept
     a = (y2 - y1) / (x2 - x1)
     b = y1 - a * x1
-    # Get projected point on the image's bottom
+    # Handle horizontal lanes
     if a == 0:
         num_horizontal += 1
         return (x1, None, None)
+    # Get projected point on the image's bottom
     x0 = (ORIGINAL_IMG_HEIGHT - b) / a
 
     return (x0, a, b)
@@ -438,32 +391,31 @@ def getEgoIndexes(anchors):
     return "Unhandled Edge Case"
 
 
-def process_binary_mask(args):
+def process_binary_mask(args, json_data_path):
     CROP_TOP, CROP_RIGHT, CROP_BOTTOM, CROP_LEFT = args.crop
 
     # Check output directory exists or not
     os.makedirs(os.path.join(args.output_dir, "segmentation"), exist_ok=True)
 
-    # Get list of images from input directory
-    image_files = [
-        f
-        for f in os.listdir(os.path.join(args.labels_dir, "lane", "masks", "train"))
-        if f.lower().endswith((".png", ".jpg", ".jpeg"))
-    ]
+    # Read JSON data
+    with open(json_data_path, "r") as f:
+        data = json.load(f)
 
     binary_lane_mask_path = os.path.join(args.labels_dir, "lane", "masks", "train")
-    # print(binary_lane_mask_path)
 
     img_id_counter = 0
-    # Process each image
-    for image_name in image_files:
-        input_path = os.path.join(
-            binary_lane_mask_path, image_name
-        )  # Original image path
+    # Process each image entry from the JSON file
+    for entry in data:
         image_id = str(str(img_id_counter).zfill(6))
         img_id_counter += 1
-        if img_id_counter == 100:
+        if img_id_counter == STOP_AT:
             break
+
+        if "name" not in entry:
+            continue
+
+        # Construct input path using the image name from JSON
+        input_path = os.path.join(binary_lane_mask_path, entry["name"].replace(".jpg", ".png"))
         output_path = os.path.join(args.output_dir, "segmentation", f"{image_id}.png")
 
         # Read the binary mask image in grayscale mode
@@ -482,7 +434,11 @@ def process_binary_mask(args):
             # Save the processed image
             cv2.imwrite(output_path, cropped_img)
         else:
-            print(f"Skipped: {image_name} (Invalid image)")
+            pass
+
+    print(
+        f"Processed {img_id_counter} binary mask images to {os.path.join(args.output_dir, 'segmentation')}"
+    )
 
 
 def saveGT(json_data_path, gt_images_path, args):
@@ -491,9 +447,6 @@ def saveGT(json_data_path, gt_images_path, args):
 
     with open(json_data_path, "r") as f:
         data = json.load(f)
-
-    # Check first data.
-    print(json.dumps(data[:2], indent=4))
 
     print(f"Found {len(data)} entries in lane_train.json")
 
@@ -505,15 +458,11 @@ def saveGT(json_data_path, gt_images_path, args):
         image_id = str(str(img_id_counter).zfill(6))  # Format as 000000, 000001, etc.
         img_id_counter += 1
         # Remove, Early stopping
-        if img_id_counter == 100:
+        if img_id_counter == STOP_AT:
             break
         if "name" not in entry:
             skipped_img_counter += 1
             continue
-
-        # For debugging purposes.
-        if image_id == "000031":
-            print("Found Image")
 
         input_path = os.path.join(gt_images_path, entry["name"])  # Original image path
         entry["name"] = image_id
@@ -526,7 +475,7 @@ def saveGT(json_data_path, gt_images_path, args):
             continue
 
         # Save gt images with serialized names
-        output_path = os.path.join(args.output_dir, "images", f"{image_id}.png")
+        output_path = os.path.join(args.output_dir, "image", f"{image_id}.png")
 
         # Read the image
         img = cv2.imread(input_path, cv2.IMREAD_COLOR)  # OpenCV loads as BGR
@@ -626,7 +575,7 @@ def merge_lane_lines(vertices1, vertices2):
 
     # Generate merged points
     merged = []
-    num_points = 10  # Number of points in merged lane
+    num_points = 50  # Number of points in merged lane
 
     for i in range(num_points):
         y = y_min + (y_max - y_min) * i / (num_points - 1)
@@ -698,6 +647,14 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--num_images",
+        type=int,
+        help="Number of images to process",
+        default=sys.maxsize,
+        required=False,
+    )
+
+    parser.add_argument(
         "--crop",
         type=int,
         nargs=4,
@@ -709,9 +666,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Store the number of images to process
+    STOP_AT = args.num_images
+
     json_data_path = os.path.join(
         args.labels_dir, "lane", "polygons", "lane_train.json"
     )
+
+    # ============================== Save binary mask ============================== #
+    process_binary_mask(args, json_data_path)
 
     # ============================== Save ground truth images ============================== #
 
@@ -734,13 +697,8 @@ if __name__ == "__main__":
         "LEFT": args.crop[3],
     }
 
-    # ============================== Save binary mask ============================== #
-    process_binary_mask(
-        args
-    )  # Todo - source of images names should be lane_train.json and not images directory.
-
     # ============================== Merge and classify lane lines ============================== #
-    gt_images_path = os.path.join(args.output_dir, "images")
+    gt_images_path = os.path.join(args.output_dir, "image")
     classified_lanes = classify_lanes(data, gt_images_path, output_dir=args.output_dir)
 
     # # # ============================== Normalise, crop Image data  ============================== #

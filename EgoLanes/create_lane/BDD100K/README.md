@@ -94,23 +94,62 @@ python process_bdd100k.py --image_dir /path/to/bdd100k/images/100k/ \
 - `--labels_dir`: BDD100K lane labels directory (contains lane polygons and masks)
 - `--output_dir`: Desired output directory (optional, default directory is ./processed_BDD100K/)
 - `--crop`: (optional)[TOP, RIGHT, BOTTOM, LEFT] cropping values (default: [0, 140, 220, 140])
+- `--num_images`: Number of images to process from BDD100K dataset. (default is sys.maxsize(2^63 - 1))
 
 ## Directory Structure
 
 ```bash
 ├── README.md
 ├── process_bdd100k.py
-├── output
-│   ├── bdd100k_egolanes_train.json # Classified, merged lane keypoints data
-│   ├── images # Groundtruth images renamed
+├── processed_BDD100K
+│   ├── drivable_path.json # Classified, merged lane keypoints data
+│   ├── image # Groundtruth images renamed
 │   │   ├── 000000.png
 │   │   └── 000001.png
-│   ├── Segmentation # Binary mask for lane lines
+│   ├── segmentation # Binary mask for lane lines
 │   │   ├── 000000.png
 │   │   └── 000001.png
 │   ├── visualization # Annotated images output
 │   │   ├── 000000.png
 │   │   └── 000001.png
+```
+
+## Output JSON format
+```JSON
+{
+    <6-digit frame id> : {
+        "egoleft_lane": [
+            [<x_1>, <y_1>],
+            [<x_2>, <y_2>],
+            .....................
+            [<x_n>, <y_n>],
+        ],
+        "egoright_lane": [
+            [<x_1>, <y_1>],
+            [<x_2>, <y_2>],
+            .....................
+            [<x_n>, <y_n>],
+        ],
+        "other_lanes": [
+          [
+            [<x_1>, <y_1>],
+            [<x_2>, <y_2>],
+            .....................
+            [<x_n>, <y_n>],
+          ], 
+          [
+            [<x_1>, <y_1>],
+            [<x_2>, <y_2>],
+            .....................
+            [<x_n>, <y_n>],
+          ]
+            
+        ],
+        "img_height": <h>,
+        "img_width": <w>
+    },
+    .................................
+}
 ```
 
 ## Core functions
@@ -277,6 +316,10 @@ annotation.
     - Ego right lanes are drawn in blue
     - Other lanes are drawn in yellow
     - Each lane is drawn with a width of 5 pixels
+
+### `process_lane_keypoints()`
+Crop and normalize lane keypoints.
+Returns a list of normalized keypoints.
 
 
 
