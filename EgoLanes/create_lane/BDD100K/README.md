@@ -86,14 +86,13 @@ This script processes BDD100K's `lane_train.json` data to generate standardized 
 
 ```bash
 python process_bdd100k.py --image_dir /path/to/bdd100k/images/100k/ \
-                          --labels_dir /path/to/lane_labels \
-                          --output_dir ./output
+                          --labels_dir /path/to/lane_labels
 ```
 
 ## Arguments
 - `--image_dir`: BDD100K ground truth image parent directory (right after extraction)
 - `--labels_dir`: BDD100K lane labels directory (contains lane polygons and masks)
-- `--output_dir`: Desired output directory
+- `--output_dir`: Desired output directory (optional, default directory is ./processed_BDD100K/)
 - `--crop`: (optional)[TOP, RIGHT, BOTTOM, LEFT] cropping values (default: [0, 140, 220, 140])
 
 ## Directory Structure
