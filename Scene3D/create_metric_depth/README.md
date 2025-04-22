@@ -1,8 +1,8 @@
 
-## Scene3D Dataset
-To train the Scene3D network, a custom dataset was created using a number of open-source, publicly available datasets which capture scene depth through simulation, LIDAR or a combination of LIDAR and Stereo Vision.
+## Scene3D Metric Depth Dataset
+To train the Scene3D metric depth network, a custom dataset was created using a number of open-source, publicly available datasets which capture scene depth through LIDAR scanners. Raw depth maps were interpolated to fill in holes and create a densified depth ground-truth. Validity maps were created to account for areas of missing data which would not be penalized during network training.
 
-The Scene3D dataset includes RGB images, ground truth depth maps, ground truth height maps, and validity masks to mark valid vs invalid raw depth readings.
+The Scene3D Metric Depth Dataset comprises RGB images with associated ground truth depth maps and validity masks indicating pixels where valid depth measurements are present.
 
 ![SuperDepth_Data](../../Diagrams/SuperDepth_Data.jpg)
 
@@ -10,7 +10,8 @@ The datasets used to train SuperDepth include:
 
 - [Argoverse](https://www.argoverse.org/av1.html#stereo-link)
 - [KITTI](https://www.cvlibs.net/datasets/kitti/eval_depth.php?benchmark=depth_prediction)
-- [UrbanSyn](https://www.urbansyn.org)
+- [DDAD](https://github.com/TRI-ML/DDAD#dataset-details)
+- [DrivingStereo](https://drivingstereo-dataset.github.io/)
 
 ## common
-Contains helper classes used to create ground truth data
+Contains helper class to perform LIDAR depth map interpolation and densification
