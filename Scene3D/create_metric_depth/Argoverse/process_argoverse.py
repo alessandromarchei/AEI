@@ -3,7 +3,6 @@
 import pathlib
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 import json
 import sys
@@ -109,7 +108,6 @@ def main():
         
         # Stereo camera baseline distance
         baseline = 0.2986  
-
     
         for index in range(0, num_depth_maps):      
 
