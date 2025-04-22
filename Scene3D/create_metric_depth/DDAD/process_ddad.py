@@ -7,19 +7,18 @@ from dgp.datasets import SynchronizedSceneDataset
 import sys
 sys.path.append('../../../../')
 from Scene3D.create_metric_depth.common.lidar_depth_fill import LidarDepthFill
-from Scene3D.create_metric_depth.common.height_map import HeightMap
 
-def cropData(image, depth_map_fill_only, height_map_fill_only, validity_mask):
+def cropData(image, depth_map, validity_mask):
 
     # Cropping out those parts of data for which depth is unavailable
     image = image.crop((268, 200, 1668, 900))
-    depth_map_fill_only = depth_map_fill_only[200:900, 268:1668]
+    depth_map = depth_map[200:900, 268:1668]
     height_map_fill_only = height_map_fill_only[200:900, 268:1668]
     validity_mask = validity_mask[200:900, 268:1668]
 
-    return image, depth_map_fill_only, height_map_fill_only, validity_mask
+    return image, depth_map, validity_mask
 
-def processSample(sample, max_height, min_height, camera_height):
+def processSample(sample):
     
    # Access camera related data
     camera = sample[0][0]
@@ -34,25 +33,19 @@ def processSample(sample, max_height, min_height, camera_height):
 
     # Depth Map
     lidarDepthFill = LidarDepthFill(sparse_depth_map)
-    depth_map_fill = lidarDepthFill.getDepthMap()
-
-    # Height map
-    heightMapFillOnly = HeightMap(depth_map_fill, max_height, min_height, 
-                 camera_height, focal_length, cy)
-    height_map_fill_only = heightMapFillOnly.getHeightMap()
+    depth_map = lidarDepthFill.getDepthMap()
 
     # Validity mask
-    validity_mask = np.zeros_like(depth_map_fill)
-    validity_mask[np.where(depth_map_fill != 0)] = 1
+    validity_mask = np.zeros_like(depth_map)
+    validity_mask[np.where(depth_map != 0)] = 1
     
     # Crop side regions where depth data is missing
-    image, depth_map_fill, height_map_fill_only, validity_mask = \
-      cropData(image, depth_map_fill, height_map_fill_only, validity_mask)
+    image, depth_map, validity_mask = \
+      cropData(image, depth_map, validity_mask)
     
-    return image, depth_map_fill, height_map_fill_only, validity_mask 
+    return image, depth_map, validity_mask
 
-def saveData(root_save_path, counter, image, depth_map_fill, 
-            height_map_fill_only, validity_mask):
+def saveData(root_save_path, counter, image, depth_map, validity_mask):
   
   # Save files
   # RGB Image as PNG
@@ -61,20 +54,12 @@ def saveData(root_save_path, counter, image, depth_map_fill,
 
   # Depth map as binary file in .npy format
   depth_save_path = root_save_path + '/depth/' + str(counter) + '.npy'
-  np.save(depth_save_path, depth_map_fill)
-
-  # Height map as binary file in .npy format
-  height_save_path = root_save_path + '/height/' + str(counter) + '.npy'
-  np.save(height_save_path, height_map_fill_only)
+  np.save(depth_save_path, depth_map)
 
   # Validity mask as black and white PNG
   validity_save_path = root_save_path + '/validity/' + str(counter) + '.png'
   validity_mask = Image.fromarray(np.uint8(validity_mask*255))
   validity_mask.save(validity_save_path, "PNG")
-
-  # Height map plot for data auditing purposes
-  height_plot_save_path = root_save_path + '/height_plot/' + str(counter) + '.png'
-  plt.imsave(height_plot_save_path, height_map_fill_only, cmap='inferno_r')
 
 def main():
   
@@ -145,12 +130,10 @@ def main():
 
     # Get data sample and process it
     sample = dataset_train_rear[index]
-    image, depth_map_fill, height_map_fill, validity_mask = \
-        processSample(sample, max_height, min_height, camera_height_rear)
+    image, depth_map, validity_mask = processSample(sample)
 
     # Save data
-    saveData(root_save_path, counter, image, depth_map_fill, 
-            height_map_fill, validity_mask)
+    saveData(root_save_path, counter, image, depth_map, validity_mask)
 
     print('Processing image ', counter, ' of ', round(total_data/2)-1)
 
@@ -160,12 +143,10 @@ def main():
 
     # Get data sample and process it
     sample = dataset_train_front[index]
-    image, depth_map_fill, height_map_fill, validity_mask = \
-        processSample(sample, max_height, min_height, camera_height_front)
+    image, depth_map, validity_mask = processSample(sample)
 
     # Save data
-    saveData(root_save_path, counter, image, depth_map_fill, 
-            height_map_fill, validity_mask)
+    saveData(root_save_path, counter, image, depth_map, validity_mask)
 
     print('Processing image ', counter, ' of ', round(total_data/2)-1)
 
@@ -176,12 +157,10 @@ def main():
 
     # Get data sample and process it
     sample = dataset_val_rear[index]
-    image, depth_map_fill, height_map_fill, validity_mask = \
-        processSample(sample, max_height, min_height, camera_height_rear)
+    image, depth_map, validity_mask = processSample(sample)
 
     # Save data
-    saveData(root_save_path, counter, image, depth_map_fill, 
-            height_map_fill, validity_mask)
+    saveData(root_save_path, counter, image, depth_map, validity_mask)
 
     print('Processing image ', counter, ' of ', round(total_data/2)-1)
 
@@ -192,12 +171,10 @@ def main():
 
     # Get data sample and process it
     sample = dataset_val_front[index]
-    image, depth_map_fill, height_map_fill, validity_mask = \
-        processSample(sample, max_height, min_height, camera_height_front)
-    
+    image, depth_map, validity_mask = processSample(sample)
+
     # Save data
-    saveData(root_save_path, counter, image, depth_map_fill, 
-        height_map_fill, validity_mask)
+    saveData(root_save_path, counter, image, depth_map, validity_mask)
 
     print('Processing image ', counter, ' of ', round(total_data/2)-1)
 
