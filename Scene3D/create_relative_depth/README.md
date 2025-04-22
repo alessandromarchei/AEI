@@ -2,6 +2,8 @@
 
 In order to create the relative depth dataset used to train Scene3D, DepthAnythingV2-Large model was utilized to generate pseudo-labels for a variety of street scene images capturing variations in time of day, weather conditions, camera mounting height, camera mounting angle, camera lens type (fisheye to zoom).
 
+![DepthAnythingV2 Examples](https://github.com/DepthAnything/Depth-Anything-V2/blob/main/assets/teaser.png)
+
 Specifically, images from the following datasets were used and proceesed to create pseudo labels, resulting in a total dataset size of 488,535 images with associated pseudo labels. The KITTI, DDAD and DrivingStereo datasets were temporally downsampled to prevent model over-fitting:
 
 - BDD100K
