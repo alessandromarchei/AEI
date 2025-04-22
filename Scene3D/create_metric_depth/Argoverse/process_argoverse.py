@@ -10,13 +10,11 @@ import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
 from Scene3D.create_metric_depth.common.lidar_depth_fill import LidarDepthFill
-from Scene3D.create_metric_depth.common.height_map import HeightMap
 
 def parseCalib(calib_files):
     
     calib_logs = []
     focal_lengths = []
-    centre_y_vals = []
 
     for i in range (0, len(calib_files)):
         
@@ -37,12 +35,10 @@ def parseCalib(calib_files):
                 # Read focal length and principal point y value
                 if(camera == 'image_raw_stereo_front_left_rect'):
                     focal_length = (data['camera_data_'][p]['value']['focal_length_y_px_'])
-                    cy = (data['camera_data_'][p]['value']['focal_center_y_px_'])
-
                     focal_lengths.append(focal_length)
-                    centre_y_vals.append(cy)
+       
 
-    return calib_logs, focal_lengths, centre_y_vals
+    return calib_logs, focal_lengths
 
 def createDepthMap(depth_data, focal_length, baseline):
 
@@ -59,19 +55,18 @@ def createDepthMap(depth_data, focal_length, baseline):
 
     return depth_map      
 
-def cropData(image_left, depth_map_fill_only, height_map_fill_only, validity_mask):
+def cropData(image_left, depth_map, validity_mask):
 
     # Getting size of depth map
-    size = depth_map_fill_only.shape
+    size = depth_map.shape
     width = size[1]
 
     # Cropping out those parts of data for which depth is unavailable
     image_left = image_left.crop((0, 518, width, 1750))
-    depth_map_fill_only = depth_map_fill_only[518:1750, 0 : width]
-    height_map_fill_only = height_map_fill_only[518:1750, 0 : width]
+    depth_map = depth_map[518:1750, 0 : width]
     validity_mask = validity_mask[518:1750, 0 : width]
 
-    return image_left, depth_map_fill_only, height_map_fill_only, validity_mask
+    return image_left, depth_map, validity_mask
 
 def main():
     
@@ -110,17 +105,11 @@ def main():
 
         print('Beginning processing of data')
 
-        calib_logs, focal_lengths, centre_y_vals = parseCalib(calib_files)
+        calib_logs, focal_lengths = parseCalib(calib_files)
         
         # Stereo camera baseline distance
         baseline = 0.2986  
 
-        # Camera height above road surface
-        camera_height = 1.67
-
-        # Height map limits
-        max_height = 7
-        min_height = -2
     
         for index in range(0, num_depth_maps):      
 
@@ -136,25 +125,19 @@ def main():
             
             # Reading focal length and principal point y-offset based on log index
             focal_length = focal_lengths[log_index]
-            cy = centre_y_vals[log_index]
 
             # Create depth map
             sparse_depth_map = createDepthMap(depth_data, focal_length, baseline)
             lidar_depth_fill = LidarDepthFill(sparse_depth_map)
             depth_map_fill = lidar_depth_fill.getDepthMap()
 
-            # Height map
-            heightMapFillOnly = HeightMap(depth_map_fill, max_height, min_height, 
-                camera_height, focal_length, cy)
-            height_map_fill = heightMapFillOnly.getHeightMap()
-
             # Validity mask
             validity_mask = np.zeros_like(depth_map_fill)
             validity_mask[np.where(depth_map_fill != 0)] = 1
 
             # Crop side regions where depth data is missing
-            image_left, depth_map_fill, height_map_fill, validity_mask = \
-                cropData(image_left, depth_map_fill, height_map_fill, validity_mask)
+            image_left, depth_map_fill, validity_mask = \
+                cropData(image_left, depth_map_fill, validity_mask)
 
             # Save files
             # RGB Image as PNG
@@ -165,18 +148,10 @@ def main():
             depth_save_path = root_save_path + '/depth/' + str(index) + '.npy'
             np.save(depth_save_path, depth_map_fill)
 
-            # Height map as binary file in .npy format
-            height_save_path = root_save_path + '/height/' + str(index) + '.npy'
-            np.save(height_save_path, height_map_fill)
-
             # Validity mask as black and white PNG
             validity_save_path = root_save_path + '/validity/' + str(index) + '.png'
             validity_mask = Image.fromarray(np.uint8(validity_mask*255))
             validity_mask.save(validity_save_path, "PNG")
-
-            # Height map plot for data auditing purposes
-            height_plot_save_path = root_save_path + '/height_plot/' + str(index) + '.png'
-            plt.imsave(height_plot_save_path, height_map_fill_only, cmap='inferno_r')
 
         print('----- Processing complete -----')         
             
