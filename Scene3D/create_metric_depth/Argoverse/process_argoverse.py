@@ -9,8 +9,8 @@ import json
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
-from Scene3D.create_depth.common.lidar_depth_fill import LidarDepthFill
-from Scene3D.create_depth.common.height_map import HeightMap
+from Scene3D.create_metric_depth.common.lidar_depth_fill import LidarDepthFill
+from Scene3D.create_metric_depth.common.height_map import HeightMap
 
 def parseCalib(calib_files):
     
@@ -63,7 +63,6 @@ def cropData(image_left, depth_map_fill_only, height_map_fill_only, validity_mas
 
     # Getting size of depth map
     size = depth_map_fill_only.shape
-    height = size[0]
     width = size[1]
 
     # Cropping out those parts of data for which depth is unavailable
@@ -142,20 +141,20 @@ def main():
             # Create depth map
             sparse_depth_map = createDepthMap(depth_data, focal_length, baseline)
             lidar_depth_fill = LidarDepthFill(sparse_depth_map)
-            depth_map_fill_only = lidar_depth_fill.getDepthMapFillOnly()
+            depth_map_fill = lidar_depth_fill.getDepthMap()
 
             # Height map
-            heightMapFillOnly = HeightMap(depth_map_fill_only, max_height, min_height, 
+            heightMapFillOnly = HeightMap(depth_map_fill, max_height, min_height, 
                 camera_height, focal_length, cy)
-            height_map_fill_only = heightMapFillOnly.getHeightMap()
+            height_map_fill = heightMapFillOnly.getHeightMap()
 
             # Validity mask
-            validity_mask = np.zeros_like(depth_map_fill_only)
-            validity_mask[np.where(depth_map_fill_only != 0)] = 1
+            validity_mask = np.zeros_like(depth_map_fill)
+            validity_mask[np.where(depth_map_fill != 0)] = 1
 
             # Crop side regions where depth data is missing
-            image_left, depth_map_fill_only, height_map_fill_only, validity_mask = \
-                cropData(image_left, depth_map_fill_only, height_map_fill_only, validity_mask)
+            image_left, depth_map_fill, height_map_fill, validity_mask = \
+                cropData(image_left, depth_map_fill, height_map_fill, validity_mask)
 
             # Save files
             # RGB Image as PNG
@@ -164,11 +163,11 @@ def main():
 
             # Depth map as binary file in .npy format
             depth_save_path = root_save_path + '/depth/' + str(index) + '.npy'
-            np.save(depth_save_path, depth_map_fill_only)
+            np.save(depth_save_path, depth_map_fill)
 
             # Height map as binary file in .npy format
             height_save_path = root_save_path + '/height/' + str(index) + '.npy'
-            np.save(height_save_path, height_map_fill_only)
+            np.save(height_save_path, height_map_fill)
 
             # Validity mask as black and white PNG
             validity_save_path = root_save_path + '/validity/' + str(index) + '.png'
