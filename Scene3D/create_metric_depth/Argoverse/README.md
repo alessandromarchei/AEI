@@ -13,8 +13,3 @@ python3 process_argoverse.py -r <data directory> -s <save directory>
 -r, --root : root data directory filepath
 -s, --save : root save directory filepath
 ```
-**Dataset Parameters**
-- Stereo camera baseline distance: 0.2986m
-- Camera height above road surface: 1.67m
-- Max Height in height map: 7m
-- Min Height in height map: -2m
