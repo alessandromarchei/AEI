@@ -18,7 +18,7 @@ Specifically, images from the following datasets were used and proceesed to crea
 
 ## DepthAnythingV2-Large Pseudo Labels
 
-To create pseudo-labels, please clone the [DepthAnythingV2 repository]() and download the [VIT-Large Model weights]() to be able to run inferene. Copy-paste the script below into the main DepthAnythingV2 repo folder, save it as create_pseudo_label.py and simply run as shown below (please make sure that the output directory has a /depth and /image folder for saving the pseudo labels and processed image):
+To create pseudo-labels, please clone the [DepthAnythingV2 repository](https://github.com/DepthAnything/Depth-Anything-V2/tree/main) and download the [VIT-Large Model weights](https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth?download=true) to be able to run inferene. Copy-paste the script below into the main DepthAnythingV2 repo folder, save it as create_pseudo_label.py and simply run as shown below (please make sure that the output directory has a /depth and /image folder for saving the pseudo labels and processed image):
 
 ### Example Usage
 ```bash
