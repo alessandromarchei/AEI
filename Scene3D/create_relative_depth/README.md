@@ -1,21 +1,22 @@
 # Scene3D Relative Depth Dataset
 
-In order to create the relative depth dataset used to train Scene3D, DepthAnythingV2-Large model was utilized to generate pseudo-labels for a variety of street scene images capturing variations in time of day, weather conditions, camera mounting height, camera mounting angle, camera lens type (fisheye to zoom).
+In order to create the relative depth dataset used to train Scene3D, DepthAnythingV2-Large model was utilized to generate pseudo-labels for a variety of street scene images capturing variations in time of day, weather conditions, camera mounting height, camera mounting angle, camera lens type (fisheye to zoom). Please see examples below of DepthAnythingV2 on real-world data and its comparions with DepthAnythingV1:
 
 ![DepthAnythingV2 Examples](https://github.com/DepthAnything/Depth-Anything-V2/blob/main/assets/teaser.png)
 
-Specifically, images from the following datasets were used and proceesed to create pseudo labels, resulting in a total dataset size of 488,535 images with associated pseudo labels. The KITTI, DDAD and DrivingStereo datasets were temporally downsampled to prevent model over-fitting:
+## Street-level scenes
+Specifically, images from the following street scenes datasets were proceesed to create pseudo labels, resulting in a total dataset size of 488,535 images with associated pseudo labels. The KITTI, DDAD and DrivingStereo datasets were temporally downsampled to prevent model over-fitting:
 
-- BDD100K
-- Mapillary Vistas
-- ROADWork
-- Comma10K
-- KITTI
-- DDAD
-- Driving Stereo
-- Indian Driving Dataset
-- Zenesact Open Dataset
-- Mapillary Planet Scale dataset
+- [BDD100K](https://www.kaggle.com/datasets/marquis03/bdd100k)
+- [Mapillary Vistas](https://www.mapillary.com/dataset/vistas)
+- [ROADWork](https://www.cs.cmu.edu/~ILIM/roadwork_dataset/)
+- [Comma10K](https://github.com/commaai/comma10k)
+- [KITTI](https://www.cvlibs.net/datasets/kitti/raw_data.php)
+- [DDAD](https://github.com/TRI-ML/DDAD#dataset-details)
+- [Driving Stereo](https://drivingstereo-dataset.github.io/)
+- [Indian Driving Dataset](https://idd.insaan.iiit.ac.in/)
+- [Zenesact Open Dataset](https://zod.zenseact.com/frames/)
+- [Mapillary Planet Scale dataset - Images only](https://www.mapillary.com/dataset/depth)
 
 
 ## DepthAnythingV2-Large Pseudo Labels
