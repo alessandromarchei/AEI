@@ -3,12 +3,11 @@
 import pathlib
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
 from argparse import ArgumentParser
 import sys
 sys.path.append('../../../')
 from Models.data_utils.check_data import CheckData
-from Scene3D.create_depth.common.lidar_depth_fill import LidarDepthFill
+from Scene3D.create_metric_depth.common.lidar_depth_fill import LidarDepthFill
 
 def removeExtraSamples(image_folders):
     
