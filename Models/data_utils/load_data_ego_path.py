@@ -144,7 +144,7 @@ class LoadDataEgoPath():
         is_valid = True
         bezier_curve_points = 0
 
-        if(len(label >=4)):
+        if(len(label) >=4):
             bezier_curve_points = self.fit_cubic_bezier(label)
         else:
             is_valid = False
