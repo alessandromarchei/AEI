@@ -118,9 +118,8 @@ class EgoPathTrainer():
     # Run Model
     def run_model(self):
         self.prediction = self.model(self.image_tensor)
-        #gt_ctrl_pts = self.fit_bezier(self.gt)
         self.loss = self.calc_loss(self.prediction, self.gt_tensor)
-        #print(self.loss.item())
+        print(self.loss.item())
 
     # Loss Backward Pass
     def loss_backward(self):
@@ -172,7 +171,7 @@ class EgoPathTrainer():
         self.writer.close()
         print('Finished Training')
 
-    def fit_cubic_bezier(self):
+    def fit_cubic_bezier_numpy(self):
 
         # Chord length parameterization
         distances = np.sqrt(np.sum(np.diff(self.gt, axis=0)**2, axis=1))
@@ -208,16 +207,7 @@ class EgoPathTrainer():
         self.image_tensor = image_tensor.to(self.device)
 
         # Fitting bezier curve to augmented ground truth data
-        bezier_points = self.fit_cubic_bezier()
-        point0 = bezier_points[0]
-        point1 = bezier_points[1]
-        point2 = bezier_points[2]
-        point3 = bezier_points[3]
-        bezier_points_list = np.concatenate((point0, point1, point2, point3), axis=0)
-
-        # Converting ground truth to Pytorch
-        gt_tensor = torch.from_numpy(bezier_points_list)
-        gt_tensor = gt_tensor.unsqueeze(0)
+        gt_tensor = self.fit_bezier(self.gt)
         self.gt_tensor = gt_tensor.to(self.device)
 
     def fit_bezier(self, drivable_path):
@@ -312,8 +302,8 @@ class EgoPathTrainer():
         
         diff_P3 = torch.abs(pred_ctrl_pts[0][6] - gt_ctrl_pts[0][6]) + \
             torch.abs(pred_ctrl_pts[0][7] - gt_ctrl_pts[0][7])
-        print(pred_ctrl_pts[0][0].item(), gt_ctrl_pts[0][0].item())
-        print(diff_P0.item(), diff_P3.item())
+        #print(pred_ctrl_pts[0][0].item(), gt_ctrl_pts[0][0].item())
+        #print(diff_P0.item(), diff_P3.item())
         return diff_P0 + diff_P3
 
 
@@ -373,9 +363,8 @@ class EgoPathTrainer():
         Combined loss = alpha * endpoint + beta * gradient.
         """
         self.endpoint_loss = self.calc_endpoint_loss(pred_ctrl_pts, gt_ctrl_pts)
-        return self.endpoint_loss
-        #self.gradient_loss = self.calc_numerical_gradient_loss(pred_ctrl_pts, gt_ctrl_pts)
-        #return (self.gradient_loss*self.loss_scale_factor) + self.endpoint_loss
+        self.gradient_loss = self.calc_numerical_gradient_loss(pred_ctrl_pts, gt_ctrl_pts)
+        return (self.gradient_loss*self.loss_scale_factor) + self.endpoint_loss
 
 
     # Save predicted visualization
