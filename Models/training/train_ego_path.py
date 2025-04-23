@@ -30,24 +30,6 @@ VALID_DATASET_LIST = [
 ]
 
 
-# Helper for Coarse-to-fine Optimization (C2FO) - determine batch size
-def coarse2FineOpt(
-    current_epoch: int, 
-    max_epoch: int, 
-    init_batch_size: int
-):
-    # Available batches in decreasing order
-    available_batches = []
-    while (init_batch_size >= 1):
-        available_batches.append(init_batch_size)
-        init_batch_size = init_batch_size // 2
-
-    # Idea batch for this C2FO
-    idea_batch_index = int(current_epoch / max_epoch * len(available_batches))
-    
-    return available_batches[idea_batch_index]
-
-
 def main():
     '''
     # Argparse init
@@ -79,14 +61,6 @@ def main():
         required = False
     )
     parser.add_argument(
-        "-b", "--batch_size",
-        type = int,
-        dest = "batch_size",
-        help = "Batch size initially (will be gradually reduced via Coarse-to-fine Optimization)",
-        default = 32,
-        required = False
-    )
-    parser.add_argument(
         "-ll", "--logstep_loss",
         type = int,
         dest = "logstep_loss",
@@ -115,7 +89,6 @@ def main():
     root_checkpoints = args.model_save_root_path
     root_datasets = args.root_all_datasets
     NUM_EPOCHS = args.num_epochs
-    BATCH_SIZE_INIT = args.batch_size
     LOGSTEP_LOSS = args.logstep_loss
     LOGSTEP_VIS = args.logstep_vis
     LOGSTEP_MODEL = args.logstep_model
@@ -123,6 +96,7 @@ def main():
     # ================== Data acquisition ================== #
 
     root_datasets = '/mnt/media/EgoPath/EgoPathDatasets/'
+    NUM_EPOCHS = 20
 
     # Master dict to store dataset metadata
     dict_data = {
@@ -165,7 +139,7 @@ def main():
         metadata["N_vals"]
         for _, metadata in dict_data.items()
     ])
-    '''
+    
     # ====================== Training ====================== #
 
     # Trainer instance
@@ -188,11 +162,14 @@ def main():
         data_list_count = 0
 
         # Implement Coarse-to-fine Optimization
-        batch_size = coarse2FineOpt(
-            current_epoch = epoch,
-            max_epoch = NUM_EPOCHS,
-            init_batch_size = BATCH_SIZE_INIT
-        )
+        if(epoch == 0):
+            batch_size = 24
+        elif(epoch == 1):
+            batch_size = 12
+        elif(epoch == 2):
+            batch_size = 6
+        elif(epoch >=2):
+            batch_size = 3
 
         for i in range(SUM_N_TRAINS):
 
@@ -218,7 +195,7 @@ def main():
                     is_train = True
                 )
                 status_datasets[current_dataset]["count"] += 1
-
+    '''
             # Assign data
             trainer.set_data(image, label)
 
