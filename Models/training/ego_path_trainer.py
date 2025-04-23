@@ -9,12 +9,85 @@ from PIL import Image
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
-from model_components.scene_3d_network import Scene3DNetwork
+from model_components.ego_path_network import EgoPathNetwork
 from data_utils.augmentations import Augmentations
 
 class EgoPathTrainer():
     def __init__(self,  checkpoint_path = '', pretrained_checkpoint_path = '', is_pretrained = False):
-        pass
+        
+        # Image and Ground Truth
+        self.image = 0
+        self.gt = 0
+
+        # Tensors
+        self.image_tensor = 0
+        self.gt_tensor = 0
+        
+        # Model and Prediction
+        self.model = 0
+        self.prediction = 0
+
+        # Losses
+        self.loss = 0
+        self.endpoint_loss = 0
+        self.gradient = 0
+        self.loss_scale_factor = 1
+
+        # Checking devices (GPU vs CPU)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f'Using {self.device} for inference')
+
+        if(is_pretrained):
+
+            # Instantiate Model for validation or inference - load both pre-traiend SceneSeg and SuperDepth weights
+            if(len(checkpoint_path) > 0):
+
+                # Loading model with full pre-trained weights
+                sceneSegNetwork = SceneSegNetwork()
+                self.model = EgoPathNetwork(sceneSegNetwork)
+
+                # If the model is also pre-trained then load the pre-trained downstream weights
+                self.model.load_state_dict(torch.load \
+                    (checkpoint_path, weights_only=True, map_location=self.device))
+                print('Loading pre-trained model weights of EgoPath and upstream SceneSeg weights as well')
+            else:
+                raise ValueError('Please ensure EgoPath network weights are provided for downstream elements')
+            
+        else:
+
+            # Instantiate Model for training - load pre-traiend SceneSeg weights only
+            if(len(pretrained_checkpoint_path) > 0):
+                
+                # Loading SceneSeg pre-trained for upstream weights
+                sceneSegNetwork = SceneSegNetwork()
+                sceneSegNetwork.load_state_dict(torch.load \
+                    (pretrained_checkpoint_path, weights_only=True, map_location=self.device))
+                    
+                # Loading model with pre-trained upstream weights
+                self.model = EgoPathNetwork(sceneSegNetwork)
+                print('Loading pre-trained model weights of upstream SceneSeg only, EgoPath initialised with random weights')
+            else:
+                raise ValueError('Please ensure EgoPath network weights are provided for upstream elements')
+        
+       
+        # Model to device
+        self.model = self.model.to(self.device)
+        
+        # TensorBoard
+        self.writer = SummaryWriter()
+
+        # Learning rate and optimizer
+        self.learning_rate = 0.0001
+        
+        self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
+
+        # Loaders
+        self.image_loader = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ]
+        )
 
     # Learning Rate adjustment
     def set_learning_rate(self, learning_rate):
