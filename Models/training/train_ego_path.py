@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-
+#%%
 import os
 import json
 import torch
@@ -49,7 +49,7 @@ def coarse2FineOpt(
 
 
 def main():
-
+    '''
     # Argparse init
 
     parser = ArgumentParser(
@@ -111,7 +111,7 @@ def main():
         required = False
     )
     args = parser.parse_args()
-
+    
     root_checkpoints = args.model_save_root_path
     root_datasets = args.root_all_datasets
     NUM_EPOCHS = args.num_epochs
@@ -119,8 +119,10 @@ def main():
     LOGSTEP_LOSS = args.logstep_loss
     LOGSTEP_VIS = args.logstep_vis
     LOGSTEP_MODEL = args.logstep_model
-
+    '''
     # ================== Data acquisition ================== #
+
+    root_datasets = '/mnt/media/EgoPath/EgoPathDatasets/'
 
     # Master dict to store dataset metadata
     dict_data = {
@@ -163,7 +165,7 @@ def main():
         metadata["N_vals"]
         for _, metadata in dict_data.items()
     ])
-
+    '''
     # ====================== Training ====================== #
 
     # Trainer instance
@@ -308,7 +310,9 @@ def main():
             data_list_count += 1
 
     trainer.cleanup()
-
+    '''
 
 if __name__ == "__main__":
     main()
+
+#%%
