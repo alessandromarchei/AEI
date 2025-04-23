@@ -220,26 +220,21 @@ class EgoPathTrainer():
         return torch.vstack([P0, P1, P2, P3]).view(-1).unsqueeze(0)
 
 
-    def evaluate_bezier(self, ctrl_pts, t_vals):
+    def evaluate_bezier(self, ctrl_pts, t):
         """
-        Evaluate a cubic Bezier at parameter values t_vals.
+        Evaluate a cubic Bezier at parameter value t.
 
         Parameters:
             ctrl_pts: Tensor (4,2).
-            t_vals:  array-like or tensor of shape (m,) in [0,1].
+            t : parameter in range 0 to 1
 
         Returns:
-            Tensor (m,2) of curve points.
+            x and y locations of bezier curve at parameter t
         """
-        ctrl = torch.as_tensor(ctrl_pts, dtype=torch.float32)
-        t = torch.as_tensor(t_vals, dtype=ctrl.dtype).unsqueeze(1)  # (m,1)
+        x = (1-t)*(1-t)*(1-t)*ctrl_pts[0][0] + 3*(1-t)*(1-t)*t*ctrl_pts[0][2] + 3*(1-t)*t*t*ctrl_pts[0][4] + t*t*t*ctrl_pts[0][6]
+        y = (1-t)*(1-t)*(1-t)*ctrl_pts[0][1] + 3*(1-t)*(1-t)*t*ctrl_pts[0][3] + 3*(1-t)*t*t*ctrl_pts[0][5] + t*t*t*ctrl_pts[0][7]
+        return x,y
 
-        B0 = (1 - t)**3
-        B1 = 3 * (1 - t)**2 * t
-        B2 = 3 * (1 - t) * t**2
-        B3 = t**3
-
-        return B0*ctrl[0] + B1*ctrl[1] + B2*ctrl[2] + B3*ctrl[3]
 
 
     def bezier_analytic_derivative(self, ctrl_pts, t_vals):
@@ -297,39 +292,44 @@ class EgoPathTrainer():
         mean absolute error between arctan slopes of GT vs. pred Bézier,
         sampled every `step/100` in t ∈ (0,1).
         """
-        p = torch.as_tensor(pred_ctrl_pts, dtype=torch.float32)
-        g = torch.as_tensor(gt_ctrl_pts,   dtype=torch.float32)
 
         # sample points t_i = 4/100, 8/100, …, 96/100
-        idx      = torch.arange(step, 100, step, dtype=p.dtype)
+        idx      = torch.arange(step, 100+step, step, dtype=pred_ctrl_pts.dtype)
         t        = idx / 100.0
         t_prev   = (idx - step) / 100.0
+        
+        num_samples = len(t)
+        grad_sum = 0
+        
+        for i in range(0, num_samples):
+        
+            # evaluate both curves at t and t_prev
+            xp, yp   = self.evaluate_bezier(pred_ctrl_pts, t[i])
+            xp0, yp0 = self.evaluate_bezier(pred_ctrl_pts, t_prev[i])
+            xg, yg   = self.evaluate_bezier(gt_ctrl_pts, t[i])
+            xg0, yg0 = self.evaluate_bezier(gt_ctrl_pts, t_prev[i])
 
-        # evaluate both curves at t and t_prev
-        xp, yp   = self.evaluate_bezier(p, t).T
-        xp0, yp0 = self.evaluate_bezier(p, t_prev).T
-        xg, yg   = self.evaluate_bezier(g, t).T
-        xg0, yg0 = self.evaluate_bezier(g, t_prev).T
+            # finite‐difference slopes (add tiny eps to avoid div0)
+            dxg = xg  - xg0 + 1e-4
+            dyg = yg  - yg0 + 1e-4
+            dxp = xp  - xp0 + 1e-4
+            dyp = yp  - yp0 + 1e-4
 
-        # finite‐difference slopes (add tiny eps to avoid div0)
-        dxg = xg  - xg0 + 1e-4
-        dyg = yg  - yg0 + 1e-4
-        dxp = xp  - xp0 + 1e-4
-        dyp = yp  - yp0 + 1e-4
+            grad_g = torch.atan(dxg / dyg)
+            grad_p = torch.atan(dxp / dyp)
+            grad_diff = torch.abs(grad_g - grad_p)
+            grad_sum = grad_sum + grad_diff
 
-        grad_g = torch.atan(dxg / dyg)
-        grad_p = torch.atan(dxp / dyp)
-
-        return torch.mean(torch.abs(grad_g - grad_p))
+        return grad_sum/num_samples
 
 
     def calc_loss(self, pred_ctrl_pts, gt_ctrl_pts):
         """
         Combined loss = alpha * endpoint + beta * gradient.
         """
-        self.endpoint_loss = self.calc_endpoint_loss(pred_ctrl_pts, gt_ctrl_pts)
-        return self.endpoint_loss
-        #self.gradient_loss = self.calc_numerical_gradient_loss(pred_ctrl_pts, gt_ctrl_pts)
+        #self.endpoint_loss = self.calc_endpoint_loss(pred_ctrl_pts, gt_ctrl_pts)
+        self.gradient_loss = self.calc_numerical_gradient_loss(pred_ctrl_pts, gt_ctrl_pts)
+        return self.gradient_loss
         #return (self.gradient_loss*self.loss_scale_factor) + self.endpoint_loss
 
 
