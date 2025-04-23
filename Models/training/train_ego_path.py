@@ -119,6 +119,8 @@ def main():
     trainer.zero_grad()             
   
     NUM_EPOCHS = 20
+    LOGSTEP_LOSS = 25
+    LOGSTEP_VIS = 25
 
     # Datasets list
     data_list = []
@@ -131,6 +133,8 @@ def main():
     
     # Running thru epochs
     for epoch in range(0, NUM_EPOCHS):
+
+        print('Epoch: ', epoch)
 
         # Batch Size Schedule
         if(epoch == 0):
@@ -217,127 +221,126 @@ def main():
                 data_list_count = 0
 
             # Get data depending on which dataset we are processing
-
             image = 0
             gt = 0
+            is_valid = True
 
             if(data_list[data_list_count] == 'BDD100K'):
-                image, gt = bdd100k_Dataset.getItem(bdd100k_sample_list[bdd100k_count], is_train=True)
+                image, gt, is_valid = bdd100k_Dataset.getItem(bdd100k_sample_list[bdd100k_count], is_train=True)
                 bdd100k_count += 1
 
             if(data_list[data_list_count] == 'COMMA2K19'):
-                image, gt = comma2k19_Dataset.getItem(comma2k19_sample_list[comma2k19_count], is_train=True)
+                image, gt, is_valid = comma2k19_Dataset.getItem(comma2k19_sample_list[comma2k19_count], is_train=True)
                 comma2k19_count += 1
 
             if(data_list[data_list_count] == 'CULANE'):
-                image, gt = culane_Dataset.getItem(culane_sample_list[culane_count], is_train=True)
+                image, gt, is_valid = culane_Dataset.getItem(culane_sample_list[culane_count], is_train=True)
                 culane_count += 1
 
             if(data_list[data_list_count] == 'CURVELANES'):
-                image, gt = curvelanes_Dataset.getItem(curvelanes_sample_list[curvelanes_count], is_train=True)
+                image, gt, is_valid = curvelanes_Dataset.getItem(curvelanes_sample_list[curvelanes_count], is_train=True)
                 curvelanes_count += 1
 
             if(data_list[data_list_count] == 'ROADWORK'):
-                image, gt = roadwork_Dataset.getItem(roadwork_sample_list[roadwork_count], is_train=True)
+                image, gt, is_valid = roadwork_Dataset.getItem(roadwork_sample_list[roadwork_count], is_train=True)
                 roadwork_count += 1
 
             if(data_list[data_list_count] == 'TUSIMPLE'):
-                image, gt = tusimple_Dataset.getItem(tusimple_sample_list[tusimple_count], is_train=True)
+                image, gt, is_valid = tusimple_Dataset.getItem(tusimple_sample_list[tusimple_count], is_train=True)
                 tusimple_count += 1
+            
+            if(is_valid):
 
-            print(count)
-            '''
-            # Assign data
-            trainer.set_data(image, label)
+                # Assign data
+                trainer.set_data(image, gt)
 
-            # Augment image
-            trainer.apply_augmentations(is_train = True)
-
-            # Tensor conversion
-            trainer.load_data(is_train = True)
-
-            # Run model and get loss
-            trainer.run_model()
-
-            # Backpropagate loss through network weights
-            trainer.loss_backward()
-
-            current_index = i + 1
-
-            # Simulating batch size through gradient accumulation
-            if (current_index % batch_size == 0):
-                trainer.run_optimizer()
-
-            # Log loss to TensorBoard
-            if (current_index % LOGSTEP_LOSS == 0):
-                trainer.log_loss(log_index)
-
-            # Log image to TensorBoard
-            if (current_index % LOGSTEP_VIS == 0):
-                trainer.save_visualization(log_index)
-
-            # Save model and run val across entire val dataset
-            if (current_index % LOGSTEP_MODEL == 0):
-
-                # Save model
-                model_save_path = os.path.join(
-                    root_checkpoints,
-                    f"iter_{log_index}_epoch_{epoch}_step_{i}.pth"
-                )
-                trainer.save_model(model_save_path)
-
-                # Validate
-                trainer.set_eval_mode()
-
-                # Metrics
-                running_total_loss = 0          # total_loss = mAE_gradients * alpha + mAE_endpoint
-                running_gradients_loss = 0      # MAE between gradients of GT and pred at uniform samples
-                running_endpoint_loss = 0       # MAE between GT start & end points with pred 
+                # Augment image
+                trainer.apply_augmentations(is_train = True)
                 
-                # Temporarily disable gradient computation for backpropagation
-                with torch.no_grad():
+                # Converting to tensor and loading
+                trainer.load_data()
 
-                    # Compute val loss per dataset
-                    for dataset, metadata in dict_data:
+                # Run model and get loss
+                trainer.run_model()
 
-                        for val_index in range(metadata["N_vals"]):
+                # Gradient accumulation
+                trainer.loss_backward()
 
-                            # Fetch image and label for val set
-                            image_val, label_val = metadata["loader_instance"].getItem(
-                                index = val_index,
-                                is_train = False
-                            )
+                # Simulating batch size through gradient accumulation
+                if((count+1) % batch_size == 0):
+                    trainer.run_optimizer()
 
-                            # Run val and calculate metrics
-                            endpoint_loss, gradient_loss, total_loss = trainer.valudate(
-                                image_val,
-                                label_val
-                            )
+                # Logging loss to Tensor Board
+                if((count+1) % LOGSTEP_LOSS == 0):
+                    trainer.log_loss(log_count)
+                
+                # Logging Visualization to Tensor Board
+                if((count+1) % LOGSTEP_VIS == 0):  
+                    trainer.save_visualization(log_count)
 
-                            # Accumulate those metrics
-                            running_endpoint_loss += endpoint_loss
-                            running_gradients_loss += gradient_loss
-                            running_total_loss += total_loss
+                '''
+                # Save model and run val across entire val dataset
+                if (current_index % LOGSTEP_MODEL == 0):
 
-                    # Compute average loss of complete val set
-                    mAE_endpoint_loss = running_endpoint_loss / SUM_N_VALS
-                    mAE_gradients_loss = running_gradients_loss / SUM_N_VALS
-                    mAE_total_loss = running_total_loss / SUM_N_VALS
-
-                    # Logging average metrics
-                    trainer.log_mAE(
-                        log_index,
-                        mAE_endpoint_loss,
-                        mAE_gradients_loss,
-                        mAE_total_loss
+                    # Save model
+                    model_save_path = os.path.join(
+                        root_checkpoints,
+                        f"iter_{log_index}_epoch_{epoch}_step_{i}.pth"
                     )
+                    trainer.save_model(model_save_path)
 
-                # Switch back to training
-                trainer.set_train_mode()
-            '''
-            data_list_count += 1
+                    # Validate
+                    trainer.set_eval_mode()
 
-    #trainer.cleanup()
+                    # Metrics
+                    running_total_loss = 0          # total_loss = mAE_gradients * alpha + mAE_endpoint
+                    running_gradients_loss = 0      # MAE between gradients of GT and pred at uniform samples
+                    running_endpoint_loss = 0       # MAE between GT start & end points with pred 
+                    
+                    # Temporarily disable gradient computation for backpropagation
+                    with torch.no_grad():
+
+                        # Compute val loss per dataset
+                        for dataset, metadata in dict_data:
+
+                            for val_index in range(metadata["N_vals"]):
+
+                                # Fetch image and label for val set
+                                image_val, label_val = metadata["loader_instance"].getItem(
+                                    index = val_index,
+                                    is_train = False
+                                )
+
+                                # Run val and calculate metrics
+                                endpoint_loss, gradient_loss, total_loss = trainer.valudate(
+                                    image_val,
+                                    label_val
+                                )
+
+                                # Accumulate those metrics
+                                running_endpoint_loss += endpoint_loss
+                                running_gradients_loss += gradient_loss
+                                running_total_loss += total_loss
+
+                        # Compute average loss of complete val set
+                        mAE_endpoint_loss = running_endpoint_loss / SUM_N_VALS
+                        mAE_gradients_loss = running_gradients_loss / SUM_N_VALS
+                        mAE_total_loss = running_total_loss / SUM_N_VALS
+
+                        # Logging average metrics
+                        trainer.log_mAE(
+                            log_index,
+                            mAE_endpoint_loss,
+                            mAE_gradients_loss,
+                            mAE_total_loss
+                        )
+
+                    # Switch back to training
+                    trainer.set_train_mode()
+                '''
+                data_list_count += 1
+
+    trainer.cleanup()
     
 
 if __name__ == "__main__":

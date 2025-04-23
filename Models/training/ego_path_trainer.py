@@ -119,7 +119,6 @@ class EgoPathTrainer():
     def run_model(self):
         self.prediction = self.model(self.image_tensor)
         self.loss = self.calc_loss(self.prediction, self.gt_tensor)
-        print(self.loss.item())
 
     # Loss Backward Pass
     def loss_backward(self):
@@ -302,8 +301,7 @@ class EgoPathTrainer():
         
         diff_P3 = torch.abs(pred_ctrl_pts[0][6] - gt_ctrl_pts[0][6]) + \
             torch.abs(pred_ctrl_pts[0][7] - gt_ctrl_pts[0][7])
-        #print(pred_ctrl_pts[0][0].item(), gt_ctrl_pts[0][0].item())
-        #print(diff_P0.item(), diff_P3.item())
+
         return diff_P0 + diff_P3
 
 
@@ -369,24 +367,46 @@ class EgoPathTrainer():
 
     # Save predicted visualization
     def save_visualization(self, log_count):
-        # 1) fit and sample
+
+        prediction_vis = self.prediction.cpu().detach().numpy()
+        gt_vis = self.gt_tensor.cpu().detach().numpy()
+
         num_samples=100
-        ctrl_pts   = self.fit_bezier(self.gt)                                   # (8) Tensor
-        ctrl_pts = ctrl_pts.view(4,2)
-        t_vals     = torch.linspace(0, 1, num_samples, dtype=ctrl_pts.dtype)           # (num_samples,)
-        curve_pts  = self.evaluate_bezier(ctrl_pts, t_vals)                            # (num_samples,2)
+        t_vals = torch.linspace(0, 1, num_samples, dtype=float) 
+
+        pred_points_x = []
+        pred_points_y = []
+        gt_points_x = []
+        gt_points_y = []
+
+        for i in range(0, len(t_vals)):
+            x_pred, y_pred = self.evaluate_bezier(prediction_vis, t_vals[i])
+            x_gt, y_gt = self.evaluate_bezier(gt_vis, t_vals[i])
+
+            pred_points_x.append(x_pred*640)
+            pred_points_y.append(y_pred*320)
+            gt_points_x.append(x_gt*640)
+            gt_points_y.append(y_gt*320)
+
+        # 1) fit and sample
+        
+        #ctrl_pts   = self.fit_bezier(self.gt)                                   # (8) Tensor
+        #ctrl_pts = ctrl_pts.view(4,2)
+        #t_vals     = torch.linspace(0, 1, num_samples, dtype=ctrl_pts.dtype)           # (num_samples,)
+        #curve_pts  = self.evaluate_bezier(ctrl_pts, t_vals)                            # (num_samples,2)
 
         # 2) to numpy arrays for plotting
-        pts   = self.gt.cpu().numpy()
-        curve = curve_pts.cpu().numpy()
-        ctrl  = ctrl_pts.cpu().numpy()
+        #pts   = self.gt.cpu().numpy()
+        #curve = curve_pts.cpu().numpy()
+        #ctrl  = ctrl_pts.cpu().numpy()
 
         # 3) plot
         fig = plt.figure(figsize=(8, 4))
-        plt.imshow(img)
-        plt.plot(pts[:,0],   pts[:,1],   marker='o', linestyle='--')  # waypoints
-        plt.plot(curve[:,0], curve[:,1])                              # Bézier curve
-        plt.scatter(ctrl[:,0], ctrl[:,1], marker='x', s=100)          # control points
+        plt.imshow(self.image)
+        plt.scatter(pred_points_x, pred_points_y, color='c')  # waypoints
+        plt.scatter(gt_points_x, gt_points_y, color='y')
+        #plt.plot(curve[:,0], curve[:,1])                              # Bézier curve
+        #plt.scatter(ctrl[:,0], ctrl[:,1], marker='x', s=100)          # control points
         plt.axis('off')
         self.writer.add_figure('predictions vs. actuals', \
         fig, global_step=(log_count))
