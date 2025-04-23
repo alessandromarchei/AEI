@@ -6,6 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import cv2
 from PIL import Image
+import numpy as np
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
@@ -171,14 +172,51 @@ class EgoPathTrainer():
         self.writer.close()
         print('Finished Training')
 
+    def fit_cubic_bezier(self):
+
+        # Chord length parameterization
+        distances = np.sqrt(np.sum(np.diff(self.gt, axis=0)**2, axis=1))
+        cumulative = np.insert(np.cumsum(distances), 0, 0)
+        t = cumulative / cumulative[-1]
+
+        # Bézier basis functions
+        def bernstein_matrix(t):
+            t = np.asarray(t)
+            B = np.zeros((len(t), 4))
+            B[:, 0] = (1 - t)**3
+            B[:, 1] = 3 * (1 - t)**2 * t
+            B[:, 2] = 3 * (1 - t) * t**2
+            B[:, 3] = t**3
+            return B
+
+        B = bernstein_matrix(t)
+
+        # Least squares fitting: B * P = points => P = (B^T B)^-1 B^T * points
+        BTB = B.T @ B
+        BTP = B.T @ self.gt
+        control_points = np.linalg.solve(BTB, BTP)
+
+        return control_points  # shape (4, 2)
+    
+
     # Load Data
     def load_data(self):
         
+        # Converting image to Pytorch Tensor
         image_tensor = self.image_loader(self.image)
         image_tensor = image_tensor.unsqueeze(0)
         self.image_tensor = image_tensor.to(self.device)
 
-        gt_tensor = torch.from_numpy(self.gt)
+        # Fitting bezier curve to augmented ground truth data
+        bezier_points = self.fit_cubic_bezier()
+        point0 = bezier_points[0]
+        point1 = bezier_points[1]
+        point2 = bezier_points[2]
+        point3 = bezier_points[3]
+        bezier_points_list = np.concatenate((point0, point1, point2, point3), axis=0)
+
+        # Converting ground truth to Pytorch
+        gt_tensor = torch.from_numpy(bezier_points_list)
         gt_tensor = gt_tensor.unsqueeze(0)
         self.gt_tensor = gt_tensor.to(self.device)
 
