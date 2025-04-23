@@ -231,8 +231,13 @@ class EgoPathTrainer():
         Returns:
             x and y locations of bezier curve at parameter t
         """
-        x = (1-t)*(1-t)*(1-t)*ctrl_pts[0][0] + 3*(1-t)*(1-t)*t*ctrl_pts[0][2] + 3*(1-t)*t*t*ctrl_pts[0][4] + t*t*t*ctrl_pts[0][6]
-        y = (1-t)*(1-t)*(1-t)*ctrl_pts[0][1] + 3*(1-t)*(1-t)*t*ctrl_pts[0][3] + 3*(1-t)*t*t*ctrl_pts[0][5] + t*t*t*ctrl_pts[0][7]
+
+        x = (1-t)*(1-t)*(1-t)*ctrl_pts[0][0] + 3*(1-t)*(1-t)*t*ctrl_pts[0][2] \
+            + 3*(1-t)*t*t*ctrl_pts[0][4] + t*t*t*ctrl_pts[0][6]
+        
+        y = (1-t)*(1-t)*(1-t)*ctrl_pts[0][1] + 3*(1-t)*(1-t)*t*ctrl_pts[0][3] \
+            + 3*(1-t)*t*t*ctrl_pts[0][5] + t*t*t*ctrl_pts[0][7]
+        
         return x,y
 
 
@@ -300,7 +305,7 @@ class EgoPathTrainer():
         
         num_samples = len(t)
         grad_sum = 0
-        
+
         for i in range(0, num_samples):
         
             # evaluate both curves at t and t_prev
@@ -327,10 +332,9 @@ class EgoPathTrainer():
         """
         Combined loss = alpha * endpoint + beta * gradient.
         """
-        #self.endpoint_loss = self.calc_endpoint_loss(pred_ctrl_pts, gt_ctrl_pts)
+        self.endpoint_loss = self.calc_endpoint_loss(pred_ctrl_pts, gt_ctrl_pts)
         self.gradient_loss = self.calc_numerical_gradient_loss(pred_ctrl_pts, gt_ctrl_pts)
-        return self.gradient_loss
-        #return (self.gradient_loss*self.loss_scale_factor) + self.endpoint_loss
+        return (self.gradient_loss*self.loss_scale_factor) + self.endpoint_loss
 
 
     # Save predicted visualization
