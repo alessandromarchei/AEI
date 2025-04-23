@@ -30,7 +30,7 @@ class EgoPathTrainer():
         # Losses
         self.loss = 0
         self.endpoint_loss = 0
-        self.gradient = 0
+        self.gradient_loss = 0
         self.loss_scale_factor = 1
 
         # Checking devices (GPU vs CPU)
@@ -119,6 +119,7 @@ class EgoPathTrainer():
         self.prediction = self.model(self.image_tensor)
         gt_ctrl_pts = self.fit_bezier(self.gt)
         self.loss = self.calc_loss(self.prediction, gt_ctrl_pts)
+        print(self.loss.item())
 
     # Loss Backward Pass
     def loss_backward(self):
@@ -178,7 +179,6 @@ class EgoPathTrainer():
         self.image_tensor = image_tensor.to(self.device)
 
         gt_tensor = self.fit_bezier(self.gt)
-        gt_tensor = gt_tensor.unsqueeze(0)
         self.gt_tensor = gt_tensor.to(self.device)
 
     def fit_bezier(self, drivable_path):
@@ -189,7 +189,7 @@ class EgoPathTrainer():
             drivable_path: list/array of (x,y) coordinates, or a torch.Tensor of shape (n,2).
 
         Returns:
-            Tensor of shape (4,2) of control points [P0, P1, P2, P3].
+            Tensor of shape (1,8) of control points [P0, P1, P2, P3].
         """
         # ensure float tensor
         pts = torch.as_tensor(drivable_path, dtype=torch.float32)
@@ -217,7 +217,7 @@ class EgoPathTrainer():
         P1, P2 = sol[0], sol[1]
 
         # return torch.vstack([P0, P1, P2, P3])
-        return torch.vstack([P0, P1, P2, P3]).view(-1)
+        return torch.vstack([P0, P1, P2, P3]).view(-1).unsqueeze(0)
 
 
     def evaluate_bezier(self, ctrl_pts, t_vals):
@@ -268,10 +268,14 @@ class EgoPathTrainer():
         """
         Endpoint loss = sum of absolute differences at P0 and P3.
         """
-        p = torch.as_tensor(pred_ctrl_pts, dtype=torch.float32)
-        g = torch.as_tensor(gt_ctrl_pts,   dtype=torch.float32)
-        diff = torch.abs(p[[0, 3]] - g[[0, 3]])
-        return diff.sum()
+        diff_P0 = torch.abs(pred_ctrl_pts[0][0] - gt_ctrl_pts[0][0]) + \
+            torch.abs(pred_ctrl_pts[0][1] - gt_ctrl_pts[0][1])
+        
+        diff_P3 = torch.abs(pred_ctrl_pts[0][6] - gt_ctrl_pts[0][6]) + \
+            torch.abs(pred_ctrl_pts[0][7] - gt_ctrl_pts[0][7])
+        
+        return diff_P0 + diff_P3
+
 
 
     def calc_analytic_gradient_loss(self, pred_ctrl_pts, gt_ctrl_pts, num_samples=25):
@@ -319,14 +323,14 @@ class EgoPathTrainer():
         return torch.mean(torch.abs(grad_g - grad_p))
 
 
-    def calc_loss(self, pred_ctrl_pts, gt_ctrl_pts, alpha=1):
+    def calc_loss(self, pred_ctrl_pts, gt_ctrl_pts):
         """
         Combined loss = alpha * endpoint + beta * gradient.
         """
         self.endpoint_loss = self.calc_endpoint_loss(pred_ctrl_pts, gt_ctrl_pts)
-        self.gradient_loss = self.calc_numerical_gradient_loss(pred_ctrl_pts, gt_ctrl_pts)
-
-        return self.gradient_loss + alpha * self.endpoint_loss
+        return self.endpoint_loss
+        #self.gradient_loss = self.calc_numerical_gradient_loss(pred_ctrl_pts, gt_ctrl_pts)
+        #return (self.gradient_loss*self.loss_scale_factor) + self.endpoint_loss
 
 
     # Save predicted visualization
