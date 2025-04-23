@@ -6,6 +6,7 @@ import torch
 import random
 import pathlib
 import numpy as np
+import matplotlib.pyplot as plt
 
 import sys
 sys.path.append(os.path.abspath(os.path.join(
@@ -20,79 +21,8 @@ from typing import Literal, get_args
 from Models.data_utils.load_data_ego_path import LoadDataEgoPath
 from Models.training.ego_path_trainer import EgoPathTrainer
 
-VALID_DATASET_LIST = [
-    "BDD100K", 
-    "COMMA2K19", 
-    "CULANE", 
-    "CURVELANES", 
-    "ROADWORK", 
-    "TUSIMPLE"
-]
-
 
 def main():
-    '''
-    # Argparse init
-
-    parser = ArgumentParser(
-        description = "Training module for EgoPath"
-    )
-    
-    parser.add_argument(
-        "-s", "--model_save_root_path",
-        type = str,
-        dest = "model_save_root_path",
-        help = "Root path where PyTorch checkpoint save should be saved.",
-        required = True
-    )
-    parser.add_argument(
-        "-r", "--root",
-        type = str,
-        dest = "root_all_datasets",
-        help = "Root path where all EgoPath datasets are stored.",
-        required = True
-    )
-    parser.add_argument(
-        "-e", "--epochs",
-        type = int,
-        dest = "num_epochs",
-        help = "Number of epochs",
-        default = 10,
-        required = False
-    )
-    parser.add_argument(
-        "-ll", "--logstep_loss",
-        type = int,
-        dest = "logstep_loss",
-        help = "Log loss to Tensorboard after this number of steps",
-        default = 500,
-        required = False
-    )
-    parser.add_argument(
-        "-lv", "--logstep_vis",
-        type = int,
-        dest = "logstep_vis",
-        help = "Log image to Tensorboard after this number of steps",
-        default = 5000,
-        required = False
-    )
-    parser.add_argument(
-        "-lm", "--logstep_model",
-        type = int,
-        dest = "logstep_model",
-        help = "Save model and run val after this number of steps",
-        default = 11000,
-        required = False
-    )
-    args = parser.parse_args()
-    
-    root_checkpoints = args.model_save_root_path
-    root_datasets = args.root_all_datasets
-    NUM_EPOCHS = args.num_epochs
-    LOGSTEP_LOSS = args.logstep_loss
-    LOGSTEP_VIS = args.logstep_vis
-    LOGSTEP_MODEL = args.logstep_model
-    '''
 
     # ====================== Loading Data ====================== #
     
@@ -176,7 +106,16 @@ def main():
     # ====================== Training ====================== #
 
     # Trainer instance
-    trainer = EgoPathTrainer()
+    trainer = 0
+    load_from_checkpoint= False
+    pretrained_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth'
+    checkpoint_path = ''
+
+    if(load_from_checkpoint == False):
+        trainer = EgoPathTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
+    else:
+        trainer = EgoPathTrainer(checkpoint_path=checkpoint_path, is_pretrained=False)
+
     trainer.zero_grad()             
   
     NUM_EPOCHS = 20
@@ -278,6 +217,10 @@ def main():
                 data_list_count = 0
 
             # Get data depending on which dataset we are processing
+
+            image = 0
+            gt = 0
+
             if(data_list[data_list_count] == 'BDD100K'):
                 image, gt = bdd100k_Dataset.getItem(bdd100k_sample_list[bdd100k_count], is_train=True)
                 bdd100k_count += 1
@@ -302,7 +245,8 @@ def main():
                 image, gt = tusimple_Dataset.getItem(tusimple_sample_list[tusimple_count], is_train=True)
                 tusimple_count += 1
 
-    '''
+            print(count)
+            '''
             # Assign data
             trainer.set_data(image, label)
 
@@ -390,11 +334,11 @@ def main():
 
                 # Switch back to training
                 trainer.set_train_mode()
-
+            '''
             data_list_count += 1
 
-    trainer.cleanup()
-    '''
+    #trainer.cleanup()
+    
 
 if __name__ == "__main__":
     main()
