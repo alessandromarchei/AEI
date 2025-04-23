@@ -139,5 +139,45 @@ class LoadDataEgoPath():
 
         # Point/line auto audit
         label = self.dataAudit(label)
-        
-        return np.array(img), label
+
+        # Bezier curve fitting
+        is_valid = True
+        bezier_curve_points = 0
+
+        if(len(label >=4)):
+            bezier_curve_points = self.fit_cubic_bezier(label)
+        else:
+            is_valid = False
+
+        return np.array(img), bezier_curve_points, is_valid
+    
+    def fit_cubic_bezier(self, points):
+        points = np.asarray(points)
+        n = len(points)
+        if n < 4:
+            raise ValueError("Need at least 4 points to fit a cubic Bézier curve.")
+
+        # Chord length parameterization
+        distances = np.sqrt(np.sum(np.diff(points, axis=0)**2, axis=1))
+        cumulative = np.insert(np.cumsum(distances), 0, 0)
+        t = cumulative / cumulative[-1]
+
+        # Bézier basis functions
+        def bernstein_matrix(t):
+            t = np.asarray(t)
+            B = np.zeros((len(t), 4))
+            B[:, 0] = (1 - t)**3
+            B[:, 1] = 3 * (1 - t)**2 * t
+            B[:, 2] = 3 * (1 - t) * t**2
+            B[:, 3] = t**3
+            return B
+
+        B = bernstein_matrix(t)
+
+        # Least squares fitting: B * P = points => P = (B^T B)^-1 B^T * points
+        BTB = B.T @ B
+        BTP = B.T @ points
+        control_points = np.linalg.solve(BTB, BTP)
+
+        return control_points  # shape (4, 2)
+    
