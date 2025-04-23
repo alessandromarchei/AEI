@@ -54,14 +54,6 @@ class Augmentations():
 
         self.transform_shape_keypoints = A.Compose(
             [
-                A.Resize(width = 640, height = 320),
-                A.HorizontalFlip(p = 0.5),
-            ],
-            keypoint_params = A.KeypointParams(format = "xy")
-        )
-
-        self.transform_shape_keypoints_test = A.Compose(
-            [
                 A.Resize(width = 640, height = 320)
             ],
             keypoint_params = A.KeypointParams(format = "xy")
@@ -230,7 +222,7 @@ class Augmentations():
         else:
 
             # Only resize in test/val
-            self.adjust_shape = self.transform_shape_keypoints_test(
+            self.adjust_shape = self.transform_shape_keypoints(
                 image = self.image,
                 keypoints = self.ground_truth
             )
