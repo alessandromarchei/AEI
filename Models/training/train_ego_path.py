@@ -93,108 +93,215 @@ def main():
     LOGSTEP_VIS = args.logstep_vis
     LOGSTEP_MODEL = args.logstep_model
     '''
-    # ================== Data acquisition ================== #
 
-    root_datasets = '/mnt/media/EgoPath/EgoPathDatasets/'
-    NUM_EPOCHS = 20
-
-    # Master dict to store dataset metadata
-    dict_data = {
-        dataset : {
-            "labels_filepath" : os.path.join(
-                root_datasets,
-                dataset,
-                "drivable_path.json"
-            ),
-            "images_dirpath" : os.path.join(
-                root_datasets,
-                dataset,
-                "image"
-            ),
-        }
-        for dataset in VALID_DATASET_LIST
-    }
-
-    # Retrieve em all via LoadDataEgoPath
-
-    for dataset, metadata in dict_data.items():
-
-        # Loader instance
-        dict_data[dataset]["loader_instance"] = LoadDataEgoPath(
-            labels_filepath = metadata["labels_filepath"],
-            images_filepath = metadata["images_dirpath"],
-            dataset = dataset
-        )
-
-        # Num train/val
-        dict_data[dataset]["N_trains"] = dict_data[dataset]["loader_instance"].getItemCount()[0]
-        dict_data[dataset]["N_vals"] = dict_data[dataset]["loader_instance"].getItemCount()[1]
-
-    # Count total samples
-    SUM_N_TRAINS = sum([
-        metadata["N_trains"]
-        for _, metadata in dict_data.items()
-    ])
-    SUM_N_VALS = sum([
-        metadata["N_vals"]
-        for _, metadata in dict_data.items()
-    ])
+    # ====================== Loading Data ====================== #
     
+    # ROOT PATH
+    root = '/mnt/media/EgoPath/EgoPathDatasets/'
+    
+    # BDD100K
+    bdd100k_labels_filepath= root + 'BDD100K/drivable_path.json'
+    bdd100k_images_filepath = root + 'BDD100K/image/'
+
+    # COMMA2K19
+    comma2k19_labels_fileapath = root + 'COMMA2K19/drivable_path.json'
+    comma2k19_images_fileapath = root + 'COMMA2K19/image/'
+
+    # CULANE
+    culane_labels_fileapath = root + 'CULANE/drivable_path.json'
+    culane_images_fileapath = root + 'CULANE/image/'
+
+    # CURVELANES
+    curvelanes_labels_fileapath = root + 'CURVELANES/drivable_path.json'
+    curvelanes_images_fileapath = root + 'CURVELANES/image/'
+
+    # ROADWORK
+    roadwork_labels_fileapath = root + 'ROADWORK/drivable_path.json'
+    roadwork_images_fileapath = root + 'ROADWORK/image/'
+
+    # TUSIMPLE
+    tusimple_labels_filepath = root + 'TUSIMPLE/drivable_path.json'
+    tusimple_images_filepath = root + 'TUSIMPLE/image/'
+
+    # BDD100K - Data Loading
+    bdd100k_Dataset = LoadDataEgoPath(bdd100k_labels_filepath, bdd100k_images_filepath, 'BDD100K')
+    bdd100k_num_train_samples, bdd100k_num_val_samples = bdd100k_Dataset.getItemCount()
+    bdd100k_sample_list = list(range(0, bdd100k_num_train_samples))
+    random.shuffle(bdd100k_sample_list)
+
+    # COMMA2K19 - Data Loading
+    comma2k19_Dataset = LoadDataEgoPath(comma2k19_labels_fileapath, comma2k19_images_fileapath, 'COMMA2K19')
+    comma2k19_num_train_samples, comma2k19_num_val_samples = comma2k19_Dataset.getItemCount()
+    comma2k19_sample_list = list(range(0, comma2k19_num_train_samples))
+    random.shuffle(comma2k19_sample_list)
+
+    # CULANE - Data Loading
+    culane_Dataset = LoadDataEgoPath(culane_labels_fileapath, culane_images_fileapath, 'CULANE')
+    culane_num_train_samples, culane_num_val_samples = culane_Dataset.getItemCount()
+    culane_sample_list = list(range(0, culane_num_train_samples))
+    random.shuffle(culane_sample_list)
+
+    # CURVELANES - Data Loading
+    curvelanes_Dataset = LoadDataEgoPath(curvelanes_labels_fileapath, curvelanes_images_fileapath, 'CURVELANES')
+    curvelanes_num_train_samples, curvelanes_num_val_samples = curvelanes_Dataset.getItemCount()
+    curvelanes_sample_list = list(range(0, curvelanes_num_train_samples))
+    random.shuffle(curvelanes_sample_list)
+
+    # ROADWORK - Data Loading
+    roadwork_Dataset = LoadDataEgoPath(roadwork_labels_fileapath, roadwork_images_fileapath, 'ROADWORK')
+    roadwork_num_train_samples, roadwork_num_val_samples = roadwork_Dataset.getItemCount()
+    roadwork_sample_list = list(range(0, roadwork_num_train_samples))
+    random.shuffle(roadwork_sample_list)
+
+    # TUSIMPLE - Data Loading
+    tusimple_Dataset = LoadDataEgoPath(tusimple_labels_filepath, tusimple_images_filepath, 'TUSIMPLE')
+    tusimple_num_train_samples, tusimple_num_val_samples = tusimple_Dataset.getItemCount()
+    tusimple_sample_list = list(range(0, tusimple_num_train_samples))
+    random.shuffle(tusimple_sample_list)
+
+    # Total number of training samples
+    total_train_samples = bdd100k_num_train_samples + \
+    + comma2k19_num_train_samples + culane_num_train_samples \
+    + curvelanes_num_train_samples + roadwork_num_train_samples \
+    + tusimple_num_train_samples
+    print(total_train_samples, ': total training samples')
+
+    # Total number of validation samples
+    total_val_samples = bdd100k_num_val_samples + \
+    + comma2k19_num_val_samples + culane_num_val_samples \
+    + curvelanes_num_val_samples + roadwork_num_val_samples \
+    + tusimple_num_val_samples
+    print(total_val_samples, ': total validation samples')
+
     # ====================== Training ====================== #
 
     # Trainer instance
     trainer = EgoPathTrainer()
-    trainer.zero_grad()             # Reset optimizer gradients
+    trainer.zero_grad()             
+  
+    NUM_EPOCHS = 20
 
+    # Datasets list
+    data_list = []
+    data_list.append('BDD100K')
+    data_list.append('COMMA2K19')
+    data_list.append('CULANE')
+    data_list.append('CURVELANES')
+    data_list.append('ROADWORK')
+    data_list.append('TUSIMPLE')
+    
     # Running thru epochs
     for epoch in range(0, NUM_EPOCHS):
 
-        # Init dataset sample count
-        status_datasets = {
-            dataset : {
-                "count" : 0,
-                "completed" : False
-            }
-            for dataset in VALID_DATASET_LIST
-        }
-
-        remaining_dataset = random.shuffle(VALID_DATASET_LIST.copy())
-        data_list_count = 0
-
-        # Implement Coarse-to-fine Optimization
+        # Batch Size Schedule
         if(epoch == 0):
             batch_size = 24
         elif(epoch == 1):
             batch_size = 12
         elif(epoch == 2):
             batch_size = 6
-        elif(epoch >=2):
+        elif(epoch == 3):
             batch_size = 3
+        elif(epoch == 4):
+            batch_size = 2
+        elif(epoch > 4):
+            batch_size = 1
 
-        for i in range(SUM_N_TRAINS):
+        # Shuffle overall data list at start of epoch and reset data list counter
+        random.shuffle(data_list)
+        data_list_count = 0
 
-            log_index = i + epoch * SUM_N_TRAINS
+        # Iterators for datasets
+        bdd100k_count = 0
+        comma2k19_count = 0
+        culane_count = 0
+        curvelanes_count = 0
+        roadwork_count = 0
+        tusimple_count = 0
 
-            # Check and update status of current datasets
-            for dataset, status in status_datasets.items():
-                if (
-                    status["count"] == dict_data[dataset]["N_trains"] and
-                    status["completed"] == False
-                ):
-                    status_datasets[dataset]["completed"] = True
-                    remaining_dataset.remove(dataset)
+        # Flags for whether all samples from a dataset have been read during the epoch
+        is_bdd100k_complete = False
+        is_comma2k19_complete = False
+        is_culane_complete = False
+        is_curvelanes_complete = False
+        is_roadwork_complete = False
+        is_tusimple_complete = False
 
-            if (len(remaining_dataset) <= data_list_count):
+        # Data sample counter
+        count = 0
+
+        # Loop through data
+        while(True):
+
+            # Log count
+            count += 1
+            log_count = count + total_train_samples*epoch
+
+            # Reset iterators and shuffle individual datasets
+            if(bdd100k_count == bdd100k_num_train_samples):
+                is_bdd100k_complete = True
+                bdd100k_count = 0
+                random.shuffle(bdd100k_sample_list)
+            
+            if(comma2k19_count == comma2k19_num_train_samples):
+                is_comma2k19_complete = True
+                comma2k19_count = 0
+                random.shuffle(comma2k19_sample_list)
+            
+            if(culane_count == culane_num_train_samples):
+                is_culane_complete = True
+                culane_count = 0
+                random.shuffle(culane_sample_list)
+
+            if(curvelanes_count == curvelanes_num_train_samples):
+                is_curvelanes_complete = True
+                curvelanes_count = 0
+                random.shuffle(curvelanes_sample_list)
+
+            if(roadwork_count == roadwork_num_train_samples):
+                is_roadwork_complete = True
+                roadwork_count = 0
+                random.shuffle(roadwork_sample_list)
+
+            if(tusimple_count == tusimple_num_train_samples):
+                is_tusimple_complete = True
+                tusimple_count = 0
+                random.shuffle(tusimple_sample_list)
+
+            # If we have looped through each dataset at least once - restart the epoch
+            if(is_bdd100k_complete and is_comma2k19_complete and is_culane_complete
+               and is_curvelanes_complete and is_roadwork_complete and is_tusimple_complete):
+                break
+            
+            # Reset the data list count if out of range
+            if(data_list_count >= len(data_list)):
                 data_list_count = 0
 
-            # Read image/label
-            current_dataset = remaining_dataset[data_list_count]
-            if (status_datasets[current_dataset]["completed"] == False):
-                image, label = dict_data[current_dataset]["loader_instance"].getItem(
-                    index = status_datasets[current_dataset]["count"],
-                    is_train = True
-                )
-                status_datasets[current_dataset]["count"] += 1
+            # Get data depending on which dataset we are processing
+            if(data_list[data_list_count] == 'BDD100K'):
+                image, gt = bdd100k_Dataset.getItem(bdd100k_sample_list[bdd100k_count], is_train=True)
+                bdd100k_count += 1
+
+            if(data_list[data_list_count] == 'COMMA2K19'):
+                image, gt = comma2k19_Dataset.getItem(comma2k19_sample_list[comma2k19_count], is_train=True)
+                comma2k19_count += 1
+
+            if(data_list[data_list_count] == 'CULANE'):
+                image, gt = culane_Dataset.getItem(culane_sample_list[culane_count], is_train=True)
+                culane_count += 1
+
+            if(data_list[data_list_count] == 'CURVELANES'):
+                image, gt = curvelanes_Dataset.getItem(curvelanes_sample_list[curvelanes_count], is_train=True)
+                curvelanes_count += 1
+
+            if(data_list[data_list_count] == 'ROADWORK'):
+                image, gt = roadwork_Dataset.getItem(roadwork_sample_list[roadwork_count], is_train=True)
+                roadwork_count += 1
+
+            if(data_list[data_list_count] == 'TUSIMPLE'):
+                image, gt = tusimple_Dataset.getItem(tusimple_sample_list[tusimple_count], is_train=True)
+                tusimple_count += 1
+
     '''
             # Assign data
             trainer.set_data(image, label)
