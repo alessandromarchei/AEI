@@ -172,14 +172,13 @@ class EgoPathTrainer():
 
     # Load Data
     def load_data(self):
-        # TODO
+        
         image_tensor = self.image_loader(self.image)
         image_tensor = image_tensor.unsqueeze(0)
         self.image_tensor = image_tensor.to(self.device)
 
-        gt_tensor = torch.from_numpy(self.gt)
+        gt_tensor = self.fit_bezier(self.gt)
         gt_tensor = gt_tensor.unsqueeze(0)
-        gt_tensor = gt_tensor.type(torch.FloatTensor)
         self.gt_tensor = gt_tensor.to(self.device)
 
     def fit_bezier(self, drivable_path):
