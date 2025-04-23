@@ -92,7 +92,6 @@ class LoadDataEgoPath():
                     raise ValueError(f"Mismatch data detected in {self.dataset_name}!")
 
         print(f"Dataset {self.dataset_name} loaded with {self.N_trains} trains and {self.N_vals} vals.")
-        print(f"Val/Total = {(self.N_vals / (self.N_trains + self.N_vals)):03f}")
 
     # Get sizes of Train/Val sets
     def getItemCount(self):
