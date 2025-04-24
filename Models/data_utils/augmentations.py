@@ -52,13 +52,6 @@ class Augmentations():
             ]
         )
 
-        self.transform_shape_keypoints = A.Compose(
-            [
-                A.Resize(width = 640, height = 320)
-            ],
-            keypoint_params = A.KeypointParams(format = "xy")
-        )
-
         # ========================== Noise transforms ========================== #
 
         self.transform_noise = A.Compose(
@@ -181,53 +174,37 @@ class Augmentations():
     
     # KEYPOINTS
     # Set data values
-    def setDataKeypoints(self, image, ground_truth):
+    def setDataKeypoints(self, image):
 
         self.image = image
         self.augmented_image = image
 
-        self.ground_truth = ground_truth
-        self.augmented_data = ground_truth
-
     # Apply augmentation transform
-    def applyTransformKeypoint(
-            self, 
-            image: np.array, 
-            ground_truth: list, 
-    ):
+    def applyTransformKeypoint(self, image):
 
         if (self.data_type != "KEYPOINTS"):
             raise ValueError("Please set dataset type to KEYPOINTS in intialization of class")
         
-        self.setDataKeypoints(image, ground_truth)
+        self.setDataKeypoints(image)
 
         # For train set
         if (self.is_train):
 
-            self.adjust_shape = self.transform_shape_keypoints(
-                image = self.image,
-                keypoints = self.ground_truth
-            )
-            
+            # Resize image
+            self.adjust_shape = self.transform_shape_test(image = self.image)
             self.augmented_image = self.adjust_shape["image"]
-            self.augmented_data = self.adjust_shape["keypoints"]
 
-            # Random image augmentations
+            # Apply random image augmentations
             if (random.random() >= 0.25 and self.is_train):
-        
-                self.add_noise = self.transform_noise_keypoints(image = self.augmented_image)
+    
+                self.add_noise = self.transform_noise(image = self.augmented_image)
                 self.augmented_image = self.add_noise["image"]
 
         # For test/val sets
         else:
 
-            # Only resize in test/val
-            self.adjust_shape = self.transform_shape_keypoints(
-                image = self.image,
-                keypoints = self.ground_truth
-            )
-            
+            # Only resize the image without any augmentations
+            self.adjust_shape = self.transform_shape_test(image = self.image)
             self.augmented_image = self.adjust_shape["image"]
-            self.augmented_data = self.adjust_shape["keypoints"]
 
-        return self.augmented_image, self.augmented_data
+        return self.augmented_image
