@@ -241,7 +241,7 @@ class LoadDataEgoPath():
         is_valid = True
 
         # Keypoints
-        keypoints = 0
+        keypoints_list = []
 
         # If there are enough points to fit a cubic bezier curve
         if(len(label) >= 4):
@@ -252,12 +252,23 @@ class LoadDataEgoPath():
             # Calculate discrete data keypoints based on sampling
             # of cubic bezier curve
             keypoints = self.sample_bezier_points(p0, p1, p2, p3)
+            
+            # Convert keypoints to single dimension vector in Numpy format
+            for i in range(0, len(keypoints)):
+                keypoints_list.append(keypoints[i][0])
+                keypoints_list.append(keypoints[i][1])
+
+            keypoints_list = np.array(keypoints_list)
+            keypoints_list = keypoints_list.astype(np.float32)
 
         else:
             # Data is not valid since we need at least 4 raw data
             # points to fit a cubic bezier curve
             is_valid = False
 
-        return np.array(img), keypoints, is_valid
+        # Convert image to OpenCV/Numpy format for augmentations
+        img = np.array(img)
+
+        return img, keypoints_list, is_valid
     
   
