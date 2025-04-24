@@ -14,7 +14,7 @@ class EgoPathHead(nn.Module):
         self.ego_path_layer_0 = nn.Linear(1280, 800)
         self.ego_path_layer_1 = nn.Linear(800, 800)
         self.ego_path_layer_2 = nn.Linear(800, 200)
-        self.ego_path_layer_3 = nn.Linear(200, 8)
+        self.ego_path_layer_3 = nn.Linear(200, 20)
      
 
     def forward(self, features):
