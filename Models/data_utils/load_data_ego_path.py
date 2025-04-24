@@ -120,6 +120,12 @@ class LoadDataEgoPath():
             if (point[1] == 1.0):
                 fixed_label[i][1] = 0.9999
 
+            if(point[0] < 0):
+                fixed_label[i][0] = 0
+
+            if(point[1] < 0):
+                fixed_label[i][1] = 0
+
         # Comma2k19's jumpy point (but can be happening to others as well)
         for i in range(1, len(fixed_label)):
             if (fixed_label[i][1] > fixed_label[i - 1][1]):
@@ -127,6 +133,97 @@ class LoadDataEgoPath():
                 break
 
         return fixed_label
+
+    def fit_cubic_bezier(self, label):
+
+        # Fit a Cubic Bezier curve to raw data points
+
+        # Chord length parameterization
+        distances = np.sqrt(np.sum(np.diff(label, axis=0)**2, axis=1))
+        cumulative = np.insert(np.cumsum(distances), 0, 0)
+        t = cumulative / cumulative[-1]
+
+        # Bézier basis functions
+        def bernstein_matrix(t):
+            t = np.asarray(t)
+            B = np.zeros((len(t), 4))
+            B[:, 0] = (1 - t)**3
+            B[:, 1] = 3 * (1 - t)**2 * t
+            B[:, 2] = 3 * (1 - t) * t**2
+            B[:, 3] = t**3
+            return B
+
+        B = bernstein_matrix(t)
+
+        # Least squares fitting: B * P = points => P = (B^T B)^-1 B^T * points
+        BTB = B.T @ B
+        BTP = B.T @ label
+        control_points = np.linalg.solve(BTB, BTP)
+
+        # Get control points for cubic bezier curve
+        p0 = control_points[0]
+        p1 = control_points[1]
+        p2 = control_points[2]
+        p3 = control_points[3]
+   
+        return p0, p1, p2, p3
+    
+    def evaluate_bezier(self, p0, p1, p2, p3, t):
+
+        # Throw an error if parameter t is out of boudns
+        if(t < 0 or t > 1):
+            raise ValueError('Please ensure t parameter is in the range [0,1]')
+        
+        # Evaluate cubic bezier curve for value of t in range [0,1]
+        x = (1-t)*(1-t)*(1-t)*p0[0] + 3*(1-t)*(1-t)*t*p1[0] \
+            + 3*(1-t)*t*t*p2[0] + t*t*t*p3[0]
+        
+        y = (1-t)*(1-t)*(1-t)*p0[1] + 3*(1-t)*(1-t)*t*p1[1] \
+            + 3*(1-t)*t*t*p2[1] + t*t*t*p3[1]
+        
+        return x,y
+    
+    def sample_bezier_points(self, p0, p1, p2, p3):
+
+        samples = []
+
+        # Getting samples, and ignoring samples very close to bottom of image
+        # due to inaccuracy caused by Cubic Bezier over-fitting
+        for i in range(20, 110, 10):
+
+            t_val = i/100
+            point = []
+
+            x_point, y_point = self.evaluate_bezier(p0, p1, p2, p3, t_val)
+            point.append(x_point)
+            point.append(y_point)
+
+            samples.append(point)
+
+        # Linear extrapolation of the samples to the bottom of the image
+
+        # Samples at the very bottom of the image
+        first_sample = samples[0]
+        second_sample = samples[1]
+
+        # Gradient
+        start_gradient = (first_sample[0] - second_sample[0])/ \
+            (first_sample[1] - second_sample[1] + 0.000001)
+
+        # How far away is the current start sample from the bottom of the image
+        first_sample_y_val_offset = 1 - first_sample[1]
+
+        # Calculate coordinate of extrapolated point
+        zero_sample_x = start_gradient*first_sample_y_val_offset + first_sample[0]
+        zero_sample_y = 1.0
+
+        # Insert extrapolated point to the bottom of the list
+        new_start_point = []
+        new_start_point.append(zero_sample_x)
+        new_start_point.append(zero_sample_y)
+        samples.insert(0, new_start_point)
+
+        return samples
     
     # Get item at index ith, returning img and EgoPath
     def getItem(self, index, is_train: bool):
@@ -140,12 +237,27 @@ class LoadDataEgoPath():
         # Point/line auto audit
         label = self.dataAudit(label)
 
-        # Bezier curve fitting
+        # Flag to store whether data is valid or not
         is_valid = True
 
-        if(len(label) <4):
+        # Keypoints
+        keypoints = 0
+
+        # If there are enough points to fit a cubic bezier curve
+        if(len(label) >= 4):
+            
+            # Fit a cubic bezier curve to raw data points
+            p0, p1, p2, p3 = self.fit_cubic_bezier(label)
+
+            # Calculate discrete data keypoints based on sampling
+            # of cubic bezier curve
+            keypoints = self.sample_bezier_points(p0, p1, p2, p3)
+
+        else:
+            # Data is not valid since we need at least 4 raw data
+            # points to fit a cubic bezier curve
             is_valid = False
 
-        return np.array(img), label, is_valid
+        return np.array(img), keypoints, is_valid
     
   
