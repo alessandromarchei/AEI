@@ -317,8 +317,8 @@ class EgoPathTrainer():
 
             # Find tangent angle betwen consecutive pairs of points
             # for the Ground Truth and Prediction
-            grad_g = torch.atan(dxg, dyg)
-            grad_p = torch.atan(dxp, dyp)
+            grad_g = torch.atan2(dyg, dxg)
+            grad_p = torch.atan2(dyp, dxp)
 
             # Calculate the absoulte angle error and sum for all
             # samples
