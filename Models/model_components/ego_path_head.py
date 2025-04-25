@@ -7,14 +7,13 @@ class EgoPathHead(nn.Module):
         super(EgoPathHead, self).__init__()
         # Standard
         self.GeLU = nn.GELU()
-        self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(p=0.25)
 
         # Context - MLP Layers
         self.ego_path_layer_0 = nn.Linear(1280, 800)
         self.ego_path_layer_1 = nn.Linear(800, 800)
         self.ego_path_layer_2 = nn.Linear(800, 200)
-        self.ego_path_layer_3 = nn.Linear(200, 20)
+        self.ego_path_layer_3 = nn.Linear(200, 8)
      
 
     def forward(self, features):
@@ -31,8 +30,6 @@ class EgoPathHead(nn.Module):
         p2 = self.ego_path_layer_2(p1)
         p2 = self.dropout(p2)
         p2 = self.GeLU(p2)
-        p3 = self.ego_path_layer_3(p2)
-        p3 = self.dropout(p3)
-        ego_path = self.sigmoid(p3)
+        ego_path = self.ego_path_layer_3(p2)
         
         return ego_path   
