@@ -167,64 +167,7 @@ class LoadDataEgoPath():
         p3 = control_points[3]
    
         return p0, p1, p2, p3
-    
-    def evaluate_bezier(self, p0, p1, p2, p3, t):
-
-        # Throw an error if parameter t is out of boudns
-        if(t < 0 or t > 1):
-            raise ValueError('Please ensure t parameter is in the range [0,1]')
-        
-        # Evaluate cubic bezier curve for value of t in range [0,1]
-        x = (1-t)*(1-t)*(1-t)*p0[0] + 3*(1-t)*(1-t)*t*p1[0] \
-            + 3*(1-t)*t*t*p2[0] + t*t*t*p3[0]
-        
-        y = (1-t)*(1-t)*(1-t)*p0[1] + 3*(1-t)*(1-t)*t*p1[1] \
-            + 3*(1-t)*t*t*p2[1] + t*t*t*p3[1]
-        
-        return x,y
-    
-    def sample_bezier_points(self, p0, p1, p2, p3):
-
-        samples = []
-
-        # Getting samples, and ignoring samples very close to bottom of image
-        # due to inaccuracy caused by Cubic Bezier over-fitting
-        for i in range(20, 110, 10):
-
-            t_val = i/100
-            point = []
-
-            x_point, y_point = self.evaluate_bezier(p0, p1, p2, p3, t_val)
-            point.append(x_point)
-            point.append(y_point)
-
-            samples.append(point)
-
-        # Linear extrapolation of the samples to the bottom of the image
-
-        # Samples at the very bottom of the image
-        first_sample = samples[0]
-        second_sample = samples[1]
-
-        # Gradient
-        start_gradient = (first_sample[0] - second_sample[0])/ \
-            (first_sample[1] - second_sample[1] + 0.000001)
-
-        # How far away is the current start sample from the bottom of the image
-        first_sample_y_val_offset = 1 - first_sample[1]
-
-        # Calculate coordinate of extrapolated point
-        zero_sample_x = start_gradient*first_sample_y_val_offset + first_sample[0]
-        zero_sample_y = 1.0
-
-        # Insert extrapolated point to the bottom of the list
-        new_start_point = []
-        new_start_point.append(zero_sample_x)
-        new_start_point.append(zero_sample_y)
-        samples.insert(0, new_start_point)
-
-        return samples
-    
+       
     # Get item at index ith, returning img and EgoPath
     def getItem(self, index, is_train: bool):
         if (is_train):
@@ -234,33 +177,28 @@ class LoadDataEgoPath():
             img = Image.open(str(self.val_images[index])).convert("RGB")
             label = self.val_labels[index]["drivable_path"]
 
-        # Point/line auto audit
-        label = self.dataAudit(label)
-
         # Flag to store whether data is valid or not
         is_valid = True
 
         # Keypoints
-        keypoints_list = []
+        bezier_curve = 0
 
         # If there are enough points to fit a cubic bezier curve
         if(len(label) >= 4):
+
+            # Point/line auto audit
+            label = self.dataAudit(label)
             
             # Fit a cubic bezier curve to raw data points
             p0, p1, p2, p3 = self.fit_cubic_bezier(label)
 
-            # Calculate discrete data keypoints based on sampling
-            # of cubic bezier curve
-            keypoints = self.sample_bezier_points(p0, p1, p2, p3)
-            
-            # Convert keypoints to single dimension vector in Numpy format
-            for i in range(0, len(keypoints)):
-                keypoints_list.append(keypoints[i][0])
-                keypoints_list.append(keypoints[i][1])
+            p0_ref_arr = np.array(p0)
+            p1_ref_arr = np.array(p1)
+            p2_ref_arr = np.array(p2)
+            p3_ref_arr = np.array(p3)
 
-            keypoints_list = np.array(keypoints_list)
-            keypoints_list = keypoints_list.astype(np.float32)
-
+            bezier_curve = np.concatenate((p0_ref_arr, p1_ref_arr, p2_ref_arr, p3_ref_arr), axis=0)
+            bezier_curve = np.float32(bezier_curve)
         else:
             # Data is not valid since we need at least 4 raw data
             # points to fit a cubic bezier curve
@@ -269,6 +207,6 @@ class LoadDataEgoPath():
         # Convert image to OpenCV/Numpy format for augmentations
         img = np.array(img)
 
-        return img, keypoints_list, is_valid
+        return img, bezier_curve, is_valid
     
   
