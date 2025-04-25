@@ -37,10 +37,12 @@ class EgoPathTrainer():
         self.endpoint_loss = 0
         self.mid_point_loss = 0
         self.gradient_loss = 0
+        self.control_points_loss = 0
         self.gradient_type = 'NUMERICAL'
 
         # Loss scale factors
         self.endpoint_loss_scale_factor = 1
+        self.control_points_scale_factor = 1
         self.grad_scale_factor = 1
         self.mid_point_scale_factor = 2
 
@@ -152,9 +154,12 @@ class EgoPathTrainer():
         # vs Ground Truth Bezier Curves
         self.endpoint_loss = self.calc_endpoints_loss(prediction, ground_truth)
 
-        # Mid-point loss - used in the BezierLaneNet paper, this loss ensures that
-        # points along the curve have small x-deviation - also acts as a regulariation term
+        # Mid-point loss - similar to the BezierLaneNet paper, this loss ensures that
+        # points along the curve have small x and y deviation - also acts as a regulariation term
         self.mid_point_loss = self.calc_mid_points_loss(prediction, ground_truth)
+
+        # Control Points loss - make sure Bezier control points match
+        self.control_points_loss = self.calc_control_points_loss(prediction, ground_truth)
 
         # Gradient Loss - either NUMERICAL tangent angle calcualation or
         # ANALYTICAL derviative of bezier curve, this loss ensures the curve is 
@@ -167,18 +172,22 @@ class EgoPathTrainer():
         # Total loss is sum of individual losses multiplied by scailng factors
         total_loss = self.gradient_loss*self.grad_scale_factor + \
             self.mid_point_loss*self.mid_point_scale_factor + \
+            self.control_points_loss*self.control_points_scale_factor + \
             self.gradient_loss*self.grad_scale_factor
      
         return total_loss 
     
+
     # Set scale factors for losses
     def set_loss_scale_factors(self, endpoint_loss_scale_factor, 
-            mid_point_scale_factor, grad_scale_factor):
+            mid_point_scale_factor, grad_scale_factor, control_point_scale_factor):
         
         # Loss scale factors
         self.endpoint_loss_scale_factor = endpoint_loss_scale_factor
         self.grad_scale_factor = grad_scale_factor
         self.mid_point_scale_factor = mid_point_scale_factor
+        self.control_points_scale_factor = control_point_scale_factor
+
 
     # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
     def set_gradient_loss_type(self, type):
@@ -189,6 +198,11 @@ class EgoPathTrainer():
             self.gradient_type = 'ANALYTICAL'
         else:
             raise ValueError('Please specify either NUMERICAL or ANALYTICAL gradient loss as a string')
+        
+    # Calculate the error between Bezier Control Points
+    def calc_control_points_loss(self, prediction, ground_truth):
+        control_points_loss = torch.mean(torch.abs(prediction-ground_truth))
+        return control_points_loss
     
     # Calculate the endpoints loss term 
     def calc_endpoints_loss(self, prediction, ground_truth):
@@ -237,10 +251,10 @@ class EgoPathTrainer():
          
          return x,y
 
-    # Calculate the mid-points loss term - as used in the BezierLaneNet paper
+    # Calculate the mid-points loss term - similar to the BezierLaneNet paper
     def calc_mid_points_loss(self, prediction, ground_truth):
 
-        delta_x_sum = 0
+        delta_sum = 0
         sample_count = 0
 
         # Sample the bezier curve for Prediction and Ground Truth
@@ -254,17 +268,17 @@ class EgoPathTrainer():
             t = i/100
 
             # Get x-values for prediction and ground truth
-            x_pred, _ = self.evaluate_bezier(prediction, t)
-            x_gt, _ = self.evaluate_bezier(ground_truth, t)
+            x_pred, y_pred = self.evaluate_bezier(prediction, t)
+            x_gt, y_gt = self.evaluate_bezier(ground_truth, t)
 
             # Find the difference in x-values and sum
-            delta_x = torch.abs(x_pred - x_gt)
+            delta_val = torch.abs(x_pred - x_gt) + torch.abs(y_pred - y_gt)
 
-            delta_x_sum = delta_x + delta_x_sum
+            delta_sum = delta_sum + delta_val
 
         # Find average absolute x-deviation between mid-pionts
-        mAE_mid_points_delta_x = delta_x_sum/sample_count
-        return mAE_mid_points_delta_x
+        mAE_mid_points_delta = delta_sum/sample_count
+        return mAE_mid_points_delta
 
     # Calculate the numerical gradient loss term
     def calc_numerical_gradient_loss(self, prediction, ground_truth):
@@ -303,8 +317,8 @@ class EgoPathTrainer():
 
             # Find tangent angle betwen consecutive pairs of points
             # for the Ground Truth and Prediction
-            grad_g = torch.atan2(dxg, dyg)
-            grad_p = torch.atan2(dxp, dyp)
+            grad_g = torch.atan(dxg, dyg)
+            grad_p = torch.atan(dxp, dyp)
 
             # Calculate the absoulte angle error and sum for all
             # samples
@@ -399,17 +413,24 @@ class EgoPathTrainer():
         scaled_grad_loss = self.gradient_loss*self.grad_scale_factor
         return scaled_grad_loss.item()
     
+    # Get mid point loss
     def get_mid_point_loss(self):
         scaled_midpoint_loss = self.mid_point_loss*self.mid_point_scale_factor
         return scaled_midpoint_loss.item()
+    
+    # Get control point loss
+    def get_control_point_loss(self):
+        scaled_control_point_loss = self.control_points_loss*self.control_points_scale_factor
+        return scaled_control_point_loss.item()
 
     # Logging Loss
     def log_loss(self, log_count):
         self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
+            'control_point_loss': self.get_control_point_loss(),
             'endpoint_loss': self.get_endpoint_loss(),
-            'gradient_loss': self.get_gradient_loss(),
-            'midpoint_loss': self.get_mid_point_loss()
+            'midpoint_loss': self.get_mid_point_loss(),
+            'gradient_loss': self.get_gradient_loss()
         }, (log_count))
 
     # Run Optimizer
@@ -475,13 +496,13 @@ class EgoPathTrainer():
         # Start control point - RED
         plt.scatter((gt_vis[0][0]*self.width), (gt_vis[0][1]*self.height), \
                     marker='o', color='red', s=10)
-        # Middle control points - GREEN
+        # Middle control points - Green
         plt.scatter((gt_vis[0][2]*self.width, gt_vis[0][4]*self.width), \
                     (gt_vis[0][3]*self.height, gt_vis[0][5]*self.height),
-                    marker='o', color='green', s=10)
-        # End control points - BLUE
+                    marker='o', color='lawngreen', s=10)
+        # End control points - YELLOW
         plt.scatter((gt_vis[0][6]*self.width), (gt_vis[0][7]*self.height), \
-                    marker='o', color='blue', s=10)
+                    marker='o', color='yellow', s=10)
         
         self.writer.add_figure('Ground Truth', \
             fig_gt, global_step=(log_count))
@@ -502,10 +523,10 @@ class EgoPathTrainer():
         # Middle control points - GREEN
         plt.scatter((pred_vis[0][2]*self.width, pred_vis[0][4]*self.width), \
                     (pred_vis[0][3]*self.height, pred_vis[0][5]*self.height),
-                    marker='o', color='green', s=10)
-        # End control points - BLUE
+                    marker='o', color='lawngreen', s=10)
+        # End control points - YELLOW
         plt.scatter((pred_vis[0][6]*self.width), (pred_vis[0][7]*self.height), \
-                    marker='o', color='blue', s=10)
+                    marker='o', color='yellow', s=10)
         self.writer.add_figure('Prediction', \
             fig_pred, global_step=(log_count))
 
