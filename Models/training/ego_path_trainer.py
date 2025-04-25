@@ -20,6 +20,10 @@ class EgoPathTrainer():
         self.image = 0
         self.gt = 0
 
+        # Size of Image
+        self.height = 320
+        self.width = 640
+
         # Tensors
         self.image_tensor = 0
         self.gt_tensor = 0
@@ -31,8 +35,14 @@ class EgoPathTrainer():
         # Losses
         self.loss = 0
         self.endpoint_loss = 0
+        self.mid_point_loss = 0
         self.gradient_loss = 0
-        self.loss_scale_factor = 1
+        self.gradient_type = 'NUMERICAL'
+
+        # Loss scale factors
+        self.endpoint_loss_scale_factor = 1
+        self.grad_scale_factor = 1
+        self.mid_point_scale_factor = 2
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -90,6 +100,10 @@ class EgoPathTrainer():
             ]
         )
 
+    # Zero Gradient
+    def zero_grad(self):
+        self.optimizer.zero_grad()
+
     # Learning Rate adjustment
     def set_learning_rate(self, learning_rate):
         self.learning_rate = learning_rate
@@ -104,22 +118,269 @@ class EgoPathTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='KEYPOINTS')
-            augTrain.setDataKeypoints(self.image, self.gt)
-            self.image, self.gt = \
-                augTrain.applyTransformKeypoint(self.image, self.gt)
-
+            augTrain.setDataKeypoints(self.image)
+            self.image = augTrain.applyTransformKeypoint(self.image)
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='KEYPOINTS')
-            augVal.setDataKeypoints(self.image, self.gt)
-            self.image, self.gt = \
-                augVal.applyTransformKeypoint(self.image, self.gt)
+            augVal.setDataKeypoints(self.image)
+            self.image = augVal.applyTransformKeypoint(self.image)
 
+    # Load Data as Pytorch Tensors
+    def load_data(self):
+        
+        # Converting image to Pytorch Tensor
+        image_tensor = self.image_loader(self.image)
+        image_tensor = image_tensor.unsqueeze(0)
+        self.image_tensor = image_tensor.to(self.device)
+
+        # Converting keypoint list to Pytorch Tensor
+        # List is in x0,y0,x1,y1,....xn, yn format
+        gt_tensor = torch.from_numpy(self.gt)
+        gt_tensor = gt_tensor.unsqueeze(0)
+        self.gt_tensor = gt_tensor.to(self.device)
+    
     # Run Model
     def run_model(self):
         self.prediction = self.model(self.image_tensor)
         self.loss = self.calc_loss(self.prediction, self.gt_tensor)
 
+    # Calculate loss
+    def calc_loss(self, prediction, ground_truth):
+
+        # Endpoint loss - align the start and end control points of the Prediciton
+        # vs Ground Truth Bezier Curves
+        self.endpoint_loss = self.calc_endpoints_loss(prediction, ground_truth)
+
+        # Mid-point loss - used in the BezierLaneNet paper, this loss ensures that
+        # points along the curve have small x-deviation - also acts as a regulariation term
+        self.mid_point_loss = self.calc_mid_points_loss(prediction, ground_truth)
+
+        # Gradient Loss - either NUMERICAL tangent angle calcualation or
+        # ANALYTICAL derviative of bezier curve, this loss ensures the curve is 
+        # smooth and acts as a regularization term
+        if(self.gradient_type == 'NUMERICAL'):
+            self.gradient_loss = self.calc_numerical_gradient_loss(prediction, ground_truth)
+        elif(self.gradient_type == 'ANALYTICAL'):
+            self.gradient_loss = self.calc_analytical_gradient_loss(prediction, ground_truth)
+
+        # Total loss is sum of individual losses multiplied by scailng factors
+        total_loss = self.gradient_loss*self.grad_scale_factor + \
+            self.mid_point_loss*self.mid_point_scale_factor + \
+            self.gradient_loss*self.grad_scale_factor
+     
+        return total_loss 
+    
+    # Set scale factors for losses
+    def set_loss_scale_factors(self, endpoint_loss_scale_factor, 
+            mid_point_scale_factor, grad_scale_factor):
+        
+        # Loss scale factors
+        self.endpoint_loss_scale_factor = endpoint_loss_scale_factor
+        self.grad_scale_factor = grad_scale_factor
+        self.mid_point_scale_factor = mid_point_scale_factor
+
+    # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
+    def set_gradient_loss_type(self, type):
+
+        if(type == 'NUMERICAL'):
+            self.gradient_type = 'NUMERICAL'
+        elif(type == 'ANALYTICAL'):
+            self.gradient_type = 'ANALYTICAL'
+        else:
+            raise ValueError('Please specify either NUMERICAL or ANALYTICAL gradient loss as a string')
+    
+    # Calculate the endpoints loss term 
+    def calc_endpoints_loss(self, prediction, ground_truth):
+
+        # Prediction Start Point (x,y)
+        pred_x_start = prediction[0][0]
+        pred_y_start = prediction[0][1]
+
+        # Ground Truth Start Point (x,y)
+        gt_x_start = ground_truth[0][0]
+        gt_y_start = ground_truth[0][1]
+
+        # Start Point mAE Loss
+        start_point_mAE = torch.abs(pred_x_start - gt_x_start) + \
+            torch.abs(pred_y_start - gt_y_start)
+        
+        # Prediction End Point (x,y)
+        pred_x_end = prediction[0][-2]
+        pred_y_end = prediction[0][-1]
+
+        # Ground Truth End Point (x,y)
+        gt_x_end = ground_truth[0][-2]
+        gt_y_end = ground_truth[0][-1]
+
+        # Start Point mAE Loss
+        end_point_mAE = torch.abs(pred_x_end - gt_x_end) + \
+            torch.abs(pred_y_end - gt_y_end)
+
+        # Total End Point mAE Loss
+        total_end_point_mAE = start_point_mAE + end_point_mAE
+        return total_end_point_mAE
+    
+    # Evaluate the x,y coordinates of a bezier curve at a given t-parameter value
+    def evaluate_bezier(self, bezier, t):
+ 
+         # Throw an error if parameter t is out of boudns
+         if(t < 0 or t > 1):
+             raise ValueError('Please ensure t parameter is in the range [0,1]')
+         
+         # Evaluate cubic bezier curve for value of t in range [0,1]
+         x = (1-t)*(1-t)*(1-t)*bezier[0][0] + 3*(1-t)*(1-t)*t*bezier[0][2] \
+             + 3*(1-t)*t*t*bezier[0][4] + t*t*t*bezier[0][6]
+         
+         y = (1-t)*(1-t)*(1-t)*bezier[0][1] + 3*(1-t)*(1-t)*t*bezier[0][3] \
+             + 3*(1-t)*t*t*bezier[0][5] + t*t*t*bezier[0][7]
+         
+         return x,y
+
+    # Calculate the mid-points loss term - as used in the BezierLaneNet paper
+    def calc_mid_points_loss(self, prediction, ground_truth):
+
+        delta_x_sum = 0
+        sample_count = 0
+
+        # Sample the bezier curve for Prediction and Ground Truth
+        # ignoring the start and end points
+        for i in range(5, 100, 5):
+
+            # Sample counter
+            sample_count +=1
+
+            # t-parameter
+            t = i/100
+
+            # Get x-values for prediction and ground truth
+            x_pred, _ = self.evaluate_bezier(prediction, t)
+            x_gt, _ = self.evaluate_bezier(ground_truth, t)
+
+            # Find the difference in x-values and sum
+            delta_x = torch.abs(x_pred - x_gt)
+
+            delta_x_sum = delta_x + delta_x_sum
+
+        # Find average absolute x-deviation between mid-pionts
+        mAE_mid_points_delta_x = delta_x_sum/sample_count
+        return mAE_mid_points_delta_x
+
+    # Calculate the numerical gradient loss term
+    def calc_numerical_gradient_loss(self, prediction, ground_truth):
+        
+        # Running totals
+        grad_sum = 0
+        sample_count = 0
+
+        # Sample the bezier curve for Prediction and Ground Truth
+        # ignoring the start and end points
+        sampling_rate = 5
+
+        for i in range(0, 100, sampling_rate):
+
+            # Sample counter
+            sample_count +=1
+
+            # t-parameter current
+            t = i/100
+
+            # t-parameter for next sampel
+            t_next = (i+sampling_rate)/100
+
+            # Get pair-wise samples for Prediction and Ground Truth
+            x_pred, y_pred = self.evaluate_bezier(prediction, t)
+            x_pred_next, y_pred_next = self.evaluate_bezier(prediction, t_next)
+            x_gt, y_gt = self.evaluate_bezier(ground_truth, t)
+            x_gt_next, y_gt_next = self.evaluate_bezier(ground_truth, t_next)
+
+            # Calcualte difference in x,y values between consecutive 
+            # pairs of points for Prediction and Ground Truth
+            dxp = x_pred_next - x_pred + 1e-6
+            dyp = y_pred_next - y_pred + 1e-6
+            dxg = x_gt_next - x_gt + 1e-6
+            dyg = y_gt_next - y_gt + 1e-6
+
+            # Find tangent angle betwen consecutive pairs of points
+            # for the Ground Truth and Prediction
+            grad_g = torch.atan2(dxg, dyg)
+            grad_p = torch.atan2(dxp, dyp)
+
+            # Calculate the absoulte angle error and sum for all
+            # samples
+            grad_diff = torch.abs(grad_g - grad_p)
+            grad_sum = grad_sum + grad_diff
+
+        # Calcualte the mAE gradient error
+        mAE_gradient = grad_sum/sample_count
+        return mAE_gradient
+    
+    # Calculate the analytical gradient loss term
+    def calc_analytical_gradient_loss(self, prediction, ground_truth):
+
+        # Running totals
+        grad_sum = 0
+        sample_count = 0
+
+        # Sample the bezier curve for Prediction and Ground Truth
+        # ignoring the start and end points
+        sampling_rate = 5
+
+        for i in range(0, 100, sampling_rate):
+
+            # Sample counter
+            sample_count +=1
+
+            # t-parameter current
+            t = i/100
+
+            # Partial Derivative for Predictions
+            # dx/dt
+            pred_x0 = prediction[0][0]
+            pred_x1 = prediction[0][2]
+            pred_x2 = prediction[0][4]
+            pred_x3 = prediction[0][6]
+
+            dx_dt_pred = 3*(1-t)*(1-t)(pred_x1 - pred_x0) + 6*(1-t)*(t)(pred_x2 - pred_x1) \
+                        + 3*(t)*(t)(pred_x3 - pred_x2)
+            
+            # dy/dt
+            pred_y0 = prediction[0][1]
+            pred_y1 = prediction[0][3]
+            pred_y2 = prediction[0][5]
+            pred_y3 = prediction[0][7]
+
+            dy_dt_pred = 3*(1-t)*(1-t)(pred_y1 - pred_y0) + 6*(1-t)*(t)(pred_y2 - pred_y1) \
+                        + 3*(t)*(t)(pred_y3 - pred_y2)
+            
+            # Partial Derivative for Ground Truth
+            # dx/dt
+            gt_x0 = ground_truth[0][0]
+            gt_x1 = ground_truth[0][2]
+            gt_x2 = ground_truth[0][4]
+            gt_x3 = ground_truth[0][6]
+
+            dx_dt_gt = 3*(1-t)*(1-t)(gt_x1 - gt_x0) + 6*(1-t)*(t)(gt_x2 - gt_x1) \
+                        + 3*(t)*(t)(gt_x3 - gt_x2)
+            
+            # dy/dt
+            gt_y0 = ground_truth[0][1]
+            gt_y1 = ground_truth[0][3]
+            gt_y2 = ground_truth[0][5]
+            gt_y3 = ground_truth[0][7]
+
+            dy_dt_gt = 3*(1-t)*(1-t)(gt_y1 - gt_y0) + 6*(1-t)*(t)(gt_y2 - gt_y1) \
+                        + 3*(t)*(t)(gt_y3 - gt_y2)
+            
+            derivative_error = torch.abs(dx_dt_pred - dx_dt_gt) \
+                + torch.abs(dy_dt_pred - dy_dt_gt)
+            
+            grad_sum += derivative_error
+
+        # Calcualte the mAE gradient error
+        mAE_gradient = grad_sum/sample_count
+        return mAE_gradient
+        
     # Loss Backward Pass
     def loss_backward(self):
         self.loss.backward()
@@ -130,18 +391,25 @@ class EgoPathTrainer():
 
     # Get endpoint loss
     def get_endpoint_loss(self):
-        return self.endpoint_loss.item()
+        scaled_endpoint_loss = self.endpoint_loss*self.endpoint_loss_scale_factor
+        return scaled_endpoint_loss.item()
 
     # Get gradient loss
     def get_gradient_loss(self):
-        return self.gradient_loss.item()
+        scaled_grad_loss = self.gradient_loss*self.grad_scale_factor
+        return scaled_grad_loss.item()
+    
+    def get_mid_point_loss(self):
+        scaled_midpoint_loss = self.mid_point_loss*self.mid_point_scale_factor
+        return scaled_midpoint_loss.item()
 
     # Logging Loss
     def log_loss(self, log_count):
         self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
             'endpoint_loss': self.get_endpoint_loss(),
-            'gradient_loss': self.get_gradient_loss()
+            'gradient_loss': self.get_gradient_loss(),
+            'midpoint_loss': self.get_mid_point_loss()
         }, (log_count))
 
     # Run Optimizer
@@ -157,10 +425,6 @@ class EgoPathTrainer():
     def set_eval_mode(self):
         self.model = self.model.eval()
 
-    # Zero Gradient
-    def zero_grad(self):
-        self.optimizer.zero_grad()
-
     # Save Model
     def save_model(self, model_save_path):
         torch.save(self.model.state_dict(), model_save_path)
@@ -170,246 +434,80 @@ class EgoPathTrainer():
         self.writer.close()
         print('Finished Training')
 
-    def fit_cubic_bezier_numpy(self):
-
-        # Chord length parameterization
-        distances = np.sqrt(np.sum(np.diff(self.gt, axis=0)**2, axis=1))
-        cumulative = np.insert(np.cumsum(distances), 0, 0)
-        t = cumulative / cumulative[-1]
-
-        # Bézier basis functions
-        def bernstein_matrix(t):
-            t = np.asarray(t)
-            B = np.zeros((len(t), 4))
-            B[:, 0] = (1 - t)**3
-            B[:, 1] = 3 * (1 - t)**2 * t
-            B[:, 2] = 3 * (1 - t) * t**2
-            B[:, 3] = t**3
-            return B
-
-        B = bernstein_matrix(t)
-
-        # Least squares fitting: B * P = points => P = (B^T B)^-1 B^T * points
-        BTB = B.T @ B
-        BTP = B.T @ self.gt
-        control_points = np.linalg.solve(BTB, BTP)
-
-        return control_points  # shape (4, 2)
-    
-
-    # Load Data
-    def load_data(self):
-        
-        # Converting image to Pytorch Tensor
-        image_tensor = self.image_loader(self.image)
-        image_tensor = image_tensor.unsqueeze(0)
-        self.image_tensor = image_tensor.to(self.device)
-
-        # Fitting bezier curve to augmented ground truth data
-        gt_tensor = self.fit_bezier(self.gt)
-        self.gt_tensor = gt_tensor.to(self.device)
-
-    def fit_bezier(self, drivable_path):
-        """
-        Fit a cubic Bezier curve to a list of (x,y) tuples using PyTorch.
-
-        Parameters:
-            drivable_path: list/array of (x,y) coordinates, or a torch.Tensor of shape (n,2).
-
-        Returns:
-            Tensor of shape (1,8) of control points [P0, P1, P2, P3].
-        """
-        # ensure float tensor
-        pts = torch.as_tensor(drivable_path, dtype=torch.float32)
-
-        # chord‐length parameterization
-        diffs = pts[1:] - pts[:-1]                              # (n-1,2)
-        seg_lengths = torch.norm(diffs, dim=1)                  # (n-1,)
-        t = torch.cat([torch.zeros(1, dtype=seg_lengths.dtype), seg_lengths.cumsum(0)])  # (n,)
-        t = t / t[-1]                                           # normalize to [0,1]
-
-        P0, P3 = pts[0], pts[-1]
-
-        T = t.unsqueeze(1)                                      # (n,1)
-        A = 3 * (1 - T)**2 * T                                  # (n,1)
-        B = 3 * (1 - T) * T**2                                  # (n,1)
-        M = torch.cat([A, B], dim=1)                            # (n,2)
-
-        # subtract fixed‐endpoint contributions
-        rhs = pts \
-            - ((1 - t)**3).unsqueeze(1) * P0 \
-            - (t**3).unsqueeze(1) * P3                           # (n,2)
-
-        # least‐squares for P1,P2 via pseudoinverse
-        sol = torch.pinverse(M) @ rhs                           # (2,2)
-        P1, P2 = sol[0], sol[1]
-
-        # return torch.vstack([P0, P1, P2, P3])
-        return torch.vstack([P0, P1, P2, P3]).view(-1).unsqueeze(0)
-
-
-    def evaluate_bezier(self, ctrl_pts, t):
-        """
-        Evaluate a cubic Bezier at parameter value t.
-
-        Parameters:
-            ctrl_pts: Tensor (4,2).
-            t : parameter in range 0 to 1
-
-        Returns:
-            x and y locations of bezier curve at parameter t
-        """
-
-        x = (1-t)*(1-t)*(1-t)*ctrl_pts[0][0] + 3*(1-t)*(1-t)*t*ctrl_pts[0][2] \
-            + 3*(1-t)*t*t*ctrl_pts[0][4] + t*t*t*ctrl_pts[0][6]
-        
-        y = (1-t)*(1-t)*(1-t)*ctrl_pts[0][1] + 3*(1-t)*(1-t)*t*ctrl_pts[0][3] \
-            + 3*(1-t)*t*t*ctrl_pts[0][5] + t*t*t*ctrl_pts[0][7]
-        
-        return x,y
-
-
-
-    def bezier_analytic_derivative(self, ctrl_pts, t_vals):
-        """
-        Compute tangent of cubic Bezier at t_vals.
-
-        Parameters:
-            ctrl_pts: Tensor (4,2).
-            t_vals:  array‐like or tensor of shape (m,) in [0,1].
-
-        Returns:
-            Tensor (m,2) of derivative vectors.
-        """
-        ctrl = torch.as_tensor(ctrl_pts, dtype=torch.float32)
-        t = torch.as_tensor(t_vals, dtype=ctrl.dtype).view(-1, 1)       # (m,1)
-        one_minus_t = (1 - t)                                           # (m,1)
-        # Derivative: B'(t) = 3*(1-t)^2 (P1-P0) + 6*(1-t)*t (P2-P1) + 3*t^2 (P3-P2)
-        term1 = (3 * one_minus_t**2) * (ctrl[1] - ctrl[0])
-        term2 = (6 * one_minus_t * t) * (ctrl[2] - ctrl[1])
-        term3 = (3 * t**2) * (ctrl[3] - ctrl[2])
-
-        return term1 + term2 + term3
-
-
-    def calc_endpoint_loss(self, pred_ctrl_pts, gt_ctrl_pts):
-        """
-        Endpoint loss = sum of absolute differences at P0 and P3.
-        """
-        diff_P0 = torch.abs(pred_ctrl_pts[0][0] - gt_ctrl_pts[0][0]) + \
-            torch.abs(pred_ctrl_pts[0][1] - gt_ctrl_pts[0][1])
-        
-        diff_P3 = torch.abs(pred_ctrl_pts[0][6] - gt_ctrl_pts[0][6]) + \
-            torch.abs(pred_ctrl_pts[0][7] - gt_ctrl_pts[0][7])
-
-        return diff_P0 + diff_P3
-
-
-
-    def calc_analytic_gradient_loss(self, pred_ctrl_pts, gt_ctrl_pts, num_samples=25):
-        """
-        Gradient loss = mean absolute difference of derivatives over num_samples.
-        """
-        p = torch.as_tensor(pred_ctrl_pts, dtype=torch.float32)
-        g = torch.as_tensor(gt_ctrl_pts,   dtype=torch.float32)
-        t = torch.linspace(0, 1, num_samples, dtype=p.dtype)
-
-        dp = self.bezier_analytic_derivative(p, t)
-        dg = self.bezier_analytic_derivative(g, t)
-        return torch.mean(torch.abs(dp - dg))
-
-
-    def calc_numerical_gradient_loss(self, pred_ctrl_pts, gt_ctrl_pts, step=4):
-        """
-        Numeric gradient loss via finite differences:
-        mean absolute error between arctan slopes of GT vs. pred Bézier,
-        sampled every `step/100` in t ∈ (0,1).
-        """
-
-        # sample points t_i = 4/100, 8/100, …, 96/100
-        idx      = torch.arange(step, 100+step, step, dtype=pred_ctrl_pts.dtype)
-        t        = idx / 100.0
-        t_prev   = (idx - step) / 100.0
-        
-        num_samples = len(t)
-        grad_sum = 0
-
-        for i in range(0, num_samples):
-        
-            # evaluate both curves at t and t_prev
-            xp, yp   = self.evaluate_bezier(pred_ctrl_pts, t[i])
-            xp0, yp0 = self.evaluate_bezier(pred_ctrl_pts, t_prev[i])
-            xg, yg   = self.evaluate_bezier(gt_ctrl_pts, t[i])
-            xg0, yg0 = self.evaluate_bezier(gt_ctrl_pts, t_prev[i])
-
-            # finite‐difference slopes (add tiny eps to avoid div0)
-            dxg = xg  - xg0 + 1e-4
-            dyg = yg  - yg0 + 1e-4
-            dxp = xp  - xp0 + 1e-4
-            dyp = yp  - yp0 + 1e-4
-
-            grad_g = torch.atan(dxg / dyg)
-            grad_p = torch.atan(dxp / dyp)
-            grad_diff = torch.abs(grad_g - grad_p)
-            grad_sum = grad_sum + grad_diff
-
-        return grad_sum/num_samples
-
-
-    def calc_loss(self, pred_ctrl_pts, gt_ctrl_pts):
-        """
-        Combined loss = alpha * endpoint + beta * gradient.
-        """
-        self.endpoint_loss = self.calc_endpoint_loss(pred_ctrl_pts, gt_ctrl_pts)
-        self.gradient_loss = self.calc_numerical_gradient_loss(pred_ctrl_pts, gt_ctrl_pts)
-        return (self.gradient_loss*self.loss_scale_factor) + self.endpoint_loss
-
 
     # Save predicted visualization
     def save_visualization(self, log_count):
-
-        prediction_vis = self.prediction.cpu().detach().numpy()
+        
+        # Get the prediction and ground truth tensors and detach them
+        pred_vis = self.prediction.cpu().detach().numpy()
         gt_vis = self.gt_tensor.cpu().detach().numpy()
 
-        num_samples=100
-        t_vals = torch.linspace(0, 1, num_samples, dtype=float) 
+        # Get a list of x points and y points for Ground Truth and Prediction
+        pred_x_points = []
+        pred_y_points = []
+        gt_x_points = []
+        gt_y_points = []
 
-        pred_points_x = []
-        pred_points_y = []
-        gt_points_x = []
-        gt_points_y = []
+        for i in range(0, 110, 10):
 
-        for i in range(0, len(t_vals)):
-            x_pred, y_pred = self.evaluate_bezier(prediction_vis, t_vals[i])
-            x_gt, y_gt = self.evaluate_bezier(gt_vis, t_vals[i])
+            t = i/100
+            
+            pred_x, pred_y = self.evaluate_bezier(pred_vis, t)
+            gt_x, gt_y = self.evaluate_bezier(gt_vis, t)
 
-            pred_points_x.append(x_pred*640)
-            pred_points_y.append(y_pred*320)
-            gt_points_x.append(x_gt*640)
-            gt_points_y.append(y_gt*320)
-
-        # 1) fit and sample
+            # Applying scaling based on image size
+            # to ensure data is correctly visualized
+            pred_x_points.append(pred_x*self.width)
+            pred_y_points.append(pred_y*self.height)
+            gt_x_points.append(gt_x*self.width)
+            gt_y_points.append(gt_y*self.height)
         
-        #ctrl_pts   = self.fit_bezier(self.gt)                                   # (8) Tensor
-        #ctrl_pts = ctrl_pts.view(4,2)
-        #t_vals     = torch.linspace(0, 1, num_samples, dtype=ctrl_pts.dtype)           # (num_samples,)
-        #curve_pts  = self.evaluate_bezier(ctrl_pts, t_vals)                            # (num_samples,2)
 
-        # 2) to numpy arrays for plotting
-        #pts   = self.gt.cpu().numpy()
-        #curve = curve_pts.cpu().numpy()
-        #ctrl  = ctrl_pts.cpu().numpy()
-
-        # 3) plot
-        fig = plt.figure(figsize=(8, 4))
-        plt.imshow(self.image)
-        plt.scatter(pred_points_x, pred_points_y, color='c')  # waypoints
-        plt.scatter(gt_points_x, gt_points_y, color='y')
-        #plt.plot(curve[:,0], curve[:,1])                              # Bézier curve
-        #plt.scatter(ctrl[:,0], ctrl[:,1], marker='x', s=100)          # control points
+        # Visualize the Ground Truth
+        fig_gt = plt.figure(figsize=(8, 4))
         plt.axis('off')
-        self.writer.add_figure('predictions vs. actuals', \
-        fig, global_step=(log_count))
+        plt.imshow(self.image)
+
+        # Plot the final curve
+        plt.plot(gt_x_points, gt_y_points, color="cyan")
+
+        # Plot the control points
+        # Start control point - RED
+        plt.scatter((gt_vis[0][0]*self.width), (gt_vis[0][1]*self.height), \
+                    marker='o', color='red', s=10)
+        # Middle control points - GREEN
+        plt.scatter((gt_vis[0][2]*self.width, gt_vis[0][4]*self.width), \
+                    (gt_vis[0][3]*self.height, gt_vis[0][5]*self.height),
+                    marker='o', color='green', s=10)
+        # End control points - BLUE
+        plt.scatter((gt_vis[0][6]*self.width), (gt_vis[0][7]*self.height), \
+                    marker='o', color='blue', s=10)
+        
+        self.writer.add_figure('Ground Truth', \
+            fig_gt, global_step=(log_count))
+
+        # Visualize the Prediction
+
+        fig_pred = plt.figure(figsize=(8, 4))
+        plt.axis('off')
+        plt.imshow(self.image)
+
+        # Plot the final curve
+        plt.plot(pred_x_points, pred_y_points, color="cyan")
+
+        # Plot the control points
+        # Start control point - RED
+        plt.scatter((pred_vis[0][0]*self.width), (pred_vis[0][1]*self.height), \
+                    marker='o', color='red', s=10)
+        # Middle control points - GREEN
+        plt.scatter((pred_vis[0][2]*self.width, pred_vis[0][4]*self.width), \
+                    (pred_vis[0][3]*self.height, pred_vis[0][5]*self.height),
+                    marker='o', color='green', s=10)
+        # End control points - BLUE
+        plt.scatter((pred_vis[0][6]*self.width), (pred_vis[0][7]*self.height), \
+                    marker='o', color='blue', s=10)
+        self.writer.add_figure('Prediction', \
+            fig_pred, global_step=(log_count))
 
 
     # Run Validation and calculate metrics
