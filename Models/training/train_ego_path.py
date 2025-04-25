@@ -21,20 +21,6 @@ from typing import Literal, get_args
 from Models.data_utils.load_data_ego_path import LoadDataEgoPath
 from Models.training.ego_path_trainer import EgoPathTrainer
 
-def evaluate_bezier(p0, p1, p2, p3, t):
-
-    # Throw an error if parameter t is out of boudns
-    if(t < 0 or t > 1):
-        raise ValueError('Please ensure t parameter is in the range [0,1]')
-    
-    # Evaluate cubic bezier curve for value of t in range [0,1]
-    x = (1-t)*(1-t)*(1-t)*p0[0] + 3*(1-t)*(1-t)*t*p1[0] \
-        + 3*(1-t)*t*t*p2[0] + t*t*t*p3[0]
-    
-    y = (1-t)*(1-t)*(1-t)*p0[1] + 3*(1-t)*(1-t)*t*p1[1] \
-        + 3*(1-t)*t*t*p2[1] + t*t*t*p3[1]
-    
-    return x,y
 
 def sample_bezier_points(self, p0, p1, p2, p3):
 
@@ -346,46 +332,6 @@ def main():
 
                 # Assign data
                 trainer.set_data(image, gt)
-
-                if(count < 20):
-                    # Get a list of x points and y points for Ground Truth and Prediction
-
-                    #samples = sample_bezier_points(gt)
-                    p0 = []
-                    p0.append(gt[0])
-                    p0.append(gt[1])
-
-                    p1 = []
-                    p1.append(gt[2])
-                    p1.append(gt[3])
-
-                    p2 = []
-                    p2.append(gt[4])
-                    p2.append(gt[5])
-
-                    p3 = []
-                    p3.append(gt[6])
-                    p3.append(gt[7])
-
-                    x_points = []
-                    y_points = []
-
-                    height, width, _ = image.shape
-                    for i in range(20, 105, 5):
-
-                        t_val = i/100
-
-                        x_point, y_point = evaluate_bezier(p0, p1, p2, p3, t_val)
-                        x_points.append(x_point*width)
-                        y_points.append(y_point*height)
-
-
-                    # Visualize the Ground Truth
-                    plt.figure()
-                    plt.axis('off')
-                    plt.imshow(image)
-                    plt.plot(x_points, y_points, color="cyan")
-                '''
                 
                 # Augment image
                 trainer.apply_augmentations(is_train = True)
@@ -410,7 +356,7 @@ def main():
                 # Logging Visualization to Tensor Board
                 if((count+1) % LOGSTEP_VIS == 0):  
                     trainer.save_visualization(log_count)
-                
+                '''
                 # Save model and run val across entire val dataset
                 if (current_index % LOGSTEP_MODEL == 0):
 
