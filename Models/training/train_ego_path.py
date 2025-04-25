@@ -22,48 +22,6 @@ from Models.data_utils.load_data_ego_path import LoadDataEgoPath
 from Models.training.ego_path_trainer import EgoPathTrainer
 
 
-def sample_bezier_points(self, p0, p1, p2, p3):
-
-    samples = []
-
-    # Getting samples, and ignoring samples very close to bottom of image
-    # due to inaccuracy caused by Cubic Bezier over-fitting
-    for i in range(20, 110, 10):
-
-        t_val = i/100
-        point = []
-
-        x_point, y_point = self.evaluate_bezier(p0, p1, p2, p3, t_val)
-        point.append(x_point)
-        point.append(y_point)
-
-        samples.append(point)
-
-    # Linear extrapolation of the samples to the bottom of the image
-
-    # Samples at the very bottom of the image
-    first_sample = samples[0]
-    second_sample = samples[1]
-
-    # Gradient
-    start_gradient = (first_sample[0] - second_sample[0])/ \
-        (first_sample[1] - second_sample[1] + 0.000001)
-
-    # How far away is the current start sample from the bottom of the image
-    first_sample_y_val_offset = 1 - first_sample[1]
-
-    # Calculate coordinate of extrapolated point
-    zero_sample_x = start_gradient*first_sample_y_val_offset + first_sample[0]
-    zero_sample_y = 1.0
-
-    # Insert extrapolated point to the bottom of the list
-    new_start_point = []
-    new_start_point.append(zero_sample_x)
-    new_start_point.append(zero_sample_y)
-    samples.insert(0, new_start_point)
-
-    return samples
-    
 def main():
 
     # ====================== Loading Data ====================== #
@@ -149,6 +107,8 @@ def main():
 
     # Trainer instance
     trainer = 0
+
+    # Loading from checkpoint or training from scratch
     load_from_checkpoint= False
     pretrained_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth'
     checkpoint_path = ''
@@ -158,11 +118,23 @@ def main():
     else:
         trainer = EgoPathTrainer(checkpoint_path=checkpoint_path, is_pretrained=False)
 
-    trainer.zero_grad()             
+    # Zero gradients
+    trainer.zero_grad()
+
+    # Scale factors
+    ENDPOINT_LOSS_SCALE_FACTOR = 1.0          
+    MIDPOINT_LOSS_SCALE_FACTOR = 2.0
+    GRADIENT_LOSS_SCALE_FACTOR = 0.5
+
+    trainer.set_loss_scale_factors(ENDPOINT_LOSS_SCALE_FACTOR, 
+            MIDPOINT_LOSS_SCALE_FACTOR, GRADIENT_LOSS_SCALE_FACTOR)
+    
+    trainer.set_gradient_loss_type('NUMERICAL')
+
   
     NUM_EPOCHS = 20
-    LOGSTEP_LOSS = 250
-    LOGSTEP_VIS = 1000
+    LOGSTEP_LOSS = 50
+    LOGSTEP_VIS = 50
     data_sampling_scheme = 'EQUAL'
 
     # Datasets list
@@ -341,7 +313,7 @@ def main():
 
                 # Run model and get loss
                 trainer.run_model()
-
+                
                 # Gradient accumulation
                 trainer.loss_backward()
 
