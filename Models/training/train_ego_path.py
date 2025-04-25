@@ -21,7 +21,63 @@ from typing import Literal, get_args
 from Models.data_utils.load_data_ego_path import LoadDataEgoPath
 from Models.training.ego_path_trainer import EgoPathTrainer
 
+def evaluate_bezier(p0, p1, p2, p3, t):
 
+    # Throw an error if parameter t is out of boudns
+    if(t < 0 or t > 1):
+        raise ValueError('Please ensure t parameter is in the range [0,1]')
+    
+    # Evaluate cubic bezier curve for value of t in range [0,1]
+    x = (1-t)*(1-t)*(1-t)*p0[0] + 3*(1-t)*(1-t)*t*p1[0] \
+        + 3*(1-t)*t*t*p2[0] + t*t*t*p3[0]
+    
+    y = (1-t)*(1-t)*(1-t)*p0[1] + 3*(1-t)*(1-t)*t*p1[1] \
+        + 3*(1-t)*t*t*p2[1] + t*t*t*p3[1]
+    
+    return x,y
+
+def sample_bezier_points(self, p0, p1, p2, p3):
+
+    samples = []
+
+    # Getting samples, and ignoring samples very close to bottom of image
+    # due to inaccuracy caused by Cubic Bezier over-fitting
+    for i in range(20, 110, 10):
+
+        t_val = i/100
+        point = []
+
+        x_point, y_point = self.evaluate_bezier(p0, p1, p2, p3, t_val)
+        point.append(x_point)
+        point.append(y_point)
+
+        samples.append(point)
+
+    # Linear extrapolation of the samples to the bottom of the image
+
+    # Samples at the very bottom of the image
+    first_sample = samples[0]
+    second_sample = samples[1]
+
+    # Gradient
+    start_gradient = (first_sample[0] - second_sample[0])/ \
+        (first_sample[1] - second_sample[1] + 0.000001)
+
+    # How far away is the current start sample from the bottom of the image
+    first_sample_y_val_offset = 1 - first_sample[1]
+
+    # Calculate coordinate of extrapolated point
+    zero_sample_x = start_gradient*first_sample_y_val_offset + first_sample[0]
+    zero_sample_y = 1.0
+
+    # Insert extrapolated point to the bottom of the list
+    new_start_point = []
+    new_start_point.append(zero_sample_x)
+    new_start_point.append(zero_sample_y)
+    samples.insert(0, new_start_point)
+
+    return samples
+    
 def main():
 
     # ====================== Loading Data ====================== #
@@ -119,8 +175,9 @@ def main():
     trainer.zero_grad()             
   
     NUM_EPOCHS = 20
-    LOGSTEP_LOSS = 25
-    LOGSTEP_VIS = 25
+    LOGSTEP_LOSS = 250
+    LOGSTEP_VIS = 1000
+    data_sampling_scheme = 'EQUAL'
 
     # Datasets list
     data_list = []
@@ -130,6 +187,8 @@ def main():
     data_list.append('CURVELANES')
     data_list.append('ROADWORK')
     data_list.append('TUSIMPLE')
+    
+    batch_size = 24
     
     # Running thru epochs
     for epoch in range(0, NUM_EPOCHS):
@@ -149,6 +208,7 @@ def main():
             batch_size = 2
         elif(epoch > 4):
             batch_size = 1
+
 
         # Shuffle overall data list at start of epoch and reset data list counter
         random.shuffle(data_list)
@@ -181,35 +241,68 @@ def main():
             log_count = count + total_train_samples*epoch
 
             # Reset iterators and shuffle individual datasets
+            # based on data sampling scheme
             if(bdd100k_count == bdd100k_num_train_samples):
+                
+                if(data_sampling_scheme == 'EQUAL'):
+                    bdd100k_count = 0
+                    random.shuffle(bdd100k_sample_list)
+                elif(data_sampling_scheme == 'CONCATENATE' and 
+                        is_bdd100k_complete == False):
+                    data_list.remove("BDD100K")
+
                 is_bdd100k_complete = True
-                bdd100k_count = 0
-                random.shuffle(bdd100k_sample_list)
             
             if(comma2k19_count == comma2k19_num_train_samples):
+                
+                if(data_sampling_scheme == 'EQUAL'):
+                    comma2k19_count = 0
+                    random.shuffle(comma2k19_sample_list)
+                elif(data_sampling_scheme == 'CONCATENATE' and 
+                        is_comma2k19_complete == False):
+                    data_list.remove('COMMA2K19')
+
                 is_comma2k19_complete = True
-                comma2k19_count = 0
-                random.shuffle(comma2k19_sample_list)
             
             if(culane_count == culane_num_train_samples):
+                
+                if(data_sampling_scheme == 'EQUAL'):
+                    culane_count = 0
+                    random.shuffle(culane_sample_list)
+                elif(data_sampling_scheme == 'CONCATENATE' and 
+                        is_culane_complete == False):
+                    data_list.remove('CULANE')    
+
                 is_culane_complete = True
-                culane_count = 0
-                random.shuffle(culane_sample_list)
 
             if(curvelanes_count == curvelanes_num_train_samples):
-                is_curvelanes_complete = True
+                
                 curvelanes_count = 0
                 random.shuffle(curvelanes_sample_list)
 
+                is_curvelanes_complete = True
+
             if(roadwork_count == roadwork_num_train_samples):
+                
+                if(data_sampling_scheme == 'EQUAL'):
+                    roadwork_count = 0
+                    random.shuffle(roadwork_sample_list)
+                elif(data_sampling_scheme == 'CONCATENATE' and
+                        is_roadwork_complete == False):
+                    data_list.remove('ROADWORK')
+
                 is_roadwork_complete = True
-                roadwork_count = 0
-                random.shuffle(roadwork_sample_list)
 
             if(tusimple_count == tusimple_num_train_samples):
+                
+                if(data_sampling_scheme == 'EQUAL'):
+                    tusimple_count = 0
+                    random.shuffle(tusimple_sample_list)
+                elif(data_sampling_scheme == 'CONCATENATE' and
+                        is_tusimple_complete == False):
+                    data_list.remove('TUSIMPLE')
+
                 is_tusimple_complete = True
-                tusimple_count = 0
-                random.shuffle(tusimple_sample_list)
 
             # If we have looped through each dataset at least once - restart the epoch
             if(is_bdd100k_complete and is_comma2k19_complete and is_culane_complete
@@ -254,6 +347,46 @@ def main():
                 # Assign data
                 trainer.set_data(image, gt)
 
+                if(count < 20):
+                    # Get a list of x points and y points for Ground Truth and Prediction
+
+                    #samples = sample_bezier_points(gt)
+                    p0 = []
+                    p0.append(gt[0])
+                    p0.append(gt[1])
+
+                    p1 = []
+                    p1.append(gt[2])
+                    p1.append(gt[3])
+
+                    p2 = []
+                    p2.append(gt[4])
+                    p2.append(gt[5])
+
+                    p3 = []
+                    p3.append(gt[6])
+                    p3.append(gt[7])
+
+                    x_points = []
+                    y_points = []
+
+                    height, width, _ = image.shape
+                    for i in range(20, 105, 5):
+
+                        t_val = i/100
+
+                        x_point, y_point = evaluate_bezier(p0, p1, p2, p3, t_val)
+                        x_points.append(x_point*width)
+                        y_points.append(y_point*height)
+
+
+                    # Visualize the Ground Truth
+                    plt.figure()
+                    plt.axis('off')
+                    plt.imshow(image)
+                    plt.plot(x_points, y_points, color="cyan")
+                '''
+                
                 # Augment image
                 trainer.apply_augmentations(is_train = True)
                 
@@ -277,8 +410,7 @@ def main():
                 # Logging Visualization to Tensor Board
                 if((count+1) % LOGSTEP_VIS == 0):  
                     trainer.save_visualization(log_count)
-
-                '''
+                
                 # Save model and run val across entire val dataset
                 if (current_index % LOGSTEP_MODEL == 0):
 
