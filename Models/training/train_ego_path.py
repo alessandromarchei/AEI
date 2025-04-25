@@ -110,11 +110,11 @@ def main():
 
     # Loading from checkpoint or training from scratch
     load_from_checkpoint= False
-    pretrained_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth'
+    backcone_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth'
     checkpoint_path = ''
 
     if(load_from_checkpoint == False):
-        trainer = EgoPathTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
+        trainer = EgoPathTrainer(pretrained_checkpoint_path=backcone_path)
     else:
         trainer = EgoPathTrainer(checkpoint_path=checkpoint_path, is_pretrained=False)
 
@@ -122,28 +122,35 @@ def main():
     trainer.zero_grad()
 
     # Scale factors
-    ENDPOINT_LOSS_SCALE_FACTOR = 1.0          
-    MIDPOINT_LOSS_SCALE_FACTOR = 2.0
-    GRADIENT_LOSS_SCALE_FACTOR = 0.5
+    ENDPOINT_LOSS_SCALE_FACTOR = 0.0          
+    MIDPOINT_LOSS_SCALE_FACTOR = 0.0
+    GRADIENT_LOSS_SCALE_FACTOR = 1.0
+    CONTROLPOINT_LOSS_SCALE_FACTOR = 1.0
 
+    # Set training loss term scale factors
     trainer.set_loss_scale_factors(ENDPOINT_LOSS_SCALE_FACTOR, 
-            MIDPOINT_LOSS_SCALE_FACTOR, GRADIENT_LOSS_SCALE_FACTOR)
+            MIDPOINT_LOSS_SCALE_FACTOR, GRADIENT_LOSS_SCALE_FACTOR,
+            CONTROLPOINT_LOSS_SCALE_FACTOR)
     
-    trainer.set_gradient_loss_type('NUMERICAL')
+    # Set gradient loss term type
+    GRAD_LOSS_TYPE = 'NUMERICAL' # NUMERICAL or ANALYTICAL
+    trainer.set_gradient_loss_type(GRAD_LOSS_TYPE)
 
-  
+    # Set training loop parameters
     NUM_EPOCHS = 20
-    LOGSTEP_LOSS = 50
-    LOGSTEP_VIS = 50
-    data_sampling_scheme = 'EQUAL'
+    LOGSTEP_LOSS = 250
+    LOGSTEP_VIS = 1000
+
+    # Set data sampling scheme
+    DATA_SAMPLING_SCHEME = 'EQUAL' # EQUAL or CONCATENATE
 
     # Datasets list
     data_list = []
-    data_list.append('BDD100K')
-    data_list.append('COMMA2K19')
-    data_list.append('CULANE')
-    data_list.append('CURVELANES')
-    data_list.append('ROADWORK')
+    #data_list.append('BDD100K')
+    #data_list.append('COMMA2K19')
+    #data_list.append('CULANE')
+    #data_list.append('CURVELANES')
+    #data_list.append('ROADWORK')
     data_list.append('TUSIMPLE')
     
     batch_size = 24
@@ -202,10 +209,10 @@ def main():
             # based on data sampling scheme
             if(bdd100k_count == bdd100k_num_train_samples):
                 
-                if(data_sampling_scheme == 'EQUAL'):
+                if(DATA_SAMPLING_SCHEME == 'EQUAL'):
                     bdd100k_count = 0
                     random.shuffle(bdd100k_sample_list)
-                elif(data_sampling_scheme == 'CONCATENATE' and 
+                elif(DATA_SAMPLING_SCHEME == 'CONCATENATE' and 
                         is_bdd100k_complete == False):
                     data_list.remove("BDD100K")
 
@@ -213,10 +220,10 @@ def main():
             
             if(comma2k19_count == comma2k19_num_train_samples):
                 
-                if(data_sampling_scheme == 'EQUAL'):
+                if(DATA_SAMPLING_SCHEME == 'EQUAL'):
                     comma2k19_count = 0
                     random.shuffle(comma2k19_sample_list)
-                elif(data_sampling_scheme == 'CONCATENATE' and 
+                elif(DATA_SAMPLING_SCHEME == 'CONCATENATE' and 
                         is_comma2k19_complete == False):
                     data_list.remove('COMMA2K19')
 
@@ -224,10 +231,10 @@ def main():
             
             if(culane_count == culane_num_train_samples):
                 
-                if(data_sampling_scheme == 'EQUAL'):
+                if(DATA_SAMPLING_SCHEME == 'EQUAL'):
                     culane_count = 0
                     random.shuffle(culane_sample_list)
-                elif(data_sampling_scheme == 'CONCATENATE' and 
+                elif(DATA_SAMPLING_SCHEME == 'CONCATENATE' and 
                         is_culane_complete == False):
                     data_list.remove('CULANE')    
 
@@ -242,10 +249,10 @@ def main():
 
             if(roadwork_count == roadwork_num_train_samples):
                 
-                if(data_sampling_scheme == 'EQUAL'):
+                if(DATA_SAMPLING_SCHEME == 'EQUAL'):
                     roadwork_count = 0
                     random.shuffle(roadwork_sample_list)
-                elif(data_sampling_scheme == 'CONCATENATE' and
+                elif(DATA_SAMPLING_SCHEME == 'CONCATENATE' and
                         is_roadwork_complete == False):
                     data_list.remove('ROADWORK')
 
@@ -253,10 +260,10 @@ def main():
 
             if(tusimple_count == tusimple_num_train_samples):
                 
-                if(data_sampling_scheme == 'EQUAL'):
+                if(DATA_SAMPLING_SCHEME == 'EQUAL'):
                     tusimple_count = 0
                     random.shuffle(tusimple_sample_list)
-                elif(data_sampling_scheme == 'CONCATENATE' and
+                elif(DATA_SAMPLING_SCHEME == 'CONCATENATE' and
                         is_tusimple_complete == False):
                     data_list.remove('TUSIMPLE')
 
