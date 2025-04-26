@@ -555,20 +555,66 @@ class EgoPathTrainer():
 
     # Run network on test image and visualize result
     def test(self, image_test, save_path):
-
+        
+        # Read test image
         frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Get height and width of test image
+        test_image_height, test_image_width, _ = frame.shape
+
+        # Resize test image
         image_pil = Image.fromarray(frame)
         image_pil = image_pil.resize((640, 320))
 
+        # Load test image as a Pytorch Tensor
         test_image_tensor = self.image_loader(image_pil)
         test_image_tensor = test_image_tensor.unsqueeze(0)
         test_image_tensor = test_image_tensor.to(self.device)
+
+        # Run inference on the test image tensor
         test_output = self.model(test_image_tensor)
 
-        test_output = test_output.squeeze(0).cpu().detach()
-        test_output = test_output.permute(1, 2, 0)
-        test_output = test_output.numpy()
-        test_output = cv2.resize(test_output, (frame.shape[1], frame.shape[0]))
+        # Detach output for visualization
+        test_vis = test_output.cpu().detach().numpy()
 
-        plt.imsave(save_path, test_output, cmap='viridis')
+        # Evaluate the curve shape based on prediction from test data
+        test_pred_x_points = []
+        test_pred_y_points = []
+
+        for i in range(0, 110, 10):
+
+            # t-parameter values
+            t = i/100
+            
+            # Get x,y values based on t-parameter value
+            test_pred_x, test_pred_y = self.evaluate_bezier(test_vis, t)
+   
+            # Applying scaling based on image size
+            # to ensure data is correctly visualized
+            test_pred_x_points.append(test_pred_x*test_image_width)
+            test_pred_y_points.append(test_pred_y*test_image_height)
+        
+        # Visualize the Ground Truth
+        fig_test = plt.figure(figsize=(8, 4))
+        plt.axis('off')
+        plt.imshow(frame)
+
+        # Plot the final curve
+        plt.plot(test_pred_x_points, test_pred_y_points, color="cyan")
+
+        # Plot the control points
+        # Start control point - RED
+        plt.scatter((test_vis[0][0]*test_image_width), (test_vis[0][1]*test_image_height), \
+                    marker='o', color='red', s=10)
+        # Middle control points - Green
+        plt.scatter((test_vis[0][2]*test_image_width, test_vis[0][4]*test_image_width), \
+                    (test_vis[0][3]*test_image_height, test_vis[0][5]*test_image_height),
+                    marker='o', color='lawngreen', s=10)
+        # End control points - YELLOW
+        plt.scatter((test_vis[0][6]*test_image_width), (test_vis[0][7]*test_image_height), \
+                    marker='o', color='yellow', s=10)
+        
+        # Save the visualization to disk based on the save path
+        fig_test.savefig(save_path)   
+        plt.close(fig_test)    
