@@ -545,16 +545,15 @@ class EgoPathTrainer():
 
         # Running model
         prediction = self.model(self.image_tensor)
-        gt_ctrl_pts = self.fit_bezier(self.gt)
-        self.loss = self.calc_loss(prediction, gt_ctrl_pts)
 
-        gradient_loss = self.gradient_loss.detach().cpu().numpy()
-        endpoint_loss = self.endpoint_loss.detach().cpu().numpy()
-
-        return gradient_loss, endpoint_loss
+        # Calculating validation loss as mAE between Ground Truth
+        # and Predicted Bezier curve control points
+        validation_loss_tensor = self.calc_control_points_loss(prediction, self.gt_tensor)
+        validation_loss = validation_loss_tensor.detach().cpu.numpy()
+       
+        return validation_loss
 
     # Run network on test image and visualize result
-    # TODO
     def test(self, image_test, save_path):
 
         frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
