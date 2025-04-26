@@ -62,7 +62,7 @@ class EgoPathTrainer():
                 # If the model is also pre-trained then load the pre-trained downstream weights
                 self.model.load_state_dict(torch.load \
                     (checkpoint_path, weights_only=True, map_location=self.device))
-                print('Loading pre-trained model weights of EgoPath and upstream SceneSeg weights as well')
+                print('Loading pre-trained model weights of EgoPath from a saved checkpoint file')
             else:
                 raise ValueError('Please ensure EgoPath network weights are provided for downstream elements')
             
@@ -78,7 +78,7 @@ class EgoPathTrainer():
                     
                 # Loading model with pre-trained upstream weights
                 self.model = EgoPathNetwork(sceneSegNetwork)
-                print('Loading pre-trained model weights of upstream SceneSeg only, EgoPath initialised with random weights')
+                print('Loading pre-trained backbone model weights only, EgoPath initialised with random weights')
             else:
                 raise ValueError('Please ensure EgoPath network weights are provided for upstream elements')
         
@@ -552,6 +552,25 @@ class EgoPathTrainer():
         validation_loss = validation_loss_tensor.detach().cpu.numpy()
        
         return validation_loss
+
+    # Logging validation losses to Tensor Board
+    def log_validation(self, log_count, bdd100k_val_score, comma2k19_val_score,
+            culane_val_score, curvelanes_val_score, roadwork_val_score,
+            tusimple_val_score, overall_validation_score):
+        
+        # Dataset specific validation scores
+        self.writer.add_scalars("Val Score - Dataset",{
+            'BDD100K': bdd100k_val_score,
+            'COMMA2k19': comma2k19_val_score,
+            'CULANE': culane_val_score,
+            'CURVELANES': curvelanes_val_score,
+            'ROADWORK': roadwork_val_score,
+            'TUSIMPLE': tusimple_val_score,
+        }, (log_count))
+        
+        # Overall validation score
+        self.writer.add_scalar("Val Score - Overall", 
+            overall_validation_score, (log_count))
 
     # Run network on test image and visualize result
     def test(self, image_test, save_path):

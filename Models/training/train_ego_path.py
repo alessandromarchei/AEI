@@ -1,12 +1,8 @@
 #! /usr/bin/env python3
 #%%
 import os
-import json
 import torch
 import random
-import pathlib
-import numpy as np
-import matplotlib.pyplot as plt
 
 import sys
 sys.path.append(os.path.abspath(os.path.join(
@@ -16,7 +12,6 @@ sys.path.append(os.path.abspath(os.path.join(
 )))
 
 from argparse import ArgumentParser
-from PIL import Image
 from typing import Literal, get_args
 from Models.data_utils.load_data_ego_path import LoadDataEgoPath
 from Models.training.ego_path_trainer import EgoPathTrainer
@@ -24,10 +19,33 @@ from Models.training.ego_path_trainer import EgoPathTrainer
 
 def main():
 
+    # ====================== Parsing input arguments ====================== #
+
+    parser = ArgumentParser()
+
+    parser.add_argument("-r", "--root", dest="root", required=True, \
+        help="root path to folder where data training data is stored")
+    
+    parser.add_argument("-b", "--backbone_path", dest="backbone_path", \
+        help="path to SceneSeg *.pth checkpoint file to load pre-trained backbone " \
+        "if we are training EgoPath from scratch")
+    
+    parser.add_argument("-c", "--checkpoint_path", dest="checkpoint_path", \
+        help="path to saved EgoPath *.pth checkponit file for training from saved checkpoint")
+
+    parser.add_argument("-s", "--model_save_root_path", dest="model_save_root_path", \
+        help="root path where pytorch checkpoint file should be saved")
+
+
+    args = parser.parse_args()
+
     # ====================== Loading Data ====================== #
     
     # ROOT PATH
-    root = '/mnt/media/EgoPath/EgoPathDatasets/'
+    root = args.root
+
+    # MODEL SAVE ROOT PATH
+    model_save_root_path = args.model_save_root_path
     
     # BDD100K
     bdd100k_labels_filepath= root + 'BDD100K/drivable_path.json'
@@ -52,6 +70,9 @@ def main():
     # TUSIMPLE
     tusimple_labels_filepath = root + 'TUSIMPLE/drivable_path.json'
     tusimple_images_filepath = root + 'TUSIMPLE/image/'
+
+    # TEST
+    #### to do ####
 
     # BDD100K - Data Loading
     bdd100k_Dataset = LoadDataEgoPath(bdd100k_labels_filepath, bdd100k_images_filepath, 'BDD100K')
@@ -89,6 +110,8 @@ def main():
     tusimple_sample_list = list(range(0, tusimple_num_train_samples))
     random.shuffle(tusimple_sample_list)
 
+    # ==================== Training/Val Samples ==================== #
+
     # Total number of training samples
     total_train_samples = bdd100k_num_train_samples + \
     + comma2k19_num_train_samples + culane_num_train_samples \
@@ -109,19 +132,46 @@ def main():
     trainer = 0
 
     # Loading from checkpoint or training from scratch
-    load_from_checkpoint= False
-    backcone_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth'
-    checkpoint_path = ''
+    backbone_path = args.backbone_path 
+    checkpoint_path = args.checkpoint_path
 
-    if(load_from_checkpoint == False):
-        trainer = EgoPathTrainer(pretrained_checkpoint_path=backcone_path)
-    else:
+    if(backbone_path != '' and checkpoint_path == ''):
+        trainer = EgoPathTrainer(pretrained_checkpoint_path=backbone_path)
+    elif(checkpoint_path != '' and backbone_path == ''):
         trainer = EgoPathTrainer(checkpoint_path=checkpoint_path, is_pretrained=False)
+    elif(checkpoint_path == '' and backbone_path == ''):
+        raise ValueError('No checkpoint file found - Please ensure that you pass in either' \
+                          ' a saved EgoPath checkpoint file or SceneSeg checkpoint to load' \
+                          ' the backbone weights')
+    else:
+        raise ValueError('Both EgoPath checkpoint and SceneSeg checkpoint file provided - ' \
+                        ' please provide either the EgoPath checkponit to continue training' \
+                        ' from a saved checkpoint, or the SceneSeg checkpoint file to train' \
+                        ' EgoPath from scratch')
 
     # Zero gradients
     trainer.zero_grad()
+    
+    # CONSTANTS - (DO NOT CHANGE) - Training loop parameters
+    NUM_EPOCHS = 20
+    LOGSTEP_LOSS = 250
+    LOGSTEP_VIS = 1000
+    LOGSTEP_MODEL = 30000
 
-    # Scale factors
+
+    ####################################################################
+    ###################### MODIFIABLE PARAMETERS #######################
+    # You can adjust the SCALE FACTORS, GRAD_LOSS_TYPE, DATA_SAMPLNG_SCHEME 
+    # and BATCH_SIZE_DECAY during training
+
+    # ========================= SCALE FACTORS ========================= #
+    # These scale factors impact the relative weight of different
+    # loss terms in calculating the overall loss. A scale factor
+    # value of 0.0 means that this loss is ignored, 1.0 means that
+    # the loss is not scaled, and any other number applies a simple
+    # scaling to increase or decrease the contribution of that specific
+    # loss towards the overall loss
+
     ENDPOINT_LOSS_SCALE_FACTOR = 0.0          
     MIDPOINT_LOSS_SCALE_FACTOR = 0.0
     GRADIENT_LOSS_SCALE_FACTOR = 1.0
@@ -132,48 +182,94 @@ def main():
             MIDPOINT_LOSS_SCALE_FACTOR, GRADIENT_LOSS_SCALE_FACTOR,
             CONTROLPOINT_LOSS_SCALE_FACTOR)
     
-    # Set gradient loss term type
+    print('ENDPOINT_LOSS_SCALE_FACTOR: ', ENDPOINT_LOSS_SCALE_FACTOR)
+    print('MIDPOINT_LOSS_SCALE_FACTOR: ', MIDPOINT_LOSS_SCALE_FACTOR)
+    print('GRADIENT_LOSS_SCALE_FACTOR: ', GRADIENT_LOSS_SCALE_FACTOR)
+    print('CONTROLPOINT_LOSS_SCALE_FACTOR: ', CONTROLPOINT_LOSS_SCALE_FACTOR)
+    # ======================== GRAD_LOSS_TYPE ======================== #
+    # There are two types of gradients loss, and either can be selected.
+    # One option is 'NUMERICAl' which calculates the gradient through
+    # the tangent angle between consecutive pairs of points along the
+    # curve. The second option is 'ANALYTICAL' which uses the equation
+    # of the curve to calculate the true mathematical gradient from
+    # the curve's partial dervivatives
+
     GRAD_LOSS_TYPE = 'NUMERICAL' # NUMERICAL or ANALYTICAL
     trainer.set_gradient_loss_type(GRAD_LOSS_TYPE)
 
-    # Set training loop parameters
-    NUM_EPOCHS = 20
-    LOGSTEP_LOSS = 250
-    LOGSTEP_VIS = 1000
+    print('GRAD_LOSS_TYPE: ', GRAD_LOSS_TYPE)
+    # ====================== DATA_SAMPLING_SCHEME ====================== #
+    # There are two data sampling schemes. The 'EQUAL' data sampling scheme
+    # ensures that in each batch, we have an equal representation of samples
+    # from each specific dataset. This schemes over-fits the network on 
+    # smaller and underepresented datasets. The second sampling scheme is
+    # 'CONCATENATE', in which the data is sampled randomly and the network
+    # only sees each image from each dataset once in an epoch
 
-    # Set data sampling scheme
     DATA_SAMPLING_SCHEME = 'EQUAL' # EQUAL or CONCATENATE
+
+    print('DATA_SAMPLING_SCHEME: ', DATA_SAMPLING_SCHEME)
+    # ======================== BATCH_SIZE_SCHEME ======================== #
+    # There are three type of BATCH_SIZE_SCHEME, the 'CONSTANT' batch size
+    # scheme sets a constant, fixed batch size value of 24 throughout training.
+    # The 'SLOW_DECAY' batch size scheme reduces the batch size during training,
+    # helping the model escape from local minima. The 'FAST_DECAY' batch size
+    # scheme decays the batch size faster, and may help with quicker model
+    # convergence.
+
+    BATCH_SIZE_SCHEME = 'FAST_DECAY' # FAST_DECAY or SLOW_DECAY or CONSTANT
+
+    print('BATCH_SIZE_SCHEME: ', BATCH_SIZE_SCHEME)
+    ####################################################################
 
     # Datasets list
     data_list = []
-    #data_list.append('BDD100K')
-    #data_list.append('COMMA2K19')
-    #data_list.append('CULANE')
-    #data_list.append('CURVELANES')
-    #data_list.append('ROADWORK')
+    data_list.append('BDD100K')
+    data_list.append('COMMA2K19')
+    data_list.append('CULANE')
+    data_list.append('CURVELANES')
+    data_list.append('ROADWORK')
     data_list.append('TUSIMPLE')
+
+    # Initialize batch_size variable
+    batch_size = 0
     
-    batch_size = 24
-    
-    # Running thru epochs
+    # Running through epochs
     for epoch in range(0, NUM_EPOCHS):
 
-        print('Epoch: ', epoch)
+        print('EPOCH: ', epoch)
 
-        # Batch Size Schedule
-        if(epoch == 0):
+        if(BATCH_SIZE_SCHEME == 'CONSTANT'):
             batch_size = 24
-        elif(epoch == 1):
-            batch_size = 12
-        elif(epoch == 2):
-            batch_size = 6
-        elif(epoch == 3):
-            batch_size = 3
-        elif(epoch == 4):
-            batch_size = 2
-        elif(epoch > 4):
-            batch_size = 1
-
+        elif(BATCH_SIZE_SCHEME == 'FAST_DECAY'):
+            if(epoch == 0):
+                batch_size = 24
+            elif(epoch >= 2 and epoch < 4):
+                batch_size = 12
+            elif(epoch >= 4 and epoch < 6):
+                batch_size = 6
+            elif(epoch >= 6 and epoch < 8):
+                batch_size = 3
+            elif(epoch >= 8 and epoch < 10):
+                batch_size = 2
+            elif(epoch >= 10):
+                batch_size = 1
+        elif(BATCH_SIZE_SCHEME == 'SLOW_DECAY'):
+            if(epoch == 0):
+                batch_size = 24
+            elif(epoch >= 2 and epoch < 6):
+                batch_size = 12
+            elif(epoch >= 6 and epoch < 10):
+                batch_size = 6
+            elif(epoch >= 10 and epoch < 14):
+                batch_size = 3
+            elif(epoch >= 14 and epoch < 18):
+                batch_size = 2
+            elif(epoch >= 18):
+                batch_size = 1
+        else:
+            raise ValueError('Please speficy BATCH_SIZE_SCHEME as either' \
+                ' CONSTANT or FAST_DECAY or SLOW_DECAY')
 
         # Shuffle overall data list at start of epoch and reset data list counter
         random.shuffle(data_list)
@@ -194,6 +290,11 @@ def main():
         is_curvelanes_complete = False
         is_roadwork_complete = False
         is_tusimple_complete = False
+
+        # Checking data sampling scheme
+        if(DATA_SAMPLING_SCHEME != 'EQUAL' and DATA_SAMPLING_SCHEME != 'CONCATENATE'):
+            raise ValueError('Please speficy DATA_SAMPLING_SCHEME as either' \
+                ' EQUAL or CONCATENATE')
 
         # Data sample counter
         count = 0
@@ -307,6 +408,7 @@ def main():
                 image, gt, is_valid = tusimple_Dataset.getItem(tusimple_sample_list[tusimple_count], is_train=True)
                 tusimple_count += 1
             
+            # If the data is valid
             if(is_valid):
 
                 # Assign data
@@ -335,68 +437,144 @@ def main():
                 # Logging Visualization to Tensor Board
                 if((count+1) % LOGSTEP_VIS == 0):  
                     trainer.save_visualization(log_count)
-                '''
-                # Save model and run val across entire val dataset
-                if (current_index % LOGSTEP_MODEL == 0):
+                
+                # Save model and run Validation on entire validation dataset
+                if ((count+1) % LOGSTEP_MODEL == 0):
+                    
+                    print('\n')
+                    print('Iteration:', count+1)
+                    print('----- Saving Model -----')
 
                     # Save model
                     model_save_path = os.path.join(
-                        root_checkpoints,
-                        f"iter_{log_index}_epoch_{epoch}_step_{i}.pth"
+                        model_save_root_path,
+                        f"iter_{log_count}_epoch_{epoch}_step_{count}.pth"
                     )
                     trainer.save_model(model_save_path)
 
-                    # Validate
+                    # Set model to eval mode
                     trainer.set_eval_mode()
 
-                    # Metrics
-                    running_total_loss = 0          # total_loss = mAE_gradients * alpha + mAE_endpoint
-                    running_gradients_loss = 0      # MAE between gradients of GT and pred at uniform samples
-                    running_endpoint_loss = 0       # MAE between GT start & end points with pred 
-                    
+                    # Validation metrics for each dataset
+                    val_bdd100k_running = 0
+                    num_val_bdd100k_samples = 0
+
+                    val_comma2k19_running = 0
+                    num_val_comma2k19_samples = 0
+
+                    val_culane_running = 0
+                    num_val_culane_samples = 0
+
+                    val_curvelanes_running = 0
+                    num_val_curvelanes_samples = 0
+
+                    val_roadwork_running = 0
+                    num_val_roadwork_samples = 0
+
+                    val_tusimple_running = 0
+                    num_val_tusimple_samples = 0
+
                     # Temporarily disable gradient computation for backpropagation
                     with torch.no_grad():
 
+                        print('----- Running validation calculation -----')
                         # Compute val loss per dataset
-                        for dataset, metadata in dict_data:
+                        # BDD100K
+                        for val_count in range(0, bdd100k_num_val_samples):
+                            image, gt, is_valid = bdd100k_Dataset.getItem(val_count, is_train=False)
 
-                            for val_index in range(metadata["N_vals"]):
+                            if(is_valid):
+                                num_val_bdd100k_samples += 1
+                                val_metric = trainer.validate(image, gt)
+                                val_bdd100k_running = val_bdd100k_running + val_metric
 
-                                # Fetch image and label for val set
-                                image_val, label_val = metadata["loader_instance"].getItem(
-                                    index = val_index,
-                                    is_train = False
-                                )
+                        # COMMA2K19
+                        for val_count in range(0, comma2k19_num_val_samples):
+                            image, gt, is_valid = comma2k19_Dataset.getItem(val_count, is_train=False)
 
-                                # Run val and calculate metrics
-                                endpoint_loss, gradient_loss, total_loss = trainer.valudate(
-                                    image_val,
-                                    label_val
-                                )
+                            if(is_valid):
+                                num_val_comma2k19_samples += 1
+                                val_metric = trainer.validate(image, gt)
+                                val_comma2k19_running = val_comma2k19_running + val_metric
 
-                                # Accumulate those metrics
-                                running_endpoint_loss += endpoint_loss
-                                running_gradients_loss += gradient_loss
-                                running_total_loss += total_loss
+                        # CULANE
+                        for val_count in range(0, culane_num_val_samples):
+                            image, gt, is_valid = culane_Dataset.getItem(val_count, is_train=False)
 
-                        # Compute average loss of complete val set
-                        mAE_endpoint_loss = running_endpoint_loss / SUM_N_VALS
-                        mAE_gradients_loss = running_gradients_loss / SUM_N_VALS
-                        mAE_total_loss = running_total_loss / SUM_N_VALS
+                            if(is_valid):
+                                num_val_culane_samples += 1
+                                val_metric = trainer.validate(image, gt)
+                                val_culane_running = val_culane_running + val_metric
+
+                        # CURVELANES
+                        for val_count in range(0, curvelanes_num_val_samples):
+                            image, gt, is_valid = curvelanes_Dataset.getItem(val_count, is_train=False)
+
+                            if(is_valid):
+                                num_val_curvelanes_samples += 1
+                                val_metric = trainer.validate(image, gt)
+                                val_curvelanes_running = val_curvelanes_running + val_metric
+
+                        # ROADWORK
+                        for val_count in range(0, roadwork_num_val_samples):
+                            image, gt, is_valid = roadwork_Dataset.getItem(val_count, is_train=False)
+
+                            if(is_valid):
+                                num_val_roadwork_samples += 1
+                                val_metric = trainer.validate(image, gt)
+                                val_roadwork_running = val_roadwork_running + val_metric
+
+                        # TUSIMPLE
+                        for val_count in range(0, tusimple_num_train_samples):
+                            image, gt, is_valid = tusimple_Dataset.getItem(val_count, is_train=False)
+
+                            if(is_valid):
+                                num_val_tusimple_samples += 1
+                                val_metric = trainer.validate(image, gt)
+                                val_tusimple_running = val_tusimple_running + val_metric
+
+                        # Calculate final validation scores for network on each dataset
+                        # as well as overall validation score - A lower score is better
+                        bdd100k_val_score = val_bdd100k_running/num_val_bdd100k_samples
+                        comma2k19_val_score = val_comma2k19_running/num_val_comma2k19_samples
+                        culane_val_score = val_culane_running/num_val_culane_samples
+                        curvelanes_val_score = val_curvelanes_running/num_val_curvelanes_samples
+                        roadwork_val_score = val_roadwork_running/num_val_roadwork_samples
+                        tusimple_val_score = val_tusimple_running/num_val_tusimple_samples
+
+                        # Ovearll validation metric
+                        val_overall_running = val_bdd100k_running + val_comma2k19_running + \
+                            val_culane_running + val_curvelanes_running + val_roadwork_running + \
+                            val_tusimple_running
+                        
+                        num_val_overall_samples = num_val_bdd100k_samples + num_val_comma2k19_samples + \
+                            num_val_culane_samples + num_val_curvelanes_samples + num_val_roadwork_samples + \
+                            num_val_roadwork_samples
+                        
+                        overall_validation_score = val_overall_running/num_val_overall_samples
+
+                        print('---------- Complete - Validation Scores ----------')
+                        print('BDD100K: ', bdd100k_val_score)
+                        print('COMM2K19: ', comma2k19_val_score)
+                        print('CULANE: ', culane_val_score)
+                        print('CURVELANES: ', curvelanes_val_score)
+                        print('ROADWORK: ', roadwork_val_score)
+                        print('TUSIMPLE: ', tusimple_val_score)
+                        print('OVERALL:', overall_validation_score)
+                        print('\n')
 
                         # Logging average metrics
-                        trainer.log_mAE(
-                            log_index,
-                            mAE_endpoint_loss,
-                            mAE_gradients_loss,
-                            mAE_total_loss
-                        )
+                        trainer.log_validation(log_count, bdd100k_val_score, comma2k19_val_score,
+                            culane_val_score, curvelanes_val_score, roadwork_val_score,
+                            tusimple_val_score, overall_validation_score)
 
                     # Switch back to training
+                    print('----- Continuing with training -----')
                     trainer.set_train_mode()
-                '''
+                
                 data_list_count += 1
 
+    print('----- Training Completed -----')
     trainer.cleanup()
     
 
