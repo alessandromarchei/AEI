@@ -148,7 +148,7 @@ def main():
     NUM_EPOCHS = 20
     LOGSTEP_LOSS = 250
     LOGSTEP_VIS = 1000
-    LOGSTEP_MODEL = 30000
+    LOGSTEP_MODEL = 100#30000
 
 
     ####################################################################
@@ -451,7 +451,7 @@ def main():
                         f"iter_{log_count}_epoch_{epoch}_step_{count}.pth"
                     )
                     trainer.save_model(model_save_path)
-
+                    
                     # Set model to eval mode
                     trainer.set_eval_mode()
 
@@ -479,6 +479,7 @@ def main():
 
                         print('----- Running validation calculation -----')
                         # Compute val loss per dataset
+
                         # BDD100K
                         for val_count in range(0, bdd100k_num_val_samples):
                             image, gt, is_valid = bdd100k_Dataset.getItem(val_count, is_train=False)
@@ -514,9 +515,10 @@ def main():
                                 num_val_curvelanes_samples += 1
                                 val_metric = trainer.validate(image, gt)
                                 val_curvelanes_running = val_curvelanes_running + val_metric
-
+                        
                         # ROADWORK
                         for val_count in range(0, roadwork_num_val_samples):
+                            print(val_count, roadwork_num_val_samples)
                             image, gt, is_valid = roadwork_Dataset.getItem(val_count, is_train=False)
 
                             if(is_valid):
@@ -525,7 +527,7 @@ def main():
                                 val_roadwork_running = val_roadwork_running + val_metric
 
                         # TUSIMPLE
-                        for val_count in range(0, tusimple_num_train_samples):
+                        for val_count in range(0, tusimple_num_val_samples):
                             image, gt, is_valid = tusimple_Dataset.getItem(val_count, is_train=False)
 
                             if(is_valid):
@@ -549,7 +551,7 @@ def main():
                         
                         num_val_overall_samples = num_val_bdd100k_samples + num_val_comma2k19_samples + \
                             num_val_culane_samples + num_val_curvelanes_samples + num_val_roadwork_samples + \
-                            num_val_roadwork_samples
+                            num_val_tusimple_samples
                         
                         overall_validation_score = val_overall_running/num_val_overall_samples
 
