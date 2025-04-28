@@ -8,12 +8,8 @@ import cv2
 from PIL import Image
 import numpy as np
 import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(
-    os.path.dirname(__file__), 
-    '..',
-    '..'
-)))
+
+sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
 from model_components.ego_path_network import EgoPathNetwork
 from data_utils.augmentations import Augmentations

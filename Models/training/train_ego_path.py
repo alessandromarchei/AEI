@@ -3,19 +3,11 @@
 import os
 import torch
 import random
-
-import sys
-sys.path.append(os.path.abspath(os.path.join(
-    os.path.dirname(__file__), 
-    '..',
-    '..'
-)))
-
 from argparse import ArgumentParser
-from typing import Literal, get_args
+import sys
+sys.path.append('../..')
 from Models.data_utils.load_data_ego_path import LoadDataEgoPath
 from Models.training.ego_path_trainer import EgoPathTrainer
-
 
 def main():
 
