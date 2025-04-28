@@ -148,7 +148,7 @@ def main():
     NUM_EPOCHS = 20
     LOGSTEP_LOSS = 250
     LOGSTEP_VIS = 1000
-    LOGSTEP_MODEL = 100#30000
+    LOGSTEP_MODEL = 30000
 
 
     ####################################################################
