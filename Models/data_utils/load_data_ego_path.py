@@ -145,7 +145,7 @@ class LoadDataEgoPath():
         label[0][0] = label[0][0] + 1e-4
         label[0][1] = label[0][1] + 1e-4
         label[-1][0] = label[-1][0] + 1e-4
-        label[-1][1] = label[-1][0] + 1e-4
+        label[-1][1] = label[-1][1] + 1e-4
 
         # Chord length parameterization
         distances = np.sqrt(np.sum(np.diff(label, axis=0)**2, axis=1))
@@ -189,7 +189,6 @@ class LoadDataEgoPath():
             p3 = control_points[3]
    
         except np.linalg.LinAlgError:
-            print('Skipping sample due to unsuccessful Bezier fitting')
             is_valid = False
         
         return is_valid, p0, p1, p2, p3
