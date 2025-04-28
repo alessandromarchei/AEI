@@ -135,11 +135,11 @@ def main():
     backbone_path = args.backbone_path 
     checkpoint_path = args.checkpoint_path
 
-    if(backbone_path != '' and checkpoint_path == ''):
+    if(backbone_path and not checkpoint_path):
         trainer = EgoPathTrainer(pretrained_checkpoint_path=backbone_path)
-    elif(checkpoint_path != '' and backbone_path == ''):
+    elif(checkpoint_path and not backbone_path):
         trainer = EgoPathTrainer(checkpoint_path=checkpoint_path, is_pretrained=False)
-    elif(checkpoint_path == '' and backbone_path == ''):
+    elif(not checkpoint_path and not backbone_path):
         raise ValueError('No checkpoint file found - Please ensure that you pass in either' \
                           ' a saved EgoPath checkpoint file or SceneSeg checkpoint to load' \
                           ' the backbone weights')
