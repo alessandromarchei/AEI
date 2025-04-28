@@ -141,8 +141,10 @@ class LoadDataEgoPath():
         # Adding a tiny amount of noise to ensure we don't have a singular
         # matrix error when fitting the bezier curve in case it is a perfectly
         # straight line in the ground truth label
-        label[0][0] = label[0][0] + 1e-5
-        label[0][1] = label[0][1] + 1e-5
+        label[0][0] = label[0][0] + 1e-4
+        label[0][1] = label[0][1] + 1e-4
+        label[0][6] = label[0][6] + 1e-4
+        label[0][7] = label[0][7] + 1e-4
 
         # Chord length parameterization
         distances = np.sqrt(np.sum(np.diff(label, axis=0)**2, axis=1))
