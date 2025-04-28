@@ -263,6 +263,14 @@ def main():
             raise ValueError('Please speficy BATCH_SIZE_SCHEME as either' \
                 ' CONSTANT or FAST_DECAY or SLOW_DECAY')
 
+        # Learning Rate Schedule
+        if(epoch >= 6 and epoch < 12):
+            trainer.set_learning_rate(0.00005)
+        elif(epoch >= 12 and epoch < 18):
+            trainer.set_learning_rate(0.000025)
+        elif(epoch >= 18):
+            trainer.set_learning_rate(0.0000125)
+
         # Shuffle overall data list at start of epoch and reset data list counter
         random.shuffle(data_list)
         data_list_count = 0
