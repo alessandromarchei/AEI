@@ -138,15 +138,6 @@ class LoadDataEgoPath():
 
         # Fit a Cubic Bezier curve to raw data points
 
-        # Adding a tiny amount of noise to the endpoints to 
-        # ensure we don't have a singular matrix error
-        # when fitting the bezier curve in case it is a perfectly
-        # straight line in the ground truth label
-        label[0][0] = label[0][0] + 1e-4
-        label[0][1] = label[0][1] + 1e-4
-        label[-1][0] = label[-1][0] + 1e-4
-        label[-1][1] = label[-1][1] + 1e-4
-
         # Chord length parameterization
         distances = np.sqrt(np.sum(np.diff(label, axis=0)**2, axis=1))
         cumulative = np.insert(np.cumsum(distances), 0, 0)
