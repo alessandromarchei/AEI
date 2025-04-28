@@ -167,15 +167,32 @@ class LoadDataEgoPath():
         # Least squares fitting: B * P = points => P = (B^T B)^-1 B^T * points
         BTB = B.T @ B
         BTP = B.T @ label
-        control_points = np.linalg.solve(BTB, BTP)
 
-        # Get control points for cubic bezier curve
-        p0 = control_points[0]
-        p1 = control_points[1]
-        p2 = control_points[2]
-        p3 = control_points[3]
+        # Initialize Bezier curve control points
+        control_points = 0
+        p0 = 0.0
+        p1 = 0.0
+        p2 = 0.0
+        p3 = 0.0
+
+        # Flag to store whether or not Bezier curve fitting was successful
+        is_valid = True
+
+        try:
+            # Calculate Bezier curve control points
+            control_points = np.linalg.solve(BTB, BTP)
+            
+            # Get control points for cubic bezier curve
+            p0 = control_points[0]
+            p1 = control_points[1]
+            p2 = control_points[2]
+            p3 = control_points[3]
    
-        return p0, p1, p2, p3
+        except np.linalg.LinAlgError:
+            print('Skipping sample due to unsuccessful Bezier fitting')
+            is_valid = False
+        
+        return is_valid, p0, p1, p2, p3
        
     # Get item at index ith, returning img and EgoPath
     def getItem(self, index, is_train: bool):
@@ -199,7 +216,7 @@ class LoadDataEgoPath():
             label = self.dataAudit(label)
             
             # Fit a cubic bezier curve to raw data points
-            p0, p1, p2, p3 = self.fit_cubic_bezier(label)
+            is_valid, p0, p1, p2, p3 = self.fit_cubic_bezier(label)
 
             p0_ref_arr = np.array(p0)
             p1_ref_arr = np.array(p1)
