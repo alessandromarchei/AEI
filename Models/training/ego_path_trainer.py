@@ -554,7 +554,7 @@ class EgoPathTrainer():
         # Calculating validation loss as mAE between Ground Truth
         # and Predicted Bezier curve control points
         validation_loss_tensor = self.calc_control_points_loss(prediction, self.gt_tensor)
-        validation_loss = validation_loss_tensor.detach().cpu.numpy()
+        validation_loss = validation_loss_tensor.detach().cpu().numpy()
        
         return validation_loss
 
