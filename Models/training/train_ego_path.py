@@ -448,7 +448,7 @@ def main():
                     # Save model
                     model_save_path = os.path.join(
                         model_save_root_path,
-                        f"iter_{log_count}_epoch_{epoch}_step_{count}.pth"
+                        f"iter_{log_count+1}_epoch_{epoch}_step_{count+1}.pth"
                     )
                     trainer.save_model(model_save_path)
                     
