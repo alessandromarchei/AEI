@@ -174,8 +174,8 @@ class EgoPathTrainer():
         total_loss = self.gradient_loss*self.grad_scale_factor + \
             self.mid_point_loss*self.mid_point_scale_factor + \
             self.control_points_loss*self.control_points_scale_factor + \
-            self.gradient_loss*self.grad_scale_factor
-     
+            self.endpoint_loss*self.endpoint_loss_scale_factor
+
         return total_loss 
     
 
