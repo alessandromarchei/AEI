@@ -4,7 +4,6 @@ from torchvision import transforms
 from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-import cv2
 from PIL import Image
 import numpy as np
 import sys
@@ -572,6 +571,7 @@ class EgoPathTrainer():
         self.writer.add_scalar("Val Score - Overall", 
             overall_validation_score, (log_count))
 
+    '''
     # Run network on test image and visualize result
     def test(self, image_test, save_path):
         
@@ -637,3 +637,4 @@ class EgoPathTrainer():
         # Save the visualization to disk based on the save path
         fig_test.savefig(save_path)   
         plt.close(fig_test)    
+        '''
