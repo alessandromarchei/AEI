@@ -518,7 +518,6 @@ def main():
                         
                         # ROADWORK
                         for val_count in range(0, roadwork_num_val_samples):
-                            print(val_count, roadwork_num_val_samples)
                             image, gt, is_valid = roadwork_Dataset.getItem(val_count, is_train=False)
 
                             if(is_valid):
