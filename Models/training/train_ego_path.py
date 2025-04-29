@@ -23,7 +23,7 @@ def main():
         "if we are training EgoPath from scratch")
     
     parser.add_argument("-c", "--checkpoint_path", dest="checkpoint_path", \
-        help="path to saved EgoPath *.pth checkponit file for training from saved checkpoint")
+        help="path to saved EgoPath *.pth checkpoint file for training from saved checkpoint")
 
     parser.add_argument("-s", "--model_save_root_path", dest="model_save_root_path", \
         help="root path where pytorch checkpoint file should be saved")
@@ -180,7 +180,7 @@ def main():
     print('CONTROLPOINT_LOSS_SCALE_FACTOR: ', CONTROLPOINT_LOSS_SCALE_FACTOR)
     # ======================== GRAD_LOSS_TYPE ======================== #
     # There are two types of gradients loss, and either can be selected.
-    # One option is 'NUMERICAl' which calculates the gradient through
+    # One option is 'NUMERICAL' which calculates the gradient through
     # the tangent angle between consecutive pairs of points along the
     # curve. The second option is 'ANALYTICAL' which uses the equation
     # of the curve to calculate the true mathematical gradient from
