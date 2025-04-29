@@ -38,14 +38,12 @@ class EgoPathTrainer():
         self.endpoint_loss = 0
         self.mid_point_loss = 0
         self.gradient_loss = 0
-        self.control_points_loss = 0
         self.gradient_type = 'NUMERICAL'
 
         # Loss scale factors
-        self.endpoint_loss_scale_factor = 1
-        self.control_points_scale_factor = 1
-        self.grad_scale_factor = 1
-        self.mid_point_scale_factor = 2
+        self.endpoint_loss_scale_factor = 1.0
+        self.grad_scale_factor = 1.0
+        self.mid_point_scale_factor = 1.0
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -159,9 +157,6 @@ class EgoPathTrainer():
         # points along the curve have small x and y deviation - also acts as a regulariation term
         self.mid_point_loss = self.calc_mid_points_loss(prediction, ground_truth)
 
-        # Control Points loss - make sure Bezier control points match
-        self.control_points_loss = self.calc_control_points_loss(prediction, ground_truth)
-
         # Gradient Loss - either NUMERICAL tangent angle calcualation or
         # ANALYTICAL derviative of bezier curve, this loss ensures the curve is 
         # smooth and acts as a regularization term
@@ -173,7 +168,6 @@ class EgoPathTrainer():
         # Total loss is sum of individual losses multiplied by scailng factors
         total_loss = self.gradient_loss*self.grad_scale_factor + \
             self.mid_point_loss*self.mid_point_scale_factor + \
-            self.control_points_loss*self.control_points_scale_factor + \
             self.endpoint_loss*self.endpoint_loss_scale_factor
 
         return total_loss 
@@ -181,13 +175,12 @@ class EgoPathTrainer():
 
     # Set scale factors for losses
     def set_loss_scale_factors(self, endpoint_loss_scale_factor, 
-            mid_point_scale_factor, grad_scale_factor, control_point_scale_factor):
+            mid_point_scale_factor, grad_scale_factor):
         
         # Loss scale factors
         self.endpoint_loss_scale_factor = endpoint_loss_scale_factor
         self.grad_scale_factor = grad_scale_factor
         self.mid_point_scale_factor = mid_point_scale_factor
-        self.control_points_scale_factor = control_point_scale_factor
 
 
     # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
@@ -199,11 +192,6 @@ class EgoPathTrainer():
             self.gradient_type = 'ANALYTICAL'
         else:
             raise ValueError('Please specify either NUMERICAL or ANALYTICAL gradient loss as a string')
-        
-    # Calculate the error between Bezier Control Points
-    def calc_control_points_loss(self, prediction, ground_truth):
-        control_points_loss = torch.mean(torch.abs(prediction-ground_truth))
-        return control_points_loss
     
     # Calculate the endpoints loss term 
     def calc_endpoints_loss(self, prediction, ground_truth):
@@ -418,17 +406,11 @@ class EgoPathTrainer():
     def get_mid_point_loss(self):
         scaled_midpoint_loss = self.mid_point_loss*self.mid_point_scale_factor
         return scaled_midpoint_loss.item()
-    
-    # Get control point loss
-    def get_control_point_loss(self):
-        scaled_control_point_loss = self.control_points_loss*self.control_points_scale_factor
-        return scaled_control_point_loss.item()
 
     # Logging Loss
     def log_loss(self, log_count):
         self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
-            'control_point_loss': self.get_control_point_loss(),
             'endpoint_loss': self.get_endpoint_loss(),
             'midpoint_loss': self.get_mid_point_loss(),
             'gradient_loss': self.get_gradient_loss()
@@ -549,7 +531,8 @@ class EgoPathTrainer():
 
         # Calculating validation loss as mAE between Ground Truth
         # and Predicted Bezier curve control points
-        validation_loss_tensor = self.calc_control_points_loss(prediction, self.gt_tensor)
+        validation_loss_tensor = self.calc_endpoints_loss(prediction, self.gt_tensor) + \
+            self.calc_numerical_gradient_loss(prediction, self.gt_tensor)
         validation_loss = validation_loss_tensor.detach().cpu().numpy()
        
         return validation_loss

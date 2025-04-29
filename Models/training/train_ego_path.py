@@ -164,20 +164,17 @@ def main():
     # scaling to increase or decrease the contribution of that specific
     # loss towards the overall loss
 
-    ENDPOINT_LOSS_SCALE_FACTOR = 0.0          
+    ENDPOINT_LOSS_SCALE_FACTOR = 2.0          
     MIDPOINT_LOSS_SCALE_FACTOR = 0.0
     GRADIENT_LOSS_SCALE_FACTOR = 1.0
-    CONTROLPOINT_LOSS_SCALE_FACTOR = 1.0
 
     # Set training loss term scale factors
     trainer.set_loss_scale_factors(ENDPOINT_LOSS_SCALE_FACTOR, 
-            MIDPOINT_LOSS_SCALE_FACTOR, GRADIENT_LOSS_SCALE_FACTOR,
-            CONTROLPOINT_LOSS_SCALE_FACTOR)
+            MIDPOINT_LOSS_SCALE_FACTOR, GRADIENT_LOSS_SCALE_FACTOR)
     
     print('ENDPOINT_LOSS_SCALE_FACTOR: ', ENDPOINT_LOSS_SCALE_FACTOR)
     print('MIDPOINT_LOSS_SCALE_FACTOR: ', MIDPOINT_LOSS_SCALE_FACTOR)
     print('GRADIENT_LOSS_SCALE_FACTOR: ', GRADIENT_LOSS_SCALE_FACTOR)
-    print('CONTROLPOINT_LOSS_SCALE_FACTOR: ', CONTROLPOINT_LOSS_SCALE_FACTOR)
     # ======================== GRAD_LOSS_TYPE ======================== #
     # There are two types of gradients loss, and either can be selected.
     # One option is 'NUMERICAL' which calculates the gradient through
@@ -198,7 +195,7 @@ def main():
     # 'CONCATENATE', in which the data is sampled randomly and the network
     # only sees each image from each dataset once in an epoch
 
-    DATA_SAMPLING_SCHEME = 'EQUAL' # EQUAL or CONCATENATE
+    DATA_SAMPLING_SCHEME = 'CONCATENATE' # EQUAL or CONCATENATE
 
     print('DATA_SAMPLING_SCHEME: ', DATA_SAMPLING_SCHEME)
     # ======================== BATCH_SIZE_SCHEME ======================== #
@@ -216,11 +213,11 @@ def main():
 
     # Datasets list
     data_list = []
-    data_list.append('BDD100K')
+    #data_list.append('BDD100K')
     data_list.append('COMMA2K19')
-    data_list.append('CULANE')
+    #data_list.append('CULANE')
     data_list.append('CURVELANES')
-    data_list.append('ROADWORK')
+    #data_list.append('ROADWORK')
     data_list.append('TUSIMPLE')
 
     # Initialize batch_size variable
