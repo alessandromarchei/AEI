@@ -215,16 +215,19 @@ class LoadDataEgoPath():
             # Point/line auto audit
             label = self.dataAudit(label)
             
-            # Fit a cubic bezier curve to raw data points
-            is_valid, p0, p1, p2, p3 = self.fit_cubic_bezier(label)
+            if(len(label) >= 4):
+                # Fit a cubic bezier curve to raw data points
+                is_valid, p0, p1, p2, p3 = self.fit_cubic_bezier(label)
 
-            p0_ref_arr = np.array(p0)
-            p1_ref_arr = np.array(p1)
-            p2_ref_arr = np.array(p2)
-            p3_ref_arr = np.array(p3)
+                p0_ref_arr = np.array(p0)
+                p1_ref_arr = np.array(p1)
+                p2_ref_arr = np.array(p2)
+                p3_ref_arr = np.array(p3)
 
-            bezier_curve = np.concatenate((p0_ref_arr, p1_ref_arr, p2_ref_arr, p3_ref_arr), axis=0)
-            bezier_curve = np.float32(bezier_curve)
+                bezier_curve = np.concatenate((p0_ref_arr, p1_ref_arr, p2_ref_arr, p3_ref_arr), axis=0)
+                bezier_curve = np.float32(bezier_curve)
+            else:
+                is_valid = False
         else:
             # Data is not valid since we need at least 4 raw data
             # points to fit a cubic bezier curve
