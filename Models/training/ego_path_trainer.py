@@ -556,7 +556,7 @@ class EgoPathTrainer():
         self.writer.add_scalar("Val Score - Overall", 
             overall_validation_score, (log_count))
 
-    '''
+   
     # Run network on test image and visualize result
     def test(self, image_test, save_path):
         
@@ -622,4 +622,4 @@ class EgoPathTrainer():
         # Save the visualization to disk based on the save path
         fig_test.savefig(save_path)   
         plt.close(fig_test)    
-        '''
+        
