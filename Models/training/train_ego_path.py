@@ -224,11 +224,11 @@ def main():
 
     # Datasets list
     data_list = []
-    #data_list.append('BDD100K')
-    #data_list.append('COMMA2K19')
-    #data_list.append('CULANE')
-    #data_list.append('CURVELANES')
-    #data_list.append('ROADWORK')
+    data_list.append('BDD100K')
+    data_list.append('COMMA2K19')
+    data_list.append('CULANE')
+    data_list.append('CURVELANES')
+    data_list.append('ROADWORK')
     data_list.append('TUSIMPLE')
 
     # Initialize batch_size variable
