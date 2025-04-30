@@ -64,7 +64,7 @@ def main():
     if(load_from_checkpoint == False):
         trainer = Scene3DTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
     else:
-        trainer = Scene3DTrainer(checkpoint_path=checkpoint_path, is_pretrained=False)
+        trainer = Scene3DTrainer(checkpoint_path=checkpoint_path, is_pretrained=True)
 
     trainer.zero_grad()
     
