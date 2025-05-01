@@ -266,10 +266,20 @@ int main(int argc, ORTCHAR_T* argv[])
     * ONNX RT to run the network
     ************************************************************
     */
- 
+    // Get input dimensions
+    std::vector<int64_t> input_dims = input_node_dims[0];  // Copy, don't reference
+
+    // Fix dynamic dimensions (e.g., -1) with concrete values
+    for (size_t i = 0; i < input_dims.size(); ++i) {
+        if (input_dims[i] == -1) {
+            // Replace -1 with actual shape value, usually from tensor_image
+            input_dims[i] = tensor_image.sizes()[i];  // Assuming this is [1, C, H, W]
+        }
+    }
+    
     try 
     {
-        input_tensors.emplace_back(Ort::Value::CreateTensor<float>(memory_info, (float*)fPhysicallyPermutedInputArray, tensor_image.numel(), input_node_dims[0].data(), input_node_dims[0].size()));
+        input_tensors.emplace_back(Ort::Value::CreateTensor<float>(memory_info, (float*)fPhysicallyPermutedInputArray, tensor_image.numel(), input_dims.data(), input_dims.size()));
     }
     catch (Ort::Exception &oe) 
     {
