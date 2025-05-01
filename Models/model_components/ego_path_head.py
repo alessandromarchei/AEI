@@ -28,6 +28,7 @@ class EgoPathHead(nn.Module):
         p1 = self.dropout(p1)
         p1 = self.GeLU(p1)
         p2 = self.ego_path_layer_2(p1)
+        p2 = self.dropout(p2)
         p2 = self.GeLU(p2)
         ego_path = self.ego_path_layer_3(p2)
         
