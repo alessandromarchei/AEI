@@ -149,7 +149,7 @@ class EgoPathTrainer():
     # Calculate loss
     def calc_loss(self, prediction, ground_truth):
 
-        # Endpoint loss - align the start and end control points of the Prediciton
+        # Endpoint loss - align the end control point of the Prediciton
         # vs Ground Truth Bezier Curves
         self.endpoint_loss = self.calc_endpoints_loss(prediction, ground_truth)
 
@@ -195,18 +195,6 @@ class EgoPathTrainer():
     
     # Calculate the endpoints loss term 
     def calc_endpoints_loss(self, prediction, ground_truth):
-
-        # Prediction Start Point (x,y)
-        pred_x_start = prediction[0][0]
-        pred_y_start = prediction[0][1]
-
-        # Ground Truth Start Point (x,y)
-        gt_x_start = ground_truth[0][0]
-        gt_y_start = ground_truth[0][1]
-
-        # Start Point mAE Loss
-        start_point_mAE = torch.abs(pred_x_start - gt_x_start) + \
-            torch.abs(pred_y_start - gt_y_start)
         
         # Prediction End Point (x,y)
         pred_x_end = prediction[0][-2]
@@ -221,7 +209,8 @@ class EgoPathTrainer():
             torch.abs(pred_y_end - gt_y_end)
 
         # Total End Point mAE Loss
-        total_end_point_mAE = start_point_mAE + end_point_mAE
+        #total_end_point_mAE = start_point_mAE + end_point_mAE
+        total_end_point_mAE = end_point_mAE
         return total_end_point_mAE
     
     # Evaluate the x,y coordinates of a bezier curve at a given t-parameter value
@@ -248,7 +237,7 @@ class EgoPathTrainer():
 
         # Sample the bezier curve for Prediction and Ground Truth
         # ignoring the start and end points
-        for i in range(5, 100, 5):
+        for i in range(20, 100, 2):
 
             # Sample counter
             sample_count +=1
@@ -278,9 +267,9 @@ class EgoPathTrainer():
 
         # Sample the bezier curve for Prediction and Ground Truth
         # ignoring the start and end points
-        sampling_rate = 5
+        sampling_rate = 2
 
-        for i in range(0, 100, sampling_rate):
+        for i in range(20, 100, sampling_rate):
 
             # Sample counter
             sample_count +=1
@@ -452,7 +441,7 @@ class EgoPathTrainer():
         gt_x_points = []
         gt_y_points = []
 
-        for i in range(0, 110, 10):
+        for i in range(20, 110, 10):
 
             t = i/100
             
@@ -471,22 +460,10 @@ class EgoPathTrainer():
         fig_gt = plt.figure(figsize=(8, 4))
         plt.axis('off')
         plt.imshow(self.image)
-
+        
         # Plot the final curve
         plt.plot(gt_x_points, gt_y_points, color="cyan")
-
-        # Plot the control points
-        # Start control point - RED
-        plt.scatter((gt_vis[0][0]*self.width), (gt_vis[0][1]*self.height), \
-                    marker='o', color='red', s=10)
-        # Middle control points - Green
-        plt.scatter((gt_vis[0][2]*self.width, gt_vis[0][4]*self.width), \
-                    (gt_vis[0][3]*self.height, gt_vis[0][5]*self.height),
-                    marker='o', color='lawngreen', s=10)
-        # End control points - YELLOW
-        plt.scatter((gt_vis[0][6]*self.width), (gt_vis[0][7]*self.height), \
-                    marker='o', color='yellow', s=10)
-        
+      
         self.writer.add_figure('Ground Truth', \
             fig_gt, global_step=(log_count))
 
@@ -498,18 +475,8 @@ class EgoPathTrainer():
 
         # Plot the final curve
         plt.plot(pred_x_points, pred_y_points, color="cyan")
+     
 
-        # Plot the control points
-        # Start control point - RED
-        plt.scatter((pred_vis[0][0]*self.width), (pred_vis[0][1]*self.height), \
-                    marker='o', color='red', s=10)
-        # Middle control points - GREEN
-        plt.scatter((pred_vis[0][2]*self.width, pred_vis[0][4]*self.width), \
-                    (pred_vis[0][3]*self.height, pred_vis[0][5]*self.height),
-                    marker='o', color='lawngreen', s=10)
-        # End control points - YELLOW
-        plt.scatter((pred_vis[0][6]*self.width), (pred_vis[0][7]*self.height), \
-                    marker='o', color='yellow', s=10)
         self.writer.add_figure('Prediction', \
             fig_pred, global_step=(log_count))
 
@@ -586,7 +553,7 @@ class EgoPathTrainer():
         test_pred_x_points = []
         test_pred_y_points = []
 
-        for i in range(0, 110, 10):
+        for i in range(20, 110, 10):
 
             # t-parameter values
             t = i/100
@@ -606,19 +573,7 @@ class EgoPathTrainer():
 
         # Plot the final curve
         plt.plot(test_pred_x_points, test_pred_y_points, color="cyan")
-
-        # Plot the control points
-        # Start control point - RED
-        plt.scatter((test_vis[0][0]*test_image_width), (test_vis[0][1]*test_image_height), \
-                    marker='o', color='red', s=10)
-        # Middle control points - Green
-        plt.scatter((test_vis[0][2]*test_image_width, test_vis[0][4]*test_image_width), \
-                    (test_vis[0][3]*test_image_height, test_vis[0][5]*test_image_height),
-                    marker='o', color='lawngreen', s=10)
-        # End control points - YELLOW
-        plt.scatter((test_vis[0][6]*test_image_width), (test_vis[0][7]*test_image_height), \
-                    marker='o', color='yellow', s=10)
-        
+     
         # Save the visualization to disk based on the save path
         fig_test.savefig(save_path)   
         plt.close(fig_test)    
