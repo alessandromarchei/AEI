@@ -195,6 +195,14 @@ class EgoPathTrainer():
     
     # Calculate the endpoints loss term 
     def calc_endpoints_loss(self, prediction, ground_truth):
+
+        # Prediction Start Point (x,y)
+        pred_x_start = prediction[0][0]
+        pred_y_start = prediction[0][1]
+
+        # Ground Truth Start Point (x,y)
+        gt_x_start = ground_truth[0][0]
+        gt_y_start = ground_truth[0][1]
         
         # Prediction End Point (x,y)
         pred_x_end = prediction[0][-2]
@@ -205,12 +213,15 @@ class EgoPathTrainer():
         gt_y_end = ground_truth[0][-1]
 
         # Start Point mAE Loss
+        start_point_mAE = torch.abs(pred_x_start - gt_x_start) + \
+            torch.abs(pred_y_start - gt_y_start)
+
+        # End Point mAE Loss
         end_point_mAE = torch.abs(pred_x_end - gt_x_end) + \
             torch.abs(pred_y_end - gt_y_end)
 
         # Total End Point mAE Loss
-        #total_end_point_mAE = start_point_mAE + end_point_mAE
-        total_end_point_mAE = end_point_mAE
+        total_end_point_mAE = start_point_mAE + end_point_mAE
         return total_end_point_mAE
     
     # Evaluate the x,y coordinates of a bezier curve at a given t-parameter value
