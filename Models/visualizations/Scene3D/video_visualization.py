@@ -23,6 +23,7 @@ def main():
     # Saved model checkpoint path
     model_checkpoint_path = args.model_checkpoint_path
     model = Scene3DNetworkInfer(checkpoint_path=model_checkpoint_path)
+    print('Scene3D Model Loaded')
     
     # Create a VideoCapture object and read from input file
     # If the input is taken from the camera, pass 0 instead of the video file name.
@@ -32,18 +33,21 @@ def main():
     # Output filepath
     output_filepath_obj = args.output_file + '.avi'
 
-
+    # Video writer object
     writer_obj = cv2.VideoWriter(output_filepath_obj,
     cv2.VideoWriter_fourcc(*"MJPG"), 25,(1280,720))
 
     # Check if video catpure opened successfully
     if (cap.isOpened()== False): 
         print("Error opening video stream or file")
+    else:
+        print('Reading video frames')
 
     # Transparency factor
     alpha = 0.97
  
     # Read until video is completed
+    print('Processing started')
     while(cap.isOpened()):
         # Capture frame-by-frame
         ret, frame = cap.read()
@@ -62,7 +66,13 @@ def main():
             prediction_image = 255.0*((prediction - np.min(prediction))/ (np.max(prediction) - np.min(prediction)))
             prediction_image = prediction_image.astype(np.uint8)
             vis_obj = cv2.applyColorMap(prediction_image, cmapy.cmap('viridis'))
+
+            # Resizing to match the size of the output video
+            # which is set to standard HD resolution
+            frame = cv2.resize(frame, (1280, 720))
             vis_obj = cv2.resize(vis_obj, (1280, 720))
+
+            # Create the composite visualization
             image_vis_obj = cv2.addWeighted(vis_obj, alpha, frame, 1 - alpha, 0)
             
 
@@ -72,6 +82,9 @@ def main():
 
             # Writing to video frame
             writer_obj.write(image_vis_obj)
+        else:
+            print('Frame not read - ending processing')
+            break
 
     # When everything done, release the video capture and writer objects
     cap.release()
@@ -79,7 +92,8 @@ def main():
 
     # Closes all the frames
     cv2.destroyAllWindows()
-
+    print('Completed')
+    
 if __name__ == '__main__':
     main()
     # %%
