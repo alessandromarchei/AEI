@@ -80,18 +80,14 @@ def main():
       image_pil = Image.fromarray(image)
       image_pil = image_pil.resize((640, 320))
       
+      # Running inference
       prediction = model.inference(image_pil)
       vis_obj = make_visualization(prediction)
       
-      # If the input frame is small, resize and create
-      # the visualization at standard HD resolution
-      if(frame.shape[1] < 1280):
-         frame = cv2.resize(frame, (1280, 720))
-         vis_obj = cv2.resize(vis_obj, (1280, 720))
-      else:
-      # Otherwise, resize the visualization to match the size
-      # of the input video
-        vis_obj = cv2.resize(vis_obj, (frame.shape[1], frame.shape[0]))
+      # Resizing to match the size of the output video
+      # which is set to standard HD resolution
+      frame = cv2.resize(frame, (1280, 720))
+      vis_obj = cv2.resize(vis_obj, (1280, 720))
 
       # Create the composite visualization
       image_vis_obj = cv2.addWeighted(vis_obj, alpha, frame, 1 - alpha, 0)
