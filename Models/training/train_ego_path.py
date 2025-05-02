@@ -224,11 +224,11 @@ def main():
 
     # Datasets list
     data_list = []
-    #data_list.append('BDD100K')
+    data_list.append('BDD100K')
     data_list.append('COMMA2K19')
-    #data_list.append('CULANE')
+    data_list.append('CULANE')
     data_list.append('CURVELANES')
-    #data_list.append('ROADWORK')
+    data_list.append('ROADWORK')
     data_list.append('TUSIMPLE')
 
     # Initialize batch_size variable
@@ -556,11 +556,11 @@ def main():
                         
                         # Calculate final validation scores for network on each dataset
                         # as well as overall validation score - A lower score is better
-                        bdd100k_val_score = 0 #val_bdd100k_running/num_val_bdd100k_samples
+                        bdd100k_val_score = val_bdd100k_running/num_val_bdd100k_samples
                         comma2k19_val_score = val_comma2k19_running/num_val_comma2k19_samples
-                        culane_val_score = 0 #val_culane_running/num_val_culane_samples
+                        culane_val_score = val_culane_running/num_val_culane_samples
                         curvelanes_val_score = val_curvelanes_running/num_val_curvelanes_samples
-                        roadwork_val_score = 0 #val_roadwork_running/num_val_roadwork_samples
+                        roadwork_val_score = val_roadwork_running/num_val_roadwork_samples
                         tusimple_val_score = val_tusimple_running/num_val_tusimple_samples
 
                         # Ovearll validation metric
