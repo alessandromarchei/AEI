@@ -11,25 +11,26 @@ from inference.scene_seg_infer import SceneSegNetworkInfer
 
 
 def make_visualization(prediction):
-  shape = prediction.shape
 
+  # Creating visualization object
+  shape = prediction.shape
   row = shape[0]
   col = shape[1]
   vis_predict_object = np.zeros((row, col, 3), dtype = "uint8")
 
-  background_objects_colour = (255, 93, 61)
-  foreground_objects_colour = (145, 28, 255)
+  # Assigning background colour
+  vis_predict_object[:,:,0] = 255
+  vis_predict_object[:,:,1] = 93
+  vis_predict_object[:,:,2] = 61
 
-  # Extracting predicted classes and assigning to colourmap
-  for x in range(row):
-      for y in range(col):
-          if(prediction[x,y].item() == 0):
-              vis_predict_object[x,y] = background_objects_colour
-          elif(prediction[x,y].item() == 1):
-              vis_predict_object[x,y] = foreground_objects_colour
-          elif(prediction[x,y].item() == 2):
-              vis_predict_object[x,y] = background_objects_colour
-              
+  # Getting foreground object labels
+  foreground_lables = np.where(prediction == 1)
+
+  # Assigning foreground objects colour
+  vis_predict_object[foreground_lables[0], foreground_lables[1], 0] = 145
+  vis_predict_object[foreground_lables[0], foreground_lables[1], 1] = 28
+  vis_predict_object[foreground_lables[0], foreground_lables[1], 2] = 255
+        
   return vis_predict_object
 
 def main(): 
@@ -43,8 +44,8 @@ def main():
 
   # Saved model checkpoint path
   model_checkpoint_path = args.model_checkpoint_path
-  
   model = SceneSegNetworkInfer(checkpoint_path=model_checkpoint_path)
+  print('SceneSeg Model Loaded')
     
   # Create a VideoCapture object and read from input file
   # If the input is taken from the camera, pass 0 instead of the video file name.
@@ -61,11 +62,14 @@ def main():
   # Check if video catpure opened successfully
   if (cap.isOpened()== False): 
     print("Error opening video stream or file")
+  else:
+    print('Reading video frames')
   
   # Transparency factor
   alpha = 0.5
   
   # Read until video is completed
+  print('Processing started')
   while(cap.isOpened()):
     # Capture frame-by-frame
     ret, frame = cap.read()
@@ -79,7 +83,17 @@ def main():
       prediction = model.inference(image_pil)
       vis_obj = make_visualization(prediction)
       
-      vis_obj = cv2.resize(vis_obj, (1280, 720))
+      # If the input frame is small, resize and create
+      # the visualization at standard HD resolution
+      if(frame.shape[1] < 1280):
+         frame = cv2.resize(frame, (1280, 720))
+         vis_obj = cv2.resize(vis_obj, (1280, 720))
+      else:
+      # Otherwise, resize the visualization to match the size
+      # of the input video
+        vis_obj = cv2.resize(vis_obj, (frame.shape[1], frame.shape[0]))
+
+      # Create the composite visualization
       image_vis_obj = cv2.addWeighted(vis_obj, alpha, frame, 1 - alpha, 0)
 
       if(args.vis):
@@ -88,13 +102,18 @@ def main():
 
       # Writing to video frame
       writer_obj.write(image_vis_obj)
-  
+
+    else:
+      print('Frame not read - ending processing')
+      break
+
   # When everything done, release the video capture and writer objects
   cap.release()
   writer_obj.release()
 
   # Closes all the frames
   cv2.destroyAllWindows()
+  print('Completed')
 
 if __name__ == '__main__':
   main()
