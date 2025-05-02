@@ -159,7 +159,7 @@ def main():
     NUM_EPOCHS = 20
     LOGSTEP_LOSS = 250
     LOGSTEP_VIS = 1000
-    LOGSTEP_MODEL = 10000
+    LOGSTEP_MODEL = 20000
 
 
     ####################################################################
@@ -175,8 +175,8 @@ def main():
     # scaling to increase or decrease the contribution of that specific
     # loss towards the overall loss
 
-    ENDPOINT_LOSS_SCALE_FACTOR = 2.0          
-    MIDPOINT_LOSS_SCALE_FACTOR = 0.0
+    ENDPOINT_LOSS_SCALE_FACTOR = 1.0          
+    MIDPOINT_LOSS_SCALE_FACTOR = 1.0
     GRADIENT_LOSS_SCALE_FACTOR = 1.0
 
     # Set training loss term scale factors
@@ -206,7 +206,7 @@ def main():
     # 'CONCATENATE', in which the data is sampled randomly and the network
     # only sees each image from each dataset once in an epoch
 
-    DATA_SAMPLING_SCHEME = 'CONCATENATE' # EQUAL or CONCATENATE
+    DATA_SAMPLING_SCHEME = 'EQUAL' # EQUAL or CONCATENATE
 
     print('DATA_SAMPLING_SCHEME: ', DATA_SAMPLING_SCHEME)
     # ======================== BATCH_SIZE_SCHEME ======================== #
@@ -224,11 +224,11 @@ def main():
 
     # Datasets list
     data_list = []
-    data_list.append('BDD100K')
+    #data_list.append('BDD100K')
     data_list.append('COMMA2K19')
-    data_list.append('CULANE')
+    #data_list.append('CULANE')
     data_list.append('CURVELANES')
-    data_list.append('ROADWORK')
+    #data_list.append('ROADWORK')
     data_list.append('TUSIMPLE')
 
     # Initialize batch_size variable
@@ -440,11 +440,11 @@ def main():
 
                 # Logging loss to Tensor Board
                 if((count+1) % LOGSTEP_LOSS == 0):
-                    trainer.log_loss(log_count)
+                    trainer.log_loss(log_count+1)
                 
                 # Logging Visualization to Tensor Board
                 if((count+1) % LOGSTEP_VIS == 0):  
-                    trainer.save_visualization(log_count)
+                    trainer.save_visualization(log_count+1)
                 
                 # Save model and run Validation on entire validation dataset
                 if ((count+1) % LOGSTEP_MODEL == 0):
@@ -499,7 +499,7 @@ def main():
 
                         print('----- Running validation calculation -----')
                         # Compute val loss per dataset
-
+                        
                         # BDD100K
                         for val_count in range(0, bdd100k_num_val_samples):
                             image, gt, is_valid = bdd100k_Dataset.getItem(val_count, is_train=False)
@@ -508,7 +508,7 @@ def main():
                                 num_val_bdd100k_samples += 1
                                 val_metric = trainer.validate(image, gt)
                                 val_bdd100k_running = val_bdd100k_running + val_metric
-
+                        
                         # COMMA2K19
                         for val_count in range(0, comma2k19_num_val_samples):
                             image, gt, is_valid = comma2k19_Dataset.getItem(val_count, is_train=False)
@@ -517,7 +517,7 @@ def main():
                                 num_val_comma2k19_samples += 1
                                 val_metric = trainer.validate(image, gt)
                                 val_comma2k19_running = val_comma2k19_running + val_metric
-
+                        
                         # CULANE
                         for val_count in range(0, culane_num_val_samples):
                             image, gt, is_valid = culane_Dataset.getItem(val_count, is_train=False)
@@ -526,7 +526,7 @@ def main():
                                 num_val_culane_samples += 1
                                 val_metric = trainer.validate(image, gt)
                                 val_culane_running = val_culane_running + val_metric
-
+                        
                         # CURVELANES
                         for val_count in range(0, curvelanes_num_val_samples):
                             image, gt, is_valid = curvelanes_Dataset.getItem(val_count, is_train=False)
@@ -544,7 +544,7 @@ def main():
                                 num_val_roadwork_samples += 1
                                 val_metric = trainer.validate(image, gt)
                                 val_roadwork_running = val_roadwork_running + val_metric
-
+                        
                         # TUSIMPLE
                         for val_count in range(0, tusimple_num_val_samples):
                             image, gt, is_valid = tusimple_Dataset.getItem(val_count, is_train=False)
@@ -553,14 +553,14 @@ def main():
                                 num_val_tusimple_samples += 1
                                 val_metric = trainer.validate(image, gt)
                                 val_tusimple_running = val_tusimple_running + val_metric
-
+                        
                         # Calculate final validation scores for network on each dataset
                         # as well as overall validation score - A lower score is better
-                        bdd100k_val_score = val_bdd100k_running/num_val_bdd100k_samples
+                        bdd100k_val_score = 0 #val_bdd100k_running/num_val_bdd100k_samples
                         comma2k19_val_score = val_comma2k19_running/num_val_comma2k19_samples
-                        culane_val_score = val_culane_running/num_val_culane_samples
+                        culane_val_score = 0 #val_culane_running/num_val_culane_samples
                         curvelanes_val_score = val_curvelanes_running/num_val_curvelanes_samples
-                        roadwork_val_score = val_roadwork_running/num_val_roadwork_samples
+                        roadwork_val_score = 0 #val_roadwork_running/num_val_roadwork_samples
                         tusimple_val_score = val_tusimple_running/num_val_tusimple_samples
 
                         # Ovearll validation metric
@@ -573,7 +573,7 @@ def main():
                             num_val_tusimple_samples
                         
                         overall_validation_score = val_overall_running/num_val_overall_samples
-
+                      
                         print('---------- Complete - Validation Scores ----------')
                         print('BDD100K: ', bdd100k_val_score)
                         print('COMM2K19: ', comma2k19_val_score)

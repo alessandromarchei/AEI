@@ -210,7 +210,7 @@ class LoadDataEgoPath():
         bezier_curve = 0
 
         # If there are enough points to fit a cubic bezier curve
-        if(len(label) >= 4):
+        if(len(label) >= 5):
 
             # Point/line auto audit
             label = self.dataAudit(label)
