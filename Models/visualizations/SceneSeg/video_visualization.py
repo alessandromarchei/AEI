@@ -55,7 +55,7 @@ def main():
   # Output filepath
   output_filepath_obj = args.output_file + '.avi'
 
-  
+  # Video writer object
   writer_obj = cv2.VideoWriter(output_filepath_obj,
     cv2.VideoWriter_fourcc(*"MJPG"), 25,(1280,720))
 
