@@ -11,25 +11,26 @@ from inference.scene_seg_infer import SceneSegNetworkInfer
 
 
 def make_visualization(prediction):
+
+    # Creating visualization object
     shape = prediction.shape
-  
     row = shape[0]
     col = shape[1]
     vis_predict_object = np.zeros((row, col, 3), dtype = "uint8")
 
-    background_objects_colour = (255, 93, 61)
-    foreground_objects_colour = (145, 28, 255)
+    # Assigning background colour
+    vis_predict_object[:,:,0] = 255
+    vis_predict_object[:,:,1] = 93
+    vis_predict_object[:,:,2] = 61
 
-    # Extracting predicted classes and assigning to colourmap
-    for x in range(row):
-        for y in range(col):
-            if(prediction[x,y].item() == 0):
-                vis_predict_object[x,y] = background_objects_colour
-            elif(prediction[x,y].item() == 1):
-                vis_predict_object[x,y] = foreground_objects_colour
-            elif(prediction[x,y].item() == 2):
-                vis_predict_object[x,y] = background_objects_colour
-               
+    # Getting foreground object labels
+    foreground_lables = np.where(prediction == 1)
+
+    # Assigning foreground objects colour
+    vis_predict_object[foreground_lables[0], foreground_lables[1], 0] = 145
+    vis_predict_object[foreground_lables[0], foreground_lables[1], 1] = 28
+    vis_predict_object[foreground_lables[0], foreground_lables[1], 2] = 255
+            
     return vis_predict_object
 
 def main(): 
@@ -42,11 +43,13 @@ def main():
     # Saved model checkpoint path
     model_checkpoint_path = args.model_checkpoint_path
     model = SceneSegNetworkInfer(checkpoint_path=model_checkpoint_path)
+    print('SceneSeg Model Loaded')
   
     # Transparency factor
     alpha = 0.5
 
     # Reading input image
+    print('Reading Image')
     input_image_filepath = args.input_image_filepath
     frame = cv2.imread(input_image_filepath, cv2.IMREAD_COLOR)
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -54,6 +57,7 @@ def main():
     image_pil = image_pil.resize((640, 320))
 
     # Run inference and create visualization
+    print('Running Inference and Creating Visualization')
     prediction = model.inference(image_pil)
     vis_obj = make_visualization(prediction)
 
