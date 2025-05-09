@@ -7,7 +7,14 @@ AutoSeg has been hardened by training on a diverse set of real-world image data 
 
 By following an ensemble-of-experts approach, AutoSeg is able to learn generalizble features that are adaptable to out-of-domain scenarios and can facilitate multiple downstream perceptual tasks such as semantic object segmentation, lane perception, and even end-to-end autonomous driving. Furthermore, each neural expert can be independently refined and fine-tuned with additional data allowing for a richer representation of edge-case scenarios which are challenging to capture in a single predictor model.
 
-The current AutoSeg release will comprise 4 perceptual tasks performed by different sub-neural-network experts, these include: **SceneSeg** (completed), **Scene3D** (in-progress), **EgoPath** (in-progress) and **EgoLanes** (to do).
+## AutoSeg is comprised of 6 neural network export models which include:
+
+- ### Scene3D - Metric and Relative depth estimation of scene elements
+- ### SceneSeg - Semantic segmentation of all foreground objects
+- ### DomainSeg - Semantic egmentation of roadwork zones and construction objects
+- ### EgoSpace - Semantic Segmentation of the drivable road surface
+- ### EgoPath - End-to-end drivable path prediction on roads, with and without lane markings
+- ### EgoLanes - Detection of lanes and road edges defining the driving corridor
 
 ![Autoseg Network Diagram](../Diagrams/AutoSeg.jpg)
 
