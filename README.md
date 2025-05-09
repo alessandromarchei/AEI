@@ -64,7 +64,7 @@ Our combined obstacle perception stack is comprised of a Vision Stack, a Feature
 
 **Feature Fusion**
 
-- **Sentry** - Sentry performs fusion of Vision Stack obstacle perception outputs with Imaging RADAR 4D pointclouds by back-projecting RADAR points to the image domain and using the semantic segmentation outputs form the Vision Stack to create different filetered versions of the Raw RADAR pointcloud which are transformed to create a multi-channel BEV RADAR image.
+- **Sentry** - Sentry performs fusion of Vision Stack obstacle perception outputs with Imaging RADAR and standard automotive RADAR detections. RADAR detections are back-projected to the image domain and the semantic segmentation output masks form the Vision Stack are used as a type of 'filter' to create different versions of the Raw RADAR pointcloud, e.g. RADAR detections which overlap with foreground object labels from SceneSeg, or RADAR detections for ground points using road labels from EgoSpace, etc. These filtered RADAR pointcloud variations are transformed into a birds-eye-view image with multiple channels, wherein each channel corresponds to a separate filtered version of the raw RADAR pointcloud, enabling diverse feature representation at the input data stage for downstream RADAR neural network blocks.
 
 
 **RADAR Stack**
