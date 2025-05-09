@@ -19,19 +19,16 @@ The goal for this effort in Autoware is to build an open-source highway autonomy
 
 ![Autoware PoV](Media/Autoware_PoV.jpg) 
 
------------------------------------
 
 ## Value Proposition
 It is estimated that over **20 Trillion** passenger miles are driven on highways around the world, each year. This equates to **280 Billion** hours of driver time spent behind the wheel. If an autonomous driving technology could be developed to a sufficiently advanced level such that people did not need to manually drive on highways, and could do other activities with their time, then this would unlock a **$1 Trillion/annum** market opportunity, if we were to simply cost the time of a person at around $4/hour (conservative estimate).
 
 ![Value Proposition](Media/Value_Proposition.jpg) 
 
------------------------------------
 
 ## Limitations of Existing Technologies
 Current autonomous highway pilot systems face challenges in achieving the safety and performance requirements for true hands-off, eyes-off, self-driving, where the human driver no longer has to pay attention to the road or be engaged with the driving task. Specifically, there are two areas where autonomous driving technologies are currently lacking: obstacle perception for out of domain objects, and driving corridor perception in challenging scenarios.
 
------------------------------------
 
 ### Obstacle Perception Challenge
 Highway pilot systems typically rely upon vision (cameras), and RADAR as primary sensors.
@@ -77,7 +74,6 @@ Our RADAR stack processes the multi-channel BEV RADAR image in two branches call
 - **Safety Shield** - object occupancy detection of static and dynamic objects, ensuring the system reliably detects every object in the scene with the aim to never have an at-fault autonomous vehicle crash
 - **Drive3D** - a robust 3D detection, classification, and tracking system to understand the scene context of commonly occuring foreground objects such as cars, buses, vans, trucks, etc.
 
------------------------------------
 
 ### Driving Corridor Perception Challenge
 Existing highway pilot systems can reliably detect the driving corridor through lane lines. Lane line perception can be performed through either AI-based methods or Computer Vision methods, achieving performance on-par with human drivers. However, highway pilot systems struggle to detect the driving corridor in safety-critical edge case scenarios, such as situations where lanes are no longer visible due to road maintenance issues, snow, etc. and scenarios where the driving corridor is highly adaptable, e.g. roadworks with traffic cones and road barriers. **There are many publicly documented examples of accidents that have occured due to autonomous vehicles failing to perceive the correct driving corridor in these types of edge case scenarios.**
@@ -93,22 +89,18 @@ To solve the driving corridor perception challenge, we will develop a universal 
 
 By using an ensemble approach, **Path Finder** will be able to robustly tackle edge case driving scnearios and ensure autonomous vehicle safety.
 
------------------------------------
 
 ## High Definition Maps
 **We will not utilize 3D high definition prior maps**, instead opting to use existing 2D navigational (sat-nav style) maps, also called ADAS maps. Human beings can drive on highways without prior knowledge of the detailed 3D geometry of roadways by relying on real-time scene perception, and our system aims to mimic this process.
 
------------------------------------
 
 ## End-to-End AI Architecture
 We will follow an **End-to-End AI Architecture** in which each component technology of the highway pilot system is powered through neural-networks. We will follow a modular AI approach with component AI systems allowing for system explainability, introspection, verification and safety validation.
 
------------------------------------
 
 ### Vision Pipeline
 The [**AutoSeg foundation model**](/AutoSeg) is currently being developed as part of the vision pipeline of the Autoware Highway Pilot System. It includes the development and implementation of **SceneSeg**, **Scene3D**, **DomainSeg**, **EgoSpace**, **EgoPath** and **EgoLanes**.
 
------------------------------------
 
 ## Technology Roadmap
 
