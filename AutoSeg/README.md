@@ -9,12 +9,14 @@ By following an ensemble-of-experts approach, AutoSeg is able to learn generaliz
 
 ## AutoSeg is comprised of 6 neural network export models which include:
 
-- ### Scene3D - Metric and Relative depth estimation of scene elements
-- ### SceneSeg - Semantic segmentation of all foreground objects
-- ### DomainSeg - Semantic egmentation of roadwork zones and construction objects
-- ### EgoSpace - Semantic Segmentation of the drivable road surface
-- ### EgoPath - End-to-end drivable path prediction on roads, with and without lane markings
-- ### EgoLanes - Detection of lanes and road edges defining the driving corridor
+- **Scene3D - Metric and Relative depth estimation of scene elements**
+- **SceneSeg - Semantic segmentation of all foreground objects**
+- **DomainSeg - Semantic egmentation of roadwork zones and construction objects**
+- **EgoSpace - Semantic Segmentation of the drivable road surface**
+- **EgoPath - End-to-end drivable path prediction on roads, with and without lane markings**
+- **EgoLanes - Detection of lanes and road edges defining the driving corridor**
+
+------------------------------------
 
 ![Autoseg Network Diagram](../Diagrams/AutoSeg.jpg)
 
