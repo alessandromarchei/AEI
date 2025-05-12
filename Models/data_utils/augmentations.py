@@ -6,7 +6,8 @@ import numpy as np
 from typing import Literal, get_args
 
 DATA_TYPES_LITERAL = Literal[
-    "SEGMENTATION", 
+    "SEGMENTATION",
+    "BINARY_SEGMENTATION", 
     "DEPTH", 
     "KEYPOINTS"
 ]
@@ -72,8 +73,8 @@ class Augmentations():
             ]
         )
 
-
-    # SEMANTIC SEGMENTATION
+    # ========================== Data type specific transform functions ========================== #
+    # SEMANTIC SEGMENTATION - SceneSeg
     # Set data values
     def setDataSeg(self, image, ground_truth):
 
@@ -113,8 +114,49 @@ class Augmentations():
             self.augmented_image = self.adjust_shape["image"]
 
         return self.augmented_image, self.augmented_data
+    
+    # BINARY SEGMENTATION - DomainSeg, EgoSpace
+    # Set data values
+    def setDataBinarySeg(self, image, ground_truth):
 
-    # DEPTH ESTIMATION
+        self.image = image
+        self.ground_truth = ground_truth
+        self.augmented_data = ground_truth
+        self.augmented_image = image  
+
+    # Apply augmentations transform
+    def applyTransformBinarySeg(self, image, ground_truth):
+
+        if(self.data_type != 'BINARY_SEGMENTATION'):
+            raise ValueError('Please set dataset type to BINARY_SEGMENTATION in intialization of class')
+
+        self.setDataBinarySeg(image, ground_truth)
+
+        if(self.is_train):
+
+            # Resize and random horiztonal flip
+            self.adjust_shape = self.transform_shape(image=self.image, \
+                mask=self.ground_truth)
+            
+            self.augmented_data = self.adjust_shape["mask"]
+            self.augmented_image = self.adjust_shape["image"]
+
+            # Random image augmentations
+            if (random.random() >= 0.25 and self.is_train):
+        
+                self.add_noise = self.transform_noise(image=self.augmented_image)
+                self.augmented_image = self.add_noise["image"]
+
+        else:
+
+            # Only resize in test/validation mode
+            self.adjust_shape = self.transform_shape_test(image=self.image, \
+                mask = self.ground_truth)
+            self.augmented_data = self.adjust_shape["mask"]
+            self.augmented_image = self.adjust_shape["image"]
+        return self.augmented_image, self.augmented_data
+
+    # DEPTH ESTIMATION - Scene3D
     # Set data values
     def setDataDepth(self, image, ground_truth):
 
@@ -155,7 +197,7 @@ class Augmentations():
             self.augmented_image = self.adjust_shape["image"]
         return self.augmented_image, self.augmented_data
     
-    # KEYPOINTS
+    # KEYPOINTS - EgoPath, EgoLanes
     # Set data values
     def setDataKeypoints(self, image):
 
