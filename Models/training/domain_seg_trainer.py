@@ -5,7 +5,7 @@ from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
+import cv2
 import sys
 sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
@@ -100,7 +100,6 @@ class SceneSegTrainer():
         self.image = image
         self.gt = gt
 
-
     # Image agumentations
     def apply_augmentations(self, is_train):
 
@@ -117,8 +116,6 @@ class SceneSegTrainer():
             augVal.setDataSeg(self.image, self.gt)
             self.image, self.augmented = \
                 augVal.applyTransformSeg(image=self.image, ground_truth=self.gt)
-
-
     
     # Load Data
     def load_data(self, is_train):
@@ -128,7 +125,7 @@ class SceneSegTrainer():
     # Run Model
     def run_model(self):     
         self.prediction = self.model(self.image_tensor)
-        BCELoss = nn.nn.BCEWithLogitsLoss()
+        BCELoss = nn.BCEWithLogitsLoss()
         self.loss = BCELoss(self.prediction, self.gt_tensor)
 
     # Loss Backward Pass
@@ -154,21 +151,44 @@ class SceneSegTrainer():
 
     # Save predicted visualization
     def save_visualization(self, log_count):
-        print('Saving Visualization')
-        self.prediction_vis = self.prediction.squeeze(0).cpu().detach()
-        self.prediction_vis = self.prediction_vis.permute(1, 2, 0)
-                
-        vis_predict = self.make_visualization()
-  
-        fig, axs = plt.subplots(1,3)
-        axs[0].imshow(self.image)
-        axs[0].set_title('Image',fontweight ="bold") 
-        axs[1].imshow(self.gt)
-        axs[1].set_title('Ground Truth',fontweight ="bold") 
-        axs[2].imshow(vis_predict)
-        axs[2].set_title('Prediction',fontweight ="bold") 
-        self.writer.add_figure('predictions vs. actuals', \
-        fig, global_step=(log_count))
+        
+        # Get prediction
+        prediction_vis = self.prediction.squeeze(0).cpu().detach()
+        prediction_vis = prediction_vis(1, 2, 0)
+
+        # Get ground truth
+        gt_vis = self.gt_tensor.squeeze(0).cpu().detach()
+        gt_vis = gt_vis.permute(1,2,0)
+        
+        # Create visualization
+        # Blending factor
+        alpha = 0.5
+
+        # Predicttion visualization
+        prediction_vis = cv2.addWeighted(self.make_visualization(prediction_vis), \
+            alpha, self.image, 1 - alpha, 0)
+        
+        # Ground truth visualization
+        gt_vis = cv2.addWeighted(self.make_visualization(gt_vis), \
+            alpha, self.image, 1 - alpha, 0)
+
+        # Visualize the Prediction
+        fig_pred = plt.figure(figsize=(8, 4))
+        plt.axis('off')
+        plt.imshow(prediction_vis)
+
+        # Write the figure
+        self.writer.add_figure('Prediction', \
+            fig_pred, global_step=(log_count))
+        
+        # Visualize the Ground Truth
+        fig_gt = plt.figure(figsize=(8, 4))
+        plt.axis('off')
+        plt.imshow(gt_vis)
+
+        # Write the figure
+        self.writer.add_figure('Ground Truth', \
+            fig_gt, global_step=(log_count))
 
     # Load Image as Tensor
     def load_image_tensor(self):
@@ -198,7 +218,7 @@ class SceneSegTrainer():
         output_val = output_val.permute(1, 2, 0)
         output_val = output_val.numpy()
         output_val[output_val <= 0] = 0.0
-        output_val[output_val >= 0] = 1.0
+        output_val[output_val > 0] = 1.0
         iou_score = self.IoU(output_val, self.gt)
         
         return iou_score
@@ -227,33 +247,31 @@ class SceneSegTrainer():
         
         return iou_score
 
-
     # Visualize predicted result
-    def make_visualization(self):
-        shape = self.prediction_vis.shape
-        _, output = torch.max(self.prediction_vis, dim=2)
+    def make_visualization(self, result):
 
+        # Getting size of prediction
+        shape = self.result.shape
         row = shape[0]
         col = shape[1]
-        vis_predict = Image.new(mode="RGB", size=(col, row))
-    
-        vx = vis_predict.load()
 
-        background_objects_colour = (61, 93, 255)
-        foreground_objects_colour = (255, 28, 145)
-        road_colour = (0, 255, 220)
-
-        # Extracting predicted classes and assigning to colourmap
-        for x in range(row):
-            for y in range(col):
-                if(output[x,y].item() == 0):
-                    vx[y,x] = background_objects_colour
-                elif(output[x,y].item() == 1):
-                    vx[y,x] = foreground_objects_colour
-                elif(output[x,y].item() == 2):
-                    vx[y,x] = road_colour               
+        # Creating visualization image
+        vis_predict_object = np.zeros((row, col, 3), dtype = "uint8")
         
-        return vis_predict
+        # Assigning background colour
+        vis_predict_object[:,:,0] = 255
+        vis_predict_object[:,:,1] = 93
+        vis_predict_object[:,:,2] = 61
+
+        # Getting foreground object labels
+        foreground_lables = np.where(result > 0)
+
+        # Assigning foreground objects colour
+        vis_predict_object[foreground_lables[0], foreground_lables[1], 0] = 0
+        vis_predict_object[foreground_lables[0], foreground_lables[1], 1] = 234
+        vis_predict_object[foreground_lables[0], foreground_lables[1], 2] = 255          
+        
+        return vis_predict_object
     
     def cleanup(self):
         self.writer.flush()
