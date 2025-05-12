@@ -3,9 +3,9 @@ from .domain_seg_head import DomainSegHead
 
 import torch.nn as nn
 
-class Scene3DNetwork(nn.Module):
+class DomainSegNetwork(nn.Module):
     def __init__(self, pretrained):
-        super(Scene3DNetwork, self).__init__()
+        super(DomainSegNetwork, self).__init__()
 
         # Upstream blocks
         self.DomainSegUpstream = DomainSegUpstream(pretrained)
