@@ -3,9 +3,9 @@ from .ego_space_head import EgoSpaceHead
 
 import torch.nn as nn
 
-class Scene3DNetwork(nn.Module):
+class EgoSpaceNetwork(nn.Module):
     def __init__(self, pretrained):
-        super(Scene3DNetwork, self).__init__()
+        super(EgoSpaceNetwork, self).__init__()
 
         # Upstream blocks
         self.EgoSpaceUpstream = EgoSpaceUpstream(pretrained)
