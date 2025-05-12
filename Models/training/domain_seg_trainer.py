@@ -1,0 +1,261 @@
+
+import torch
+from torchvision import transforms
+from torch import nn, optim
+from torch.utils.tensorboard import SummaryWriter
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+import sys
+sys.path.append('..')
+from model_components.scene_seg_network import SceneSegNetwork
+from model_components.domain_seg_network import DomainSegNetwork
+from data_utils.augmentations import Augmentations
+
+class SceneSegTrainer():
+    def __init__(self,  checkpoint_path = '', pretrained_checkpoint_path = '', is_pretrained = False):
+
+        # Image and ground truth as Numpy arrays and Pytorch tensors
+        self.image = 0
+        self.gt = 0
+        self.image_tensor = 0
+        self.gt_tensor = 0
+
+        # Loss and prediction
+        self.loss = 0
+        self.prediction = 0
+
+        # Checking devices (GPU vs CPU)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f'Using {self.device} for inference')
+        
+        # Checking devices (GPU vs CPU)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f'Using {self.device} for inference')
+
+        if(is_pretrained):
+
+            # Instantiate Model for validation or inference - load both pre-traiend SceneSeg and SuperDepth weights
+            if(len(checkpoint_path) > 0):
+
+                # Loading model with full pre-trained weights
+                sceneSegNetwork = SceneSegNetwork()
+                self.model = DomainSegNetwork(sceneSegNetwork)
+
+                # If the model is also pre-trained then load the pre-trained downstream weights
+                self.model.load_state_dict(torch.load \
+                    (checkpoint_path, weights_only=True, map_location=self.device))
+                print('Loading pre-trained model weights of DomainSeg and upstream SceneSeg weights as well')
+            else:
+                raise ValueError('Please ensure DomainSeg network weights are provided for downstream elements')
+            
+        else:
+
+            # Instantiate Model for training - load pre-traiend SceneSeg weights only
+            if(len(pretrained_checkpoint_path) > 0):
+                
+                # Loading SceneSeg pre-trained for upstream weights
+                sceneSegNetwork = SceneSegNetwork()
+                sceneSegNetwork.load_state_dict(torch.load \
+                    (pretrained_checkpoint_path, weights_only=True, map_location=self.device))
+                    
+                # Loading model with pre-trained upstream weights
+                self.model = DomainSegNetwork(sceneSegNetwork)
+                print('Loading pre-trained model weights of upstream SceneSeg only, DomainSeg initialised with random weights')
+            else:
+                raise ValueError('Please ensure SceneSeg network weights are provided for upstream elements')
+
+
+        # TensorBoard
+        self.writer = SummaryWriter()
+
+        # Learning rate and optimizer
+        self.learning_rate = 0.0001
+        self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
+
+        # Loaders
+        self.image_loader = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ]
+        )
+
+        self.gt_loader = transforms.Compose(
+            [transforms.ToTensor()]
+        )
+
+    # Logging Training Loss
+    def log_loss(self, log_count):
+        print('Logging Training Loss', log_count, self.get_loss())
+        self.writer.add_scalar("Loss/train",self.get_loss(), (log_count))
+
+    # Logging Validation mIoU Score
+    def log_IoU(self, mIoU, log_count):
+        print('Logging Validation')
+        self.writer.add_scalar("Val/IoU", mIoU, (log_count))
+        
+    # Assign input variables
+    def set_data(self, image, gt):
+        self.image = image
+        self.gt = gt
+
+
+    # Image agumentations
+    def apply_augmentations(self, is_train):
+
+        if(is_train):
+            # Augmenting Data for training
+            augTrain = Augmentations(is_train=True, data_type='SEGMENTATION')
+            augTrain.setDataSeg(self.image, self.gt)
+            self.image, self.augmented  = \
+                augTrain.applyTransformSeg(image=self.image, ground_truth=self.gt)
+
+        else:
+            # Augmenting Data for testing/validation
+            augVal = Augmentations(is_train=False, data_type='SEGMENTATION')
+            augVal.setDataSeg(self.image, self.gt)
+            self.image, self.augmented = \
+                augVal.applyTransformSeg(image=self.image, ground_truth=self.gt)
+
+
+    
+    # Load Data
+    def load_data(self, is_train):
+        self.load_image_tensor(is_train)
+        self.load_gt_tensor(is_train)
+
+    # Run Model
+    def run_model(self):     
+        self.prediction = self.model(self.image_tensor)
+        BCELoss = nn.nn.BCEWithLogitsLoss()
+        self.loss = BCELoss(self.prediction, self.gt_tensor)
+
+    # Loss Backward Pass
+    def loss_backward(self): 
+        self.loss.backward()
+
+    # Get loss value
+    def get_loss(self):
+        return self.loss.item()
+
+    # Run Optimizer
+    def run_optimizer(self):
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+
+    # Set train mode
+    def set_train_mode(self):
+        self.model = self.model.train()
+
+    # Set evaluation mode
+    def set_eval_mode(self):
+        self.model = self.model.eval()
+
+    # Save predicted visualization
+    def save_visualization(self, log_count):
+        print('Saving Visualization')
+        self.prediction_vis = self.prediction.squeeze(0).cpu().detach()
+        self.prediction_vis = self.prediction_vis.permute(1, 2, 0)
+                
+        vis_predict = self.make_visualization()
+  
+        fig, axs = plt.subplots(1,3)
+        axs[0].imshow(self.image)
+        axs[0].set_title('Image',fontweight ="bold") 
+        axs[1].imshow(self.gt)
+        axs[1].set_title('Ground Truth',fontweight ="bold") 
+        axs[2].imshow(vis_predict)
+        axs[2].set_title('Prediction',fontweight ="bold") 
+        self.writer.add_figure('predictions vs. actuals', \
+        fig, global_step=(log_count))
+
+    # Load Image as Tensor
+    def load_image_tensor(self):
+        image_tensor = self.image_loader(self.image)
+        image_tensor = image_tensor.unsqueeze(0)
+        self.image_tensor = image_tensor.to(self.device)
+      
+    # Load Ground Truth as Tensor
+    def load_gt_tensor(self):
+        gt_tensor = self.gt_loader(self.gt)
+        gt_tensor = gt_tensor.unsqueeze(0)
+        self.gt_tensor = gt_tensor.to(self.device)
+     
+    # Zero Gradient
+    def zero_grad(self):
+        self.optimizer.zero_grad()
+
+    # Save Model
+    def save_model(self, model_save_path):
+        print('Saving model')
+        torch.save(self.model.state_dict(), model_save_path)
+    
+    # Calculate IoU score for validation
+    def calc_IoU_val(self):
+        output_val = self.model(self.image_tensor)
+        output_val = output_val.squeeze(0).cpu().detach()
+        output_val = output_val.permute(1, 2, 0)
+        output_val = output_val.numpy()
+        output_val[output_val <= 0] = 0.0
+        output_val[output_val >= 0] = 1.0
+        iou_score = self.IoU(output_val, self.gt)
+        
+        return iou_score
+    
+    # IoU calculation
+    def IoU(self, output, label):
+        intersection = np.logical_and(label, output)
+        union = np.logical_or(label, output)
+        iou_score = (np.sum(intersection) + 1) / float(np.sum(union) + 1)
+        return iou_score
+    
+    # Run Validation and calculate metrics
+    def validate(self, image, gt):
+
+        # Set Data
+        self.set_data(image, gt)
+
+        # Augmenting Image
+        self.apply_augmentations(is_train=False)
+
+        # Converting to tensor and loading
+        self.load_data(is_train=False)
+
+        # Calculate IoU score
+        iou_score = self.calc_IoU_val()
+        
+        return iou_score
+
+
+    # Visualize predicted result
+    def make_visualization(self):
+        shape = self.prediction_vis.shape
+        _, output = torch.max(self.prediction_vis, dim=2)
+
+        row = shape[0]
+        col = shape[1]
+        vis_predict = Image.new(mode="RGB", size=(col, row))
+    
+        vx = vis_predict.load()
+
+        background_objects_colour = (61, 93, 255)
+        foreground_objects_colour = (255, 28, 145)
+        road_colour = (0, 255, 220)
+
+        # Extracting predicted classes and assigning to colourmap
+        for x in range(row):
+            for y in range(col):
+                if(output[x,y].item() == 0):
+                    vx[y,x] = background_objects_colour
+                elif(output[x,y].item() == 1):
+                    vx[y,x] = foreground_objects_colour
+                elif(output[x,y].item() == 2):
+                    vx[y,x] = road_colour               
+        
+        return vis_predict
+    
+    def cleanup(self):
+        self.writer.flush()
+        self.writer.close()
+        print('Finished Training')
