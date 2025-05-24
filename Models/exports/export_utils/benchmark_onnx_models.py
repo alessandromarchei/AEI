@@ -957,21 +957,22 @@ def format_single_model_iou_table(model_name_report: str, results_for_model: Dic
             val_ds = ds_data_dict.get('avg_ious_per_class', [0.0]*len(class_names))[class_idx]
             row_values.append(f"{val_ds:.3f}")
         table_str += f"{' | '.join(row_values)}\n"
-        
-        num_s_overall = iou_data['Overall'].get('num_samples_processed', 0)
-        processed_samples_str = f"Processed Samples (Overall): {num_s_overall}"
-        for ds_key in dataset_keys:
-            num_s_ds = iou_data[ds_key].get('num_samples_processed', 0)
-            if num_s_ds > 0: processed_samples_str += f", {ds_key}: {num_s_ds}"
-        table_str += f"\n{processed_samples_str}\n" if num_s_overall > 0 else "\nNo samples processed for IoU.\n"
+    
+    num_s_overall = iou_data['Overall'].get('num_samples_processed', 0)
+    processed_samples_str = f"Processed Samples (Overall): {num_s_overall}"
+    for ds_key in dataset_keys:
+        num_s_ds = iou_data[ds_key].get('num_samples_processed', 0)
+        if num_s_ds > 0: processed_samples_str += f", {ds_key}: {num_s_ds}"
+    table_str += f"\n{processed_samples_str}\n" if num_s_overall > 0 else "\nNo samples processed for IoU.\n"
 
-        avg_time_overall = iou_data['Overall'].get('avg_inference_time_ms', 0.0)
-        table_str += f"Avg. Inference Time (Overall): {avg_time_overall:.2f} ms\n"
-        
-        model_info_dict = results_for_model.get('model_info', {})
-        model_size_mb = model_info_dict.get('size_mb', 0.0)
-        if model_size_mb > 0 : table_str += f"Model Size: {model_size_mb:.2f} MB\n"
-        return table_str
+    avg_time_overall = iou_data['Overall'].get('avg_inference_time_ms', 0.0)
+    table_str += f"Avg. Inference Time (Overall): {avg_time_overall:.2f} ms\n"
+    
+    model_info_dict = results_for_model.get('model_info', {})
+    model_size_mb = model_info_dict.get('size_mb', 0.0)
+    if model_size_mb > 0 : table_str += f"Model Size: {model_size_mb:.2f} MB\n"
+    
+    return table_str
 
 def generate_full_comparison_report(all_results: Dict[str, Dict[str, Any]], config: BenchmarkConfig) -> None:
     """Generates and logs a comprehensive comparison report for all benchmarked models.
