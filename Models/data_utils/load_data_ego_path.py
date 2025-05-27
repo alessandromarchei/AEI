@@ -133,6 +133,7 @@ class LoadDataEgoPath():
                 break
 
         return fixed_label
+    
 
     def fit_cubic_bezier(self, label):
 
@@ -214,7 +215,7 @@ class LoadDataEgoPath():
 
             # Point/line auto audit
             label = self.dataAudit(label)
-            
+        
             if(len(label) >= 4):
                 # Fit a cubic bezier curve to raw data points
                 is_valid, p0, p1, p2, p3 = self.fit_cubic_bezier(label)
@@ -235,7 +236,7 @@ class LoadDataEgoPath():
 
         # Convert image to OpenCV/Numpy format for augmentations
         img = np.array(img)
-
+        
         return img, bezier_curve, is_valid
     
   
