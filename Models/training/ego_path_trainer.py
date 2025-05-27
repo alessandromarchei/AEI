@@ -4,6 +4,7 @@ from torchvision import transforms
 from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
+import math
 import cv2
 from PIL import Image
 import numpy as np
@@ -35,12 +36,16 @@ class EgoPathTrainer():
 
         # Losses
         self.loss = 0
+        self.start_point_x_offset_loss = 0
         self.endpoint_loss = 0
         self.mid_point_loss = 0
         self.gradient_loss = 0
+        self.heading_angle_loss = 0
         self.gradient_type = 'NUMERICAL'
 
         # Loss scale factors
+        self.start_point_x_offset_loss_scale_factor = 1.0
+        self.heading_angle_loss_scale_factor = 1.0
         self.endpoint_loss_scale_factor = 1.0
         self.grad_scale_factor = 1.0
         self.mid_point_scale_factor = 1.0
@@ -151,33 +156,42 @@ class EgoPathTrainer():
 
         # Endpoint loss - align the end control point of the Prediciton
         # vs Ground Truth Bezier Curves
-        self.endpoint_loss = self.calc_endpoints_loss(prediction, ground_truth)
+        #self.endpoint_loss = self.calc_endpoints_loss(prediction, ground_truth)
 
         # Mid-point loss - similar to the BezierLaneNet paper, this loss ensures that
         # points along the curve have small x and y deviation - also acts as a regulariation term
-        self.mid_point_loss = self.calc_mid_points_loss(prediction, ground_truth)
+        #self.mid_point_loss = self.calc_mid_points_loss(prediction, ground_truth)
 
         # Gradient Loss - either NUMERICAL tangent angle calcualation or
         # ANALYTICAL derviative of bezier curve, this loss ensures the curve is 
         # smooth and acts as a regularization term
-        if(self.gradient_type == 'NUMERICAL'):
-            self.gradient_loss = self.calc_numerical_gradient_loss(prediction, ground_truth)
-        elif(self.gradient_type == 'ANALYTICAL'):
-            self.gradient_loss = self.calc_analytical_gradient_loss(prediction, ground_truth)
+        #if(self.gradient_type == 'NUMERICAL'):
+        #    self.gradient_loss = self.calc_numerical_gradient_loss(prediction, ground_truth)
+        #elif(self.gradient_type == 'ANALYTICAL'):
+        #    self.gradient_loss = self.calc_analytical_gradient_loss(prediction, ground_truth)
 
         # Total loss is sum of individual losses multiplied by scailng factors
-        total_loss = self.gradient_loss*self.grad_scale_factor + \
-            self.mid_point_loss*self.mid_point_scale_factor + \
-            self.endpoint_loss*self.endpoint_loss_scale_factor
+        #total_loss = self.gradient_loss*self.grad_scale_factor + \
+        #    self.mid_point_loss*self.mid_point_scale_factor + \
+        #    self.endpoint_loss*self.endpoint_loss_scale_factor
 
+        self.start_point_x_offset_loss = self.calc_start_point_x_offset_loss(prediction, ground_truth)
+        self.heading_angle_loss = self.calc_heading_angle_loss(prediction, ground_truth)
+        #self.endpoint_loss = self.calc_endpoint_loss(prediction, ground_truth)
+
+        #total_loss = self.start_point_x_offset_loss*self.start_point_x_offset_loss_scale_factor + \
+        #            self.endpoint_loss*self.endpoint_loss_scale_factor
+        total_loss = self.start_point_x_offset_loss + self.heading_angle_loss
         return total_loss 
     
 
     # Set scale factors for losses
-    def set_loss_scale_factors(self, endpoint_loss_scale_factor, 
-            mid_point_scale_factor, grad_scale_factor):
+    def set_loss_scale_factors(self, start_point_loss_scale_factor,
+            endpoint_loss_scale_factor, mid_point_scale_factor, 
+            grad_scale_factor):
         
         # Loss scale factors
+        self.start_point_x_offset_loss_scale_factor = start_point_loss_scale_factor
         self.endpoint_loss_scale_factor = endpoint_loss_scale_factor
         self.grad_scale_factor = grad_scale_factor
         self.mid_point_scale_factor = mid_point_scale_factor
@@ -193,6 +207,50 @@ class EgoPathTrainer():
         else:
             raise ValueError('Please specify either NUMERICAL or ANALYTICAL gradient loss as a string')
     
+    def calc_endpoint_loss(self, prediction, ground_truth):
+        # Prediction End Point (x,y)
+        pred_x_end = prediction[0][-2]
+        pred_y_end = prediction[0][-1]
+
+        # Ground Truth End Point (x,y)
+        gt_x_end = ground_truth[0][-2]
+        gt_y_end = ground_truth[0][-1]
+
+        # End Point mAE Loss
+        end_point_mAE = torch.abs(pred_x_end - gt_x_end) + \
+            torch.abs(pred_y_end - gt_y_end)
+        return end_point_mAE
+    
+    def calc_start_point_x_offset_loss(self, prediction, ground_truth):
+        # Prediction Start Point (x)
+        pred_x_start = prediction[0][0]
+
+        # Ground Truth Start Point (x)
+        gt_x_start = ground_truth[0][0]
+
+        # Start point x-offset mAE Loss
+        start_point_mAE = torch.abs(pred_x_start - gt_x_start)
+        return start_point_mAE
+    
+    def calc_heading_angle_loss(self, prediction, ground_truth):
+
+        # Heading Start Point (x,y)
+        heading_point_start_x, heading_point_start_y = \
+            self.evaluate_bezier(ground_truth, 0.2)
+
+        # Heading End Point (x,y)
+        heading_point_x, heading_point_y = \
+            self.evaluate_bezier(ground_truth, 0.4)
+        
+        delta_x = heading_point_x - heading_point_start_x
+        delta_y = -1*(heading_point_y - heading_point_start_y)
+
+        heading_angle = torch.atan(delta_x/delta_y)/torch.tensor(math.pi/2)
+
+        heading_angle_error = torch.abs(heading_angle - prediction[0][1])
+        return heading_angle_error
+
+
     # Calculate the endpoints loss term 
     def calc_endpoints_loss(self, prediction, ground_truth):
 
@@ -247,8 +305,11 @@ class EgoPathTrainer():
         sample_count = 0
 
         # Sample the bezier curve for Prediction and Ground Truth
+        sampling_rate = 2
+
+        # Sample the bezier curve for Prediction and Ground Truth
         # ignoring the start and end points
-        for i in range(20, 100, 2):
+        for i in range(0, 100, sampling_rate):
 
             # Sample counter
             sample_count +=1
@@ -277,10 +338,9 @@ class EgoPathTrainer():
         sample_count = 0
 
         # Sample the bezier curve for Prediction and Ground Truth
-        # ignoring the start and end points
         sampling_rate = 2
 
-        for i in range(20, 100, sampling_rate):
+        for i in range(0, 100, sampling_rate):
 
             # Sample counter
             sample_count +=1
@@ -396,7 +456,15 @@ class EgoPathTrainer():
     def get_endpoint_loss(self):
         scaled_endpoint_loss = self.endpoint_loss*self.endpoint_loss_scale_factor
         return scaled_endpoint_loss.item()
-
+    
+    def get_start_point_x_offset_loss(self):
+        scaled_start_point_x_offset_loss = \
+            self.start_point_x_offset_loss*self.start_point_x_offset_loss_scale_factor
+        return scaled_start_point_x_offset_loss.item()
+    
+    def get_heading_angle_loss(self):
+        return self.heading_angle_loss.item()
+    
     # Get gradient loss
     def get_gradient_loss(self):
         scaled_grad_loss = self.gradient_loss*self.grad_scale_factor
@@ -411,9 +479,10 @@ class EgoPathTrainer():
     def log_loss(self, log_count):
         self.writer.add_scalars("Train",{
             'total_loss': self.get_loss(),
-            'endpoint_loss': self.get_endpoint_loss(),
-            'midpoint_loss': self.get_mid_point_loss(),
-            'gradient_loss': self.get_gradient_loss()
+            'startpoint_x_offset_loss': self.get_start_point_x_offset_loss(),
+            'heading_angle_loss': self.get_heading_angle_loss()#,
+            #'midpoint_loss': self.get_mid_point_loss(),
+            #'gradient_loss': self.get_gradient_loss()
         }, (log_count))
 
     # Run Optimizer
@@ -446,6 +515,7 @@ class EgoPathTrainer():
         pred_vis = self.prediction.cpu().detach().numpy()
         gt_vis = self.gt_tensor.cpu().detach().numpy()
 
+        '''
         # Get a list of x points and y points for Ground Truth and Prediction
         pred_x_points = []
         pred_y_points = []
@@ -466,6 +536,51 @@ class EgoPathTrainer():
             gt_x_points.append(gt_x*self.width)
             gt_y_points.append(gt_y*self.height)
         
+        
+        # Ground truth start point and end point
+        gt_x_start = gt_vis[0][0]*self.width
+        gt_y_start = gt_vis[0][1]*self.height
+    
+        gt_x_end = gt_vis[0][-2]*self.width
+        gt_y_end = gt_vis[0][-1]*self.height
+
+        pred_x_start = pred_vis[0][0]*self.width
+        pred_y_start = 1.0*self.height
+
+        pred_x_end = pred_vis[0][-2]*self.width
+        pred_y_end = pred_vis[0][-1]*self.height
+        '''
+        # Heading Start Point (x,y)
+        gt_heading_point_start_x, gt_heading_point_start_y = \
+            self.evaluate_bezier(gt_vis, 0.2)
+
+        # Heading End Point (x,y)
+        gt_heading_point_x, gt_heading_point_y = \
+            self.evaluate_bezier(gt_vis, 0.4)
+        
+        delta_x_gt = gt_heading_point_x - gt_heading_point_start_x
+        delta_y_gt = -1*(gt_heading_point_y - gt_heading_point_start_y)
+
+        heading_angle = math.atan(delta_x_gt/delta_y_gt)
+
+        gt_x_offset = 0.2*math.sin(heading_angle)*self.width
+        gt_y_offset = 0.2*math.cos(heading_angle)*self.height
+
+        gt_x_start = gt_vis[0][0]*self.width
+        gt_y_start = gt_vis[0][1]*self.height
+
+        gt_x_end = gt_x_start + gt_x_offset
+        gt_y_end = gt_y_start - gt_y_offset
+
+        # Prediction
+        pred_x_start = pred_vis[0][0]*self.width
+        pred_y_start = 1.0*self.height
+
+        pred_x_offset = 0.2*math.sin(pred_vis[0][1])*self.width
+        pred_y_offset = 0.2*math.cos(pred_vis[0][1])*self.height
+
+        pred_x_end = pred_x_start + pred_x_offset
+        pred_y_end = pred_y_start - pred_y_offset
 
         # Visualize the Ground Truth
         fig_gt = plt.figure(figsize=(8, 4))
@@ -473,21 +588,21 @@ class EgoPathTrainer():
         plt.imshow(self.image)
         
         # Plot the final curve
-        plt.plot(gt_x_points, gt_y_points, color="cyan")
-      
+        plt.plot((gt_x_start, gt_x_end), (gt_y_start, gt_y_end), color="yellow")
+ 
+        # Write the figure
         self.writer.add_figure('Ground Truth', \
             fig_gt, global_step=(log_count))
 
         # Visualize the Prediction
-
         fig_pred = plt.figure(figsize=(8, 4))
         plt.axis('off')
         plt.imshow(self.image)
 
         # Plot the final curve
-        plt.plot(pred_x_points, pred_y_points, color="cyan")
-     
+        plt.plot((pred_x_start, pred_x_end), (pred_y_start, pred_y_end), color="cyan")
 
+        # Write the figure
         self.writer.add_figure('Prediction', \
             fig_pred, global_step=(log_count))
 
@@ -509,8 +624,12 @@ class EgoPathTrainer():
 
         # Calculating validation loss as mAE between Ground Truth
         # and Predicted Bezier curve control points
-        validation_loss_tensor = self.calc_endpoints_loss(prediction, self.gt_tensor) + \
-            self.calc_numerical_gradient_loss(prediction, self.gt_tensor)
+        
+        validation_loss_tensor = self.calc_start_point_x_offset_loss(prediction, self.gt_tensor) + \
+            self.calc_heading_angle_loss(prediction, self.gt_tensor)
+        #validation_loss_tensor = self.calc_endpoints_loss(prediction, self.gt_tensor) + \
+        #    self.calc_numerical_gradient_loss(prediction, self.gt_tensor)
+        
         validation_loss = validation_loss_tensor.detach().cpu().numpy()
        
         return validation_loss
@@ -560,6 +679,21 @@ class EgoPathTrainer():
         # Detach output for visualization
         test_vis = test_output.cpu().detach().numpy()
 
+        pred_x_start = test_vis[0][0]*test_image_width
+        pred_y_start = 1.0*test_image_height
+
+        pred_x_offset = 0.2*math.sin(test_vis[0][1])*test_image_width
+        pred_y_offset = 0.2*math.cos(test_vis[0][1])*test_image_height
+
+        pred_x_end = pred_x_start + pred_x_offset
+        pred_y_end = pred_y_start - pred_y_offset
+        '''
+        pred_x_end = pred_x_start + pred_x_offset
+        pred_y_end = pred_y_start + pred_y_offset
+
+        pred_x_end = test_vis[0][-2]*test_image_width
+        pred_y_end = test_vis[0][-1]*test_image_height
+        
         # Evaluate the curve shape based on prediction from test data
         test_pred_x_points = []
         test_pred_y_points = []
@@ -576,15 +710,16 @@ class EgoPathTrainer():
             # to ensure data is correctly visualized
             test_pred_x_points.append(test_pred_x*test_image_width)
             test_pred_y_points.append(test_pred_y*test_image_height)
-        
+        '''
         # Visualize the Ground Truth
         fig_test = plt.figure(figsize=(8, 4))
         plt.axis('off')
         plt.imshow(frame)
 
         # Plot the final curve
-        plt.plot(test_pred_x_points, test_pred_y_points, color="cyan")
-     
+        #plt.plot(test_pred_x_points, test_pred_y_points, color="cyan")
+        plt.plot((pred_x_start, pred_x_end), (pred_y_start, pred_y_end), color="cyan")
+
         # Save the visualization to disk based on the save path
         fig_test.savefig(save_path)   
         plt.close(fig_test)    

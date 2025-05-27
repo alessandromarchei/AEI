@@ -5,6 +5,7 @@ import torch
 import random
 import pathlib
 from argparse import ArgumentParser
+import matplotlib.pyplot as plt
 import sys
 sys.path.append('../..')
 from Models.data_utils.load_data_ego_path import LoadDataEgoPath
@@ -13,7 +14,7 @@ from Models.training.ego_path_trainer import EgoPathTrainer
 def main():
 
     # ====================== Parsing input arguments ====================== #
-
+    
     parser = ArgumentParser()
 
     parser.add_argument("-r", "--root", dest="root", required=True, \
@@ -34,14 +35,14 @@ def main():
 
 
     args = parser.parse_args()
-
+    
     # ====================== Loading Data ====================== #
     
     # ROOT PATH
-    root = args.root
+    root = args.root 
 
     # MODEL SAVE ROOT PATH
-    model_save_root_path = args.model_save_root_path
+    model_save_root_path = args.model_save_root_path 
     
     # BDD100K
     bdd100k_labels_filepath= root + 'BDD100K/drivable_path.json'
@@ -72,7 +73,7 @@ def main():
     test_images_list = sorted([
             f for f in pathlib.Path(test_images_filepath).glob("*.png")
         ])
-    test_images_save_root_path = args.test_images_save_root_path
+    test_images_save_root_path = args.test_images_save_root_path 
 
     # TEST
     #### to do ####
@@ -135,8 +136,9 @@ def main():
     trainer = 0
 
     # Loading from checkpoint or training from scratch
-    backbone_path = args.backbone_path 
-    checkpoint_path = args.checkpoint_path
+    #backbone_path = #args.backbone_path ###############
+    backbone_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth'
+    checkpoint_path = 0 #args.checkpoint_path ###################
 
     if(backbone_path and not checkpoint_path):
         trainer = EgoPathTrainer(pretrained_checkpoint_path=backbone_path)
@@ -176,13 +178,16 @@ def main():
     # loss towards the overall loss
 
     ENDPOINT_LOSS_SCALE_FACTOR = 1.0          
-    MIDPOINT_LOSS_SCALE_FACTOR = 1.0
+    MIDPOINT_LOSS_SCALE_FACTOR = 0.0
     GRADIENT_LOSS_SCALE_FACTOR = 1.0
+    STARTPOINT_X_OFFSET_SCALE_FACTOR = 1.0
 
     # Set training loss term scale factors
-    trainer.set_loss_scale_factors(ENDPOINT_LOSS_SCALE_FACTOR, 
-            MIDPOINT_LOSS_SCALE_FACTOR, GRADIENT_LOSS_SCALE_FACTOR)
+    trainer.set_loss_scale_factors(STARTPOINT_X_OFFSET_SCALE_FACTOR,
+            ENDPOINT_LOSS_SCALE_FACTOR, MIDPOINT_LOSS_SCALE_FACTOR, 
+            GRADIENT_LOSS_SCALE_FACTOR)
     
+    print('STARTPOINT_X_OFFSET_SCALE_FACTOR', STARTPOINT_X_OFFSET_SCALE_FACTOR)
     print('ENDPOINT_LOSS_SCALE_FACTOR: ', ENDPOINT_LOSS_SCALE_FACTOR)
     print('MIDPOINT_LOSS_SCALE_FACTOR: ', MIDPOINT_LOSS_SCALE_FACTOR)
     print('GRADIENT_LOSS_SCALE_FACTOR: ', GRADIENT_LOSS_SCALE_FACTOR)
@@ -206,7 +211,7 @@ def main():
     # 'CONCATENATE', in which the data is sampled randomly and the network
     # only sees each image from each dataset once in an epoch
 
-    DATA_SAMPLING_SCHEME = 'EQUAL' # EQUAL or CONCATENATE
+    DATA_SAMPLING_SCHEME = 'CONCATENATE' # EQUAL or CONCATENATE
 
     print('DATA_SAMPLING_SCHEME: ', DATA_SAMPLING_SCHEME)
     # ======================== BATCH_SIZE_SCHEME ======================== #
@@ -217,18 +222,18 @@ def main():
     # scheme decays the batch size faster, and may help with quicker model
     # convergence.
 
-    BATCH_SIZE_SCHEME = 'FAST_DECAY' # FAST_DECAY or SLOW_DECAY or CONSTANT
+    BATCH_SIZE_SCHEME = 'CONSTANT' # FAST_DECAY or SLOW_DECAY or CONSTANT
 
     print('BATCH_SIZE_SCHEME: ', BATCH_SIZE_SCHEME)
     ####################################################################
 
     # Datasets list
     data_list = []
-    data_list.append('BDD100K')
+    data_list.append('BDD100K') 
     data_list.append('COMMA2K19')
-    data_list.append('CULANE')
+    data_list.append('CULANE') 
     data_list.append('CURVELANES')
-    data_list.append('ROADWORK')
+    data_list.append('ROADWORK') 
     data_list.append('TUSIMPLE')
 
     # Initialize batch_size variable
@@ -240,7 +245,7 @@ def main():
         print('EPOCH: ', epoch)
 
         if(BATCH_SIZE_SCHEME == 'CONSTANT'):
-            batch_size = 24
+            batch_size = 3 #24 ######################################
         elif(BATCH_SIZE_SCHEME == 'FAST_DECAY'):
             if(epoch == 0):
                 batch_size = 24
@@ -594,7 +599,7 @@ def main():
                     trainer.set_train_mode()
                 
                 data_list_count += 1
-
+            
     print('----- Training Completed -----')
     trainer.cleanup()
     
