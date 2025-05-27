@@ -13,8 +13,9 @@ class EgoPathHead(nn.Module):
         self.ego_path_layer_0 = nn.Linear(1280, 800)
         self.ego_path_layer_1 = nn.Linear(800, 800)
         self.ego_path_layer_2 = nn.Linear(800, 200)
-        self.ego_path_layer_3 = nn.Linear(200, 8)
-     
+        self.ego_path_layer_3 = nn.Linear(200, 1)
+        #self.ego_path_layer_4 = nn.Linear(200, 2)
+        self.ego_path_layer_4 = nn.Linear(200, 1)
 
     def forward(self, features):
         # Pooling and averaging channel layers to get a single vector
@@ -28,7 +29,17 @@ class EgoPathHead(nn.Module):
         p1 = self.dropout(p1)
         p1 = self.GeLU(p1)
         p2 = self.ego_path_layer_2(p1)
-        p2 = self.GeLU(p2)
-        ego_path = self.ego_path_layer_3(p2)
-        
+        feature = self.GeLU(p2)
+
+        # Start point x-val, y-val is fixed
+        start_point_x_offset = self.ego_path_layer_3(feature)
+
+        # End point x,y coordinates
+        #end_point = self.ego_path_layer_4(feature)
+
+        # Heading angle
+        heading_angle = self.ego_path_layer_4(feature)
+
+        # Final result
+        ego_path = torch.cat((start_point_x_offset, heading_angle), dim=1)
         return ego_path   
