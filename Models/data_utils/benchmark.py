@@ -79,19 +79,19 @@ def main():
         raise Exception("Model name not specified correctly, please check")
     
     print(summary(model, torch.zeros((1, 3, 320, 640)), show_input=True))
-    model = model.to(device)
-    model = model.eval()
+    #model = model.to(device)
+    #model = model.eval()
 
     # Fake input data
-    input_shape=(1, 3, 320, 640)
-    input_data = torch.randn(input_shape)
-    input_data = input_data.to(device)
+    #input_shape=(1, 3, 320, 640)
+    #input_data = torch.randn(input_shape)
+    #input_data = input_data.to(device)
 
-    total_ops, _ = profile(model, (input_data,), verbose=False)
-    print( model_name, "FLOPs(G): ", "%.2f" % (total_ops / (1000 ** 3)))
+    #total_ops, _ = profile(model, (input_data,), verbose=False)
+    #print( model_name, "FLOPs(G): ", "%.2f" % (total_ops / (1000 ** 3)))
 
     # Run speed benchmark
-    benchmark(model, input_data, precision, 50, 1000)
+    #benchmark(model, input_data, precision, 50, 1000)
 
 if __name__ == '__main__':
   main()
