@@ -525,8 +525,8 @@ if __name__ == "__main__":
 
     # ====== Heuristic boundaries of drivable path for automatic auditing ====== #
 
-    LEFT_ANCHOR_BOUNDARY = RIGHT_ANCHOR_BOUNDARY = 0.2
-    HEIGHT_BOUNDARY = 0.15
+    LEFT_ANCHOR_BOUNDARY = RIGHT_ANCHOR_BOUNDARY = 0.35
+    HEIGHT_BOUNDARY = 0.3
     ANGLE_BOUNDARY = 30
 
     # ============================== Parsing args ============================== #
