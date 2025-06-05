@@ -7,9 +7,7 @@ import shutil
 import math
 from PIL import Image, ImageDraw
 import warnings
-from datetime import datetime
 import numpy as np
-from pprint import pprint
 
 anomaly_dict = {
     "one-sided-anchors" : {
@@ -546,11 +544,11 @@ if __name__ == "__main__":
         sampling_step = args.sampling_step
     else:
         sampling_step = 1
-    pprint(f"Sampling step set to {sampling_step}.")
+    print(f"Sampling step set to {sampling_step}.")
 
     # Parse early stopping
     if (args.early_stopping):
-        pprint(f"Early stopping set, each split/class stops after {args.early_stopping} files.")
+        print(f"Early stopping set, each split/class stops after {args.early_stopping} files.")
         early_stopping = args.early_stopping
     else:
         early_stopping = None
