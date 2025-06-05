@@ -70,7 +70,7 @@ def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
     return (int(point[0]), int(point[1]))
 
 
-# ============================== MAIN RUN ============================== #
+# ============================== Main run ============================== #
 
 
 if __name__ == "__main__":
@@ -85,5 +85,42 @@ if __name__ == "__main__":
     BEV_JSON_PATH = "drivable_path_bev.json"
 
     # PARSING ARGS
+
+    parser = argparse.ArgumentParser(
+        description = "Generating BEV from CurveLanes processed datasets"
+    )
+    parser.add_argument(
+        "--dataset_dir", 
+        type = str, 
+        help = "Processed CurveLanes directory",
+        required = True
+    )
+    # For debugging only
+    parser.add_argument(
+        "--early_stopping",
+        type = int,
+        help = "Num. frames you wanna limit, instead of whole set.",
+        required = False
+    )
+    args = parser.parse_args()
+
+    # Parse dataset dir
+    dataset_dir = args.dataset_dir
+
+    # Parse early stopping
+    if (args.early_stopping):
+        print(f"Early stopping set, each split/class stops after {args.early_stopping} files.")
+        early_stopping = args.early_stopping
+    else:
+        early_stopping = None
+
+    # Generate new dirs and paths
+    BEV_IMG_DIR = os.path.join(dataset_dir, BEV_IMG_DIR)
+    BEV_VIS_DIR = os.path.join(dataset_dir, BEV_VIS_DIR)
+
+    if not (os.path.exists(BEV_IMG_DIR)):
+        os.makedirs(BEV_IMG_DIR)
+    if not (os.path.exists(BEV_VIS_DIR)):
+        os.makedirs(BEV_VIS_DIR)
 
     
