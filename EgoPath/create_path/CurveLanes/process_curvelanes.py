@@ -5,9 +5,9 @@ import json
 import os
 import shutil
 import math
-from PIL import Image, ImageDraw
 import warnings
 import numpy as np
+from PIL import Image, ImageDraw
 
 
 anomaly_dict = {
@@ -33,21 +33,13 @@ anomaly_dict = {
 # ============================= Format functions ============================= #
 
 
-def round_floats(obj, ndigits = 6):
-    if isinstance(obj, float):
-        return round(obj, ndigits)
-    elif isinstance(obj, list):
-        return [
-            round_floats(item, ndigits) 
-            for item in obj
+def round_line_floats(line, ndigits = 6):
+    for i in range(len(line)):
+        line[i] = [
+            round(line[i][0], ndigits),
+            round(line[i][1], ndigits)
         ]
-    elif isinstance(obj, dict):
-        return {
-            key: round_floats(val, ndigits) 
-            for key, val in obj.items()
-        }
-    else:
-        return obj
+    return line
 
 
 def add_anomaly(frame_id, anomaly_code, drivable_path = None):
@@ -61,7 +53,6 @@ def add_anomaly(frame_id, anomaly_code, drivable_path = None):
 # Custom warning format cuz the default one is wayyyyyy too verbose
 def custom_warning_format(message, category, filename, lineno, line = None):
     return f"WARNING : {message}\n"
-
 
 warnings.formatwarning = custom_warning_format
 
@@ -653,9 +644,9 @@ if __name__ == "__main__":
                     # Save as 6-digit incremental index
                     img_index = str(str(img_id_counter).zfill(6))
                     data_master[img_index] = {}
-                    data_master[img_index]["drivable_path"] = this_data["drivable_path"]
-                    data_master[img_index]["egoleft_lane"] = this_data["egoleft_lane"]
-                    data_master[img_index]["egoright_lane"] = this_data["egoright_lane"]
+                    data_master[img_index]["drivable_path"] = round_line_floats(this_data["drivable_path"])
+                    data_master[img_index]["egoleft_lane"] = round_line_floats(this_data["egoleft_lane"])
+                    data_master[img_index]["egoright_lane"] = round_line_floats(this_data["egoright_lane"])
                     data_master[img_index]["img_height"] = this_data["img_height"]
                     data_master[img_index]["img_width"] = this_data["img_width"]
 
@@ -664,7 +655,6 @@ if __name__ == "__main__":
                         break
 
     # Save master data
-    rounded_data_master = round_floats(data_master)
     with open(os.path.join(output_dir, "drivable_path.json"), "w") as f:
         json.dump(data_master, f, indent = 4)
 
