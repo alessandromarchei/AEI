@@ -12,6 +12,8 @@ from .process_curvelanes import custom_warning_format, round_line_floats
 
 warnings.formatwarning = custom_warning_format
 
+PointCoords = tuple[float, float]
+ImagePointCoords = tuple[int, int]
 
 # ============================== Helper functions ============================== #
 
@@ -60,3 +62,9 @@ def interpX(line, y):
     return float(np.interp(y, list_y, list_x))
 
 
+def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
+    """
+    Parse all coords of an (x, y) point to int, making it
+    suitable for image operations.
+    """
+    return (int(point[0]), int(point[1]))
