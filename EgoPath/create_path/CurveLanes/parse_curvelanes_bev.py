@@ -8,6 +8,9 @@ import math
 import warnings
 import numpy as np
 from PIL import Image, ImageDraw
+from .process_curvelanes import custom_warning_format, round_line_floats
+
+warnings.formatwarning = custom_warning_format
 
 
 # ============================== Helper functions ============================== #
