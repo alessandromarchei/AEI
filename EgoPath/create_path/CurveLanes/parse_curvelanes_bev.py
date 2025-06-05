@@ -106,6 +106,9 @@ if __name__ == "__main__":
 
     # Parse dataset dir
     dataset_dir = args.dataset_dir
+    IMG_DIR = os.path.join(dataset_dir, IMG_DIR)
+    JSON_PATH = os.path.join(dataset_dir, JSON_PATH)
+    BEV_JSON_PATH = os.path.join(dataset_dir, BEV_JSON_PATH)
 
     # Parse early stopping
     if (args.early_stopping):
@@ -123,4 +126,16 @@ if __name__ == "__main__":
     if not (os.path.exists(BEV_VIS_DIR)):
         os.makedirs(BEV_VIS_DIR)
 
-    
+    # Preparing data
+    with open(JSON_PATH, "r") as f:
+        json_data = json.load(f)
+
+    # MAIN GENERATION LOOP
+
+    for frame_id, frame_content in enumerate(json_data):
+
+        frame_img_path = os.path.join(
+            IMG_DIR,
+            f"{frame_id}.png"
+        )
+        this_frame_data = json_data[frame_id]
