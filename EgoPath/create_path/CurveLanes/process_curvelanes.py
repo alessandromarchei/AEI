@@ -273,7 +273,7 @@ def getDrivablePath(
 
 def annotateGT(
         raw_img, anno_entry,
-        raw_dir, visualization_dir, mask_dir,
+        raw_dir, visualization_dir,
         init_img_width, init_img_height,
         normalized = True,
         resize = None,
@@ -283,7 +283,6 @@ def annotateGT(
     Annotates and saves an image with:
         - Raw image, in "output_dir/image".
         - Annotated image with all lanes, in "output_dir/visualization".
-        - Binary segmentation mask of drivable path, in "output_dir/segmentation".
     """
 
     # Define save name
@@ -355,12 +354,6 @@ def annotateGT(
 
     # Save visualization img, same format with raw, just different dir, and jpg since it's vis 
     raw_img.save(os.path.join(visualization_dir, save_name.replace("png", "jpg")))
-
-    # Working on binary mask
-    mask = Image.new("L", (new_img_width, new_img_height), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
-    mask.save(os.path.join(mask_dir, save_name))
 
 
 def parseAnnotations(
@@ -583,11 +576,14 @@ if __name__ == "__main__":
     """
     --output_dir
         |----image
-        |----segmentation
         |----visualization
         |----drivable_path.json
     """
-    list_subdirs = ["image", "segmentation", "visualization"]
+    list_subdirs = [
+        "image", 
+        # "segmentation",   # Removed on 2025/06/05 
+        "visualization"
+    ]
     if (os.path.exists(output_dir)):
         warnings.warn(f"Output directory {output_dir} already exists. Purged")
         shutil.rmtree(output_dir)
@@ -648,7 +644,6 @@ if __name__ == "__main__":
                         anno_entry = this_data,
                         raw_dir = os.path.join(output_dir, "image"),
                         visualization_dir = os.path.join(output_dir, "visualization"),
-                        mask_dir = os.path.join(output_dir, "segmentation"),
                         init_img_height = img_height,
                         init_img_width = img_width,
                         resize = resize,
