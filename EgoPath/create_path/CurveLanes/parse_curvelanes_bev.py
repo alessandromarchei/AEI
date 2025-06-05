@@ -68,3 +68,22 @@ def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
     suitable for image operations.
     """
     return (int(point[0]), int(point[1]))
+
+
+# ============================== MAIN RUN ============================== #
+
+
+if __name__ == "__main__":
+
+    # DIRECTORY STRUCTURE
+
+    IMG_DIR = "image"
+    JSON_PATH = "drivable_path.json"
+
+    BEV_IMG_DIR = "image_bev"
+    BEV_VIS_DIR = "visualization_bev"
+    BEV_JSON_PATH = "drivable_path_bev.json"
+
+    # PARSING ARGS
+
+    
