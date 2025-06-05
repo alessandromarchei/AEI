@@ -1,10 +1,10 @@
 #! /usr/bin/env python3
 
-import argparse
-import json
 import os
-import shutil
+import cv2
 import math
+import json
+import argparse
 import warnings
 import numpy as np
 from PIL import Image, ImageDraw
@@ -68,6 +68,59 @@ def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
     suitable for image operations.
     """
     return (int(point[0]), int(point[1]))
+
+
+def findSourcePointsBEV(
+    h: int,
+    w: int,
+    frame_data: dict
+) -> dict:
+    """
+    Find 4 source points for the BEV homography transform.
+    """
+    sps = {}
+
+    # Acquire 2 egolines, from there LS and RS
+    egoleft = [
+        [p[0] * w, p[1] * h]
+        for p in this_frame_data["egoleft_lane"]
+    ]
+    egoright = [
+        [p[0] * w, p[1] * h]
+        for p in this_frame_data["egoright_lane"]
+    ]
+    anchor_left = getLineAnchor(egoleft, h)
+    anchor_right = getLineAnchor(egoright, h)
+    sps["LS"] = [anchor_left[0], h]
+    sps["RS"] = [anchor_right[0], h]
+
+    # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
+
+    midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
+    middeg = (anchor_left[3] + anchor_right[3]) / 2
+    mid_grad = - math.tan(math.radians(middeg))
+    mid_intercept = h - mid_grad * midanchor_start[0]
+
+    lower_ego_y = max(egoleft[-1][1], egoright[-1][1]) * 1.05
+    midanchor_end = [
+        (lower_ego_y - mid_intercept) / mid_grad,
+        lower_ego_y
+    ]
+    original_end_w = interpX(egoright, lower_ego_y) - interpX(egoleft, lower_ego_y)
+    sps["LE"] = [
+        midanchor_end[0] - original_end_w / 2,
+        lower_ego_y
+    ]
+    sps["RE"] = [
+        midanchor_end[0] + original_end_w / 2,
+        lower_ego_y
+    ]
+
+    # Tuplize 4 corners
+    for i, pt in enumerate(sps):
+        sps[i] = imagePointTuplize(pt)
+
+    return sps
 
 
 # ============================== Main run ============================== #
