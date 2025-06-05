@@ -9,6 +9,7 @@ from PIL import Image, ImageDraw
 import warnings
 import numpy as np
 
+
 anomaly_dict = {
     "one-sided-anchors" : {
         "count" : 0,
@@ -28,6 +29,27 @@ anomaly_dict = {
     },
 }
 
+
+# ============================= Format functions ============================= #
+
+
+def round_floats(obj, ndigits = 6):
+    if isinstance(obj, float):
+        return round(obj, ndigits)
+    elif isinstance(obj, list):
+        return [
+            round_floats(item, ndigits) 
+            for item in obj
+        ]
+    elif isinstance(obj, dict):
+        return {
+            key: round_floats(val, ndigits) 
+            for key, val in obj.items()
+        }
+    else:
+        return obj
+
+
 def add_anomaly(frame_id, anomaly_code, drivable_path = None):
     anomaly_dict[anomaly_code]["count"] += 1
     if (drivable_path):
@@ -35,13 +57,17 @@ def add_anomaly(frame_id, anomaly_code, drivable_path = None):
     else:
         anomaly_dict[anomaly_code]["list"].append(frame_id)
 
+
 # Custom warning format cuz the default one is wayyyyyy too verbose
-def custom_warning_format(message, category, filename, lineno, line=None):
+def custom_warning_format(message, category, filename, lineno, line = None):
     return f"WARNING : {message}\n"
+
 
 warnings.formatwarning = custom_warning_format
 
+
 # ============================== Helper functions ============================== #
+
 
 def normalizeCoords(line, width, height):
     """
@@ -643,6 +669,7 @@ if __name__ == "__main__":
                         break
 
     # Save master data
+    rounded_data_master = round_floats(data_master)
     with open(os.path.join(output_dir, "drivable_path.json"), "w") as f:
         json.dump(data_master, f, indent = 4)
 
