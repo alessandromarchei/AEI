@@ -62,6 +62,31 @@ def interpX(line, y):
     return float(np.interp(y, list_y, list_x))
 
 
+def interpMorePoints(
+    line: list,
+    min_points: int
+):
+    if (len(line) < min_points):
+        new_line = []
+        for i in range(len(line) - 1):
+            x0, y0 = line[i]
+            x1, y1 = line[i + 1]
+            
+            new_line.append((x0, y0))  # include starting point
+
+            # Interpolate `min_points` points between (x0, y0) and (x1, y1)
+            for j in range(1, min_points + 1):
+                t = j / (min_points + 1)
+                x = x0 + t * (x1 - x0)
+                y = y0 + t * (y1 - y0)
+                new_line.append((x, y))
+
+        new_line.append(line[-1])  # include the last point
+        return new_line
+    
+    return line
+
+
 def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
     """
     Parse all coords of an (x, y) point to int, making it
@@ -73,22 +98,25 @@ def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
 def findSourcePointsBEV(
     h: int,
     w: int,
-    frame_data: dict
+    egoleft: list,
+    egoright: list,
 ) -> dict:
     """
     Find 4 source points for the BEV homography transform.
     """
     sps = {}
 
-    # Acquire 2 egolines, from there LS and RS
+    # Renorm 2 egolines
     egoleft = [
         [p[0] * w, p[1] * h]
-        for p in this_frame_data["egoleft_lane"]
+        for p in egoleft
     ]
     egoright = [
         [p[0] * w, p[1] * h]
-        for p in this_frame_data["egoright_lane"]
+        for p in egoright
     ]
+
+    # Acquire LS and RS
     anchor_left = getLineAnchor(egoleft, h)
     anchor_right = getLineAnchor(egoright, h)
     sps["LS"] = [anchor_left[0], h]
@@ -101,26 +129,81 @@ def findSourcePointsBEV(
     mid_grad = - math.tan(math.radians(middeg))
     mid_intercept = h - mid_grad * midanchor_start[0]
 
-    lower_ego_y = max(egoleft[-1][1], egoright[-1][1]) * 1.05
+    ego_height = max(egoleft[-1][1], egoright[-1][1]) * 1.05
     midanchor_end = [
-        (lower_ego_y - mid_intercept) / mid_grad,
-        lower_ego_y
+        (ego_height - mid_intercept) / mid_grad,
+        ego_height
     ]
-    original_end_w = interpX(egoright, lower_ego_y) - interpX(egoleft, lower_ego_y)
+    original_end_w = interpX(egoright, ego_height) - interpX(egoleft, ego_height)
     sps["LE"] = [
         midanchor_end[0] - original_end_w / 2,
-        lower_ego_y
+        ego_height
     ]
     sps["RE"] = [
         midanchor_end[0] + original_end_w / 2,
-        lower_ego_y
+        ego_height
     ]
 
     # Tuplize 4 corners
     for i, pt in enumerate(sps):
         sps[i] = imagePointTuplize(pt)
 
+    # Log the ego_height too
+    sps["ego_h"] = ego_height
+
     return sps
+
+
+def transformBEV(
+    img: np.ndarray,
+    egopath: list,
+    sps: dict
+):
+    h, w, _ = img.shape
+
+    # Renorm/tuplize drivable path
+    egopath = [
+        (point[0] * w, point[1] * h) for point in egopath
+        if (point[1] * h >= sps["ego_h"])
+    ]
+
+    # Interp more points for original egopath
+    egopath = interpMorePoints(egopath, MIN_POINTS)
+
+    # Get transformation matrix
+    mat, _ = cv2.findHomography(
+        srcPoints = np.array([
+            sps["LS"],
+            sps["RS"],
+            sps["LE"],
+            sps["RE"]
+        ]),
+        dstPoints = np.array([
+            BEV_pts["LS"],
+            BEV_pts["RS"],
+            BEV_pts["LE"],
+            BEV_pts["RE"],
+        ])
+    )
+
+    # Transform image
+    im_dst = cv2.warpPerspective(
+        img, mat,
+        np.array([BEV_W, BEV_H])
+    )
+
+    # Transform egopath
+    bev_egopath = np.array(
+        egopath,
+        dtype = np.float32
+    ).reshape(-1, 1, 2)
+    bev_egopath = cv2.perspectiveTransform(bev_egopath, mat)
+    bev_egopath = [
+        tuple(map(int, point[0])) 
+        for point in bev_egopath
+    ]
+
+    return im_dst, bev_egopath
 
 
 # ============================== Main run ============================== #
@@ -136,6 +219,20 @@ if __name__ == "__main__":
     BEV_IMG_DIR = "image_bev"
     BEV_VIS_DIR = "visualization_bev"
     BEV_JSON_PATH = "drivable_path_bev.json"
+
+    # OTHER PARAMS
+
+    MIN_POINTS = 30
+
+    BEV_pts = {
+        "LS" : [120, 640],  # Left start
+        "RS" : [200, 640],  # Right start
+        "LE" : [120, 0],    # Left end
+        "RE" : [200, 0]     # Right end
+    }
+
+    BEV_W = 320
+    BEV_H = 640
 
     # PARSING ARGS
 
