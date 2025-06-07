@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw
 from .process_curvelanes import (
     custom_warning_format, 
     round_line_floats,
+    interpLine,
     getLineAnchor
 )
 
@@ -20,6 +21,75 @@ PointCoords = tuple[float, float]
 ImagePointCoords = tuple[int, int]
 
 # ============================== Helper functions ============================== #
+
+
+def drawLine(
+    img: np.ndarray, 
+    line: list,
+    color: tuple,
+    thickness: int = 2
+):
+    for i in range(1, len(line)):
+        pt1 = (
+            int(line[i - 1][0]), 
+            int(line[i - 1][1])
+        )
+        pt2 = (
+            int(line[i][0]), 
+            int(line[i][1])
+        )
+        cv2.line(
+            img, 
+            pt1, pt2, 
+            color = color, 
+            thickness = thickness
+        )
+
+
+def annotateGT(
+    img: np.ndarray,
+    frame_id: str,
+    bev_egopath: list,
+    raw_dir: str, 
+    visualization_dir: str,
+    normalized: bool
+):
+    """
+    Annotates and saves an image with:
+        - Raw image, in "output_dir/image".
+        - Annotated image with all lanes, in "output_dir/visualization".
+    """
+
+    # Save raw img in raw dir, as PNG
+    img.save(
+        os.path.join(
+            raw_dir,
+            f"{frame_id}.png"
+        )
+    )
+
+    # Draw egopath
+    if (normalized):
+        h, w, _ = img.shape
+        renormed_bev_egopath = [
+            (x * w, y * h) 
+            for x, y in bev_egopath
+        ]
+    else:
+        renormed_bev_egopath = bev_egopath.copy()
+    drawLine(
+        img = img,
+        line = renormed_bev_egopath,
+        color = COLOR_EGOPATH
+    )
+
+    # Save visualization img in vis dir, as JPG (saving storage space)
+    img.save(
+        os.path.join(
+            visualization_dir,
+            f"{frame_id}.jpg"
+        )
+    )
 
 
 def interpX(line, y):
@@ -36,31 +106,6 @@ def interpX(line, y):
         list_x = list_x[sort_idx]
 
     return float(np.interp(y, list_y, list_x))
-
-
-def interpMorePoints(
-    line: list,
-    min_points: int
-):
-    if (len(line) < min_points):
-        new_line = []
-        for i in range(len(line) - 1):
-            x0, y0 = line[i]
-            x1, y1 = line[i + 1]
-            
-            new_line.append((x0, y0))  # include starting point
-
-            # Interpolate `min_points` points between (x0, y0) and (x1, y1)
-            for j in range(1, min_points + 1):
-                t = j / (min_points + 1)
-                x = x0 + t * (x1 - x0)
-                y = y0 + t * (y1 - y0)
-                new_line.append((x, y))
-
-        new_line.append(line[-1])  # include the last point
-        return new_line
-    
-    return line
 
 
 def polyfit_BEV(
@@ -172,7 +217,7 @@ def transformBEV(
     ]
 
     # Interp more points for original egopath
-    egopath = interpMorePoints(egopath, MIN_POINTS)
+    egopath = interpLine(egopath, MIN_POINTS)
 
     # Get transformation matrix
     mat, _ = cv2.findHomography(
@@ -237,17 +282,18 @@ if __name__ == "__main__":
     MIN_POINTS = 30
 
     BEV_pts = {
-        "LS" : [120, 640],  # Left start
-        "RS" : [200, 640],  # Right start
-        "LE" : [120, 0],    # Left end
-        "RE" : [200, 0]     # Right end
+        "LS" : [120, 640],          # Left start
+        "RS" : [200, 640],          # Right start
+        "LE" : [120, 0],            # Left end
+        "RE" : [200, 0]             # Right end
     }
 
     BEV_W = 320
     BEV_H = 640
-    BEV_Y_STEP = 20\
-    
+    BEV_Y_STEP = 20
     POLYFIT_ORDER = 2
+
+    COLOR_EGOPATH = (0, 255, 255)   # Yellow (BGR)
 
     # PARSING ARGS
 
@@ -298,7 +344,10 @@ if __name__ == "__main__":
 
     # MAIN GENERATION LOOP
 
+    counter = 0
     for frame_id, frame_content in enumerate(json_data):
+
+        counter += 1
 
         # Acquire frame
         frame_img_path = os.path.join(
@@ -327,3 +376,16 @@ if __name__ == "__main__":
         )
 
         # Save stuffs
+        annotateGT(
+            img = im_dst,
+            frame_id = frame_id,
+            bev_egopath = bev_egopath,
+            raw_dir = BEV_IMG_DIR,
+            visualization_dir = BEV_VIS_DIR,
+            normalized = False
+        )
+
+        # Break if early_stopping reached
+        if (early_stopping is not None):
+            if (counter >= early_stopping):
+                break
