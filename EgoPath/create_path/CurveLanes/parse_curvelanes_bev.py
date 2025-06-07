@@ -8,7 +8,11 @@ import argparse
 import warnings
 import numpy as np
 from PIL import Image, ImageDraw
-from .process_curvelanes import custom_warning_format, round_line_floats
+from .process_curvelanes import (
+    custom_warning_format, 
+    round_line_floats,
+    getLineAnchor
+)
 
 warnings.formatwarning = custom_warning_format
 
@@ -16,34 +20,6 @@ PointCoords = tuple[float, float]
 ImagePointCoords = tuple[int, int]
 
 # ============================== Helper functions ============================== #
-
-
-def getLineAnchor(line, img_height):
-    """
-    Determine "anchor" point of a line, along some related params.
-    """
-    (x2, y2) = line[0]
-    (x1, y1) = line[1]
-
-    for i in range(1, len(line) - 1, 1):
-        if (line[i][0] != x2) & (line[i][1] != y2):
-            (x1, y1) = line[i]
-            break
-
-    if (x1 == x2) or (y1 == y2):
-        if (x1 == x2):
-            error_lane = "Vertical"
-        elif (y1 == y2):
-            error_lane = "Horizontal"
-        warnings.warn(f"{error_lane} line detected: {line}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
-        return (x1, None, None)
-    
-    a = (y2 - y1) / (x2 - x1)
-    deg = math.degrees(math.atan(-a)) % 180
-    b = y1 - a * x1
-    x0 = (img_height - b) / a
-
-    return (x0, a, b, deg)
 
 
 def interpX(line, y):
@@ -125,8 +101,10 @@ def findSourcePointsBEV(
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
-    middeg = (anchor_left[3] + anchor_right[3]) / 2
-    mid_grad = - math.tan(math.radians(middeg))
+    left_deg = math.degrees(math.atan(anchor_left[1])) % 180
+    right_deg = math.degrees(math.atan(anchor_right[1])) % 180
+    mid_deg = (left_deg + right_deg) / 2
+    mid_grad = - math.tan(math.radians(mid_deg))
     mid_intercept = h - mid_grad * midanchor_start[0]
 
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * 1.05
@@ -202,6 +180,8 @@ def transformBEV(
         tuple(map(int, point[0])) 
         for point in bev_egopath
     ]
+
+    
 
     return im_dst, bev_egopath, mat
 
@@ -311,3 +291,5 @@ if __name__ == "__main__":
             egopath = this_frame_data["drivable_path"],
             sps = sps_dict
         )
+
+        # Save stuffs
