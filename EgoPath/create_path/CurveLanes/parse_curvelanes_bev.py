@@ -8,9 +8,10 @@ import argparse
 import warnings
 import numpy as np
 from PIL import Image, ImageDraw
-from .process_curvelanes import (
+from process_curvelanes import (
     custom_warning_format, 
     round_line_floats,
+    normalizeCoords,
     interpLine,
     getLineAnchor
 )
@@ -61,11 +62,12 @@ def annotateGT(
     """
 
     # Save raw img in raw dir, as PNG
-    img.save(
+    cv2.imwrite(
         os.path.join(
             raw_dir,
             f"{frame_id}.png"
-        )
+        ),
+        img
     )
 
     # Draw egopath
@@ -76,7 +78,7 @@ def annotateGT(
             for x, y in bev_egopath
         ]
     else:
-        renormed_bev_egopath = bev_egopath.copy()
+        renormed_bev_egopath = bev_egopath
     drawLine(
         img = img,
         line = renormed_bev_egopath,
@@ -84,11 +86,12 @@ def annotateGT(
     )
 
     # Save visualization img in vis dir, as JPG (saving storage space)
-    img.save(
+    cv2.imwrite(
         os.path.join(
             visualization_dir,
             f"{frame_id}.jpg"
-        )
+        ),
+        img
     )
 
 
@@ -119,8 +122,8 @@ def polyfit_BEV(
     z = np.polyfit(y, x, order)
     f = np.poly1d(z)
     y_new = np.linspace(
-        0, y_limit - 1, 
-        y_step
+        0, y_limit, 
+        int(y_limit / y_step) + 1
     )
     x_new = f(y_new)
 
@@ -194,7 +197,7 @@ def findSourcePointsBEV(
     ]
 
     # Tuplize 4 corners
-    for i, pt in enumerate(sps):
+    for i, pt in sps.items():
         sps[i] = imagePointTuplize(pt)
 
     # Log the ego_height too
@@ -323,7 +326,7 @@ if __name__ == "__main__":
 
     # Parse early stopping
     if (args.early_stopping):
-        print(f"Early stopping set, each split/class stops after {args.early_stopping} files.")
+        print(f"Early stopping set, stopping after {args.early_stopping} files.")
         early_stopping = args.early_stopping
     else:
         early_stopping = None
@@ -345,7 +348,7 @@ if __name__ == "__main__":
     # MAIN GENERATION LOOP
 
     counter = 0
-    for frame_id, frame_content in enumerate(json_data):
+    for frame_id, frame_content in json_data.items():
 
         counter += 1
 
@@ -385,14 +388,25 @@ if __name__ == "__main__":
             normalized = False
         )
 
+        # Round, normalize egopath, and sort by descending y
+        bev_egopath = sorted(
+            round_line_floats(
+                normalizeCoords(
+                    bev_egopath,
+                    width = BEV_W,
+                    height = BEV_H
+                )
+            ),
+            key = lambda point: point[1],
+            reverse = True
+        )
+
         # Register this frame GT to master JSON
-        this_frame_payload = {}
-        for point, flag in list(zip(bev_egopath, flag_list)):
-            this_frame_payload[point[1]] = {
-                "x" : point[0],
-                "is_valid" : flag
-            }
-        data_master[frame_id] = this_frame_payload
+        # Each point has tuple format (x, y, flag)
+        data_master[frame_id] = [
+            (point[0], point[1], flag)
+            for point, flag in list(zip(bev_egopath, flag_list))
+        ]
 
         # Break if early_stopping reached
         if (early_stopping is not None):

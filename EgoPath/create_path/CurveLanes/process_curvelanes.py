@@ -34,11 +34,13 @@ anomaly_dict = {
 
 
 def round_line_floats(line, ndigits = 6):
+    line = list(line)
     for i in range(len(line)):
         line[i] = [
             round(line[i][0], ndigits),
             round(line[i][1], ndigits)
         ]
+    line = tuple(line)
     return line
 
 
