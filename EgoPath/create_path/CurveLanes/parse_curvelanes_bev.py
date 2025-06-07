@@ -203,7 +203,7 @@ def transformBEV(
         for point in bev_egopath
     ]
 
-    return im_dst, bev_egopath
+    return im_dst, bev_egopath, mat
 
 
 # ============================== Main run ============================== #
@@ -233,6 +233,7 @@ if __name__ == "__main__":
 
     BEV_W = 320
     BEV_H = 640
+    BEV_Y_STEP = 20
 
     # PARSING ARGS
 
@@ -279,13 +280,34 @@ if __name__ == "__main__":
     # Preparing data
     with open(JSON_PATH, "r") as f:
         json_data = json.load(f)
+    data_master = {}    # Dumped later
 
     # MAIN GENERATION LOOP
 
     for frame_id, frame_content in enumerate(json_data):
 
+        # Acquire frame
         frame_img_path = os.path.join(
             IMG_DIR,
             f"{frame_id}.png"
         )
+        img = cv2.imread(frame_img_path)
+        h, w, _ = img.shape
+
+        # Acquire frame data
         this_frame_data = json_data[frame_id]
+
+        # Get source points for transform
+        sps_dict = findSourcePointsBEV(
+            h = h,
+            w = w,
+            egoleft = this_frame_data["egoleft_lane"],
+            egoright = this_frame_data["egoright_lane"]
+        )
+
+        # Transform to BEV space
+        im_dst, bev_egopath, mat = transformBEV(
+            img = img,
+            egopath = this_frame_data["drivable_path"],
+            sps = sps_dict
+        )
