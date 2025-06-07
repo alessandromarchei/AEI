@@ -369,7 +369,7 @@ if __name__ == "__main__":
         )
 
         # Transform to BEV space
-        im_dst, bev_egopath, mat = transformBEV(
+        im_dst, bev_egopath, flag_list, mat = transformBEV(
             img = img,
             egopath = this_frame_data["drivable_path"],
             sps = sps_dict
@@ -385,7 +385,20 @@ if __name__ == "__main__":
             normalized = False
         )
 
+        # Register this frame GT to master JSON
+        this_frame_payload = {}
+        for point, flag in list(zip(bev_egopath, flag_list)):
+            this_frame_payload[point[1]] = {
+                "x" : point[0],
+                "is_valid" : flag
+            }
+        data_master[frame_id] = this_frame_payload
+
         # Break if early_stopping reached
         if (early_stopping is not None):
             if (counter >= early_stopping):
                 break
+
+    # Save master data
+    with open(BEV_JSON_PATH, "w") as f:
+        json.dump(data_master, f, indent = 4)
