@@ -63,6 +63,32 @@ def interpMorePoints(
     return line
 
 
+def polyfit_BEV(
+    bev_egopath: list,
+    order: int,
+    y_step: int,
+    y_limit: int
+):
+    x = [point[0] for point in bev_egopath]
+    y = [point[1] for point in bev_egopath]
+    z = np.polyfit(y, x, order)
+    f = np.poly1d(z)
+    y_new = np.linspace(
+        0, y_limit - 1, 
+        y_step
+    )
+    x_new = f(y_new)
+
+    fitted_bev_egopath = tuple(zip(x_new, y_new))
+
+    flag_list = [
+        True if (0 <= point[0] <= BEV_W) else False
+        for point in fitted_bev_egopath
+    ]
+    
+    return fitted_bev_egopath, flag_list
+
+
 def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
     """
     Parse all coords of an (x, y) point to int, making it
@@ -181,9 +207,15 @@ def transformBEV(
         for point in bev_egopath
     ]
 
-    
+    # Polyfit BEV egopath to get 33-coords format with flags
+    bev_egopath, flag_list = polyfit_BEV(
+        bev_egopath = bev_egopath,
+        order = POLYFIT_ORDER,
+        y_step = BEV_Y_STEP,
+        y_limit = BEV_H
+    )
 
-    return im_dst, bev_egopath, mat
+    return im_dst, bev_egopath, flag_list, mat
 
 
 # ============================== Main run ============================== #
@@ -213,7 +245,9 @@ if __name__ == "__main__":
 
     BEV_W = 320
     BEV_H = 640
-    BEV_Y_STEP = 20
+    BEV_Y_STEP = 20\
+    
+    POLYFIT_ORDER = 2
 
     # PARSING ARGS
 
