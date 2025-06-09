@@ -139,6 +139,10 @@ def main():
             str(count) + '.pth'
         
         trainer.save_model(model_save_path)
+
+        # Test and save visualization
+        print('Testing')
+        trainer.test(test_images, test_images_save_path, log_count)
         
         # Validate
         print('Validating')
