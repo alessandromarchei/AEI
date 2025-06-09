@@ -1,11 +1,10 @@
 #! /usr/bin/env python3
 import pathlib
 import numpy as np
-from typing import Literal
 from PIL import Image
 from .check_data import CheckData
 
-class LoadDataSceneSeg():
+class LoadDataDomainSeg():
     def __init__(self, labels_filepath, images_filepath):
 
         # Sort data and get list of input images and ground truth labels
