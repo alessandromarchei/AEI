@@ -111,13 +111,13 @@ class DomainSegTrainer():
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='BINARY_SEGMENTATION')
             augTrain.setData(self.image, self.gt)
-            self.image, self.augmented  = \
+            self.image, self.gt  = \
                 augTrain.applyTransformBinarySeg(image=self.image, ground_truth=self.gt)
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='BINARY_SEGMENTATION')
             augVal.setData(self.image, self.gt)
-            self.image, self.augmented = \
+            self.image, self.gt = \
                 augVal.applyTransformBinarySeg(image=self.image, ground_truth=self.gt)
     
     # Load Data
@@ -131,6 +131,20 @@ class DomainSegTrainer():
         #gt_tensor = gt_tensor.type(torch.FloatTensor)
         #self.gt_tensor = gt_tensor.to(self.device)
 
+        print(self.image_tensor.shape)
+        print(self.gt_tensor.shape)
+
+    # Load Image as Tensor
+    def load_image_tensor(self):
+        image_tensor = self.image_loader(self.image)
+        image_tensor = image_tensor.unsqueeze(0)
+        self.image_tensor = image_tensor.to(self.device)
+      
+    # Load Ground Truth as Tensor
+    def load_gt_tensor(self):
+        gt_tensor = self.gt_loader(self.gt)
+        gt_tensor = gt_tensor.unsqueeze(0)
+        self.gt_tensor = gt_tensor.to(self.device)
 
     # Run Model
     def run_model(self):     
@@ -233,19 +247,6 @@ class DomainSegTrainer():
             # Save visualization
             image_save_path = test_images_save_path + str(log_count) + '_'+ str(i) + '.jpg'
             cv2.imwrite(image_save_path, test_visualization)
-
-
-    # Load Image as Tensor
-    def load_image_tensor(self):
-        image_tensor = self.image_loader(self.image)
-        image_tensor = image_tensor.unsqueeze(0)
-        self.image_tensor = image_tensor.to(self.device)
-      
-    # Load Ground Truth as Tensor
-    def load_gt_tensor(self):
-        gt_tensor = self.gt_loader(self.gt)
-        gt_tensor = gt_tensor.unsqueeze(0)
-        self.gt_tensor = gt_tensor.to(self.device)
      
     # Zero Gradient
     def zero_grad(self):
