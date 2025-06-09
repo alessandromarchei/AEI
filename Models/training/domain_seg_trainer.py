@@ -5,6 +5,8 @@ from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 import numpy as np
+import pathlib
+from PIL import Image
 import cv2
 import sys
 sys.path.append('..')
@@ -155,7 +157,7 @@ class DomainSegTrainer():
         
         # Get prediction
         prediction_vis = self.prediction.squeeze(0).cpu().detach()
-        prediction_vis = prediction_vis(1, 2, 0)
+        prediction_vis = prediction_vis.permute(1, 2, 0)
 
         # Get ground truth
         gt_vis = self.gt_tensor.squeeze(0).cpu().detach()
@@ -190,6 +192,41 @@ class DomainSegTrainer():
         # Write the figure
         self.writer.add_figure('Ground Truth', \
             fig_gt, global_step=(log_count))
+        
+    # Run network on test image and visualize result
+    def test(self, test_images, test_images_save_path):
+
+        test_images_list = sorted([f for f in pathlib.Path(test_images).glob("*")])
+
+        for i in range(0, len(test_images_list)):
+
+            # Read test images
+            frame = cv2.imread(str(test_images[i]), cv2.IMREAD_COLOR)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image_pil = Image.fromarray(frame)
+            image_pil = image_pil.resize((640, 320))
+
+            # Load test images and run inference
+            test_image_tensor = self.image_loader(image_pil)
+            test_image_tensor = test_image_tensor.unsqueeze(0)
+            test_image_tensor = test_image_tensor.to(self.device)
+            test_output = self.model(test_image_tensor)
+
+            # Process the output and scale to match the input image size
+            test_output = test_output.squeeze(0).cpu().detach()
+            test_output = test_output.permute(1, 2, 0)
+            test_output = test_output.numpy()
+            test_output = cv2.resize(test_output, (frame.shape[1], frame.shape[0]))
+
+            # Create visualization
+            alpha = 0.5
+            test_visualization = cv2.addWeighted(self.make_visualization(test_output), \
+            alpha, self.image, 1 - alpha, 0)
+
+            # Save visualization
+            image_save_path = test_images_save_path + str(i) + '.jpg'
+            cv2.imwrite(image_save_path, test_visualization)
+
 
     # Load Image as Tensor
     def load_image_tensor(self):
