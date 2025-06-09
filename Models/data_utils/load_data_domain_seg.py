@@ -49,19 +49,11 @@ class LoadDataDomainSeg():
     # Get training data in numpy format
     def getItemTrain(self, index):
         train_image = Image.open(str(self.train_images[index])).convert('RGB')
-
         train_mask = Image.open(str(self.train_labels[index]))
-        fn = lambda x : 255 if x > 0 else 0
-        train_ground_truth = train_mask.convert('L').point(fn, mode='1')
-
-        return  np.array(train_image), np.array(train_ground_truth)
+        return  np.array(train_image), np.array(train_mask)
     
     # Get training data in numpy format
     def getItemVal(self, index):
         val_image = Image.open(str(self.val_images[index])).convert('RGB')
-
         val_mask = Image.open(str(self.val_labels[index]))
-        fn = lambda x : 255 if x > 0 else 0
-        val_ground_truth = val_mask.convert('L').point(fn, mode='1')
-
-        return  np.array(val_image), np.array(val_ground_truth)
+        return  np.array(val_image), np.array(val_mask)
