@@ -9,7 +9,7 @@ class LoadDataDomainSeg():
 
         # Sort data and get list of input images and ground truth labels
         self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.png")])
-        self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
+        self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.jpg")])
 
         # Number of input images and ground truth labels
         self.num_images = len(self.images)
