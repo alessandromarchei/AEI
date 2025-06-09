@@ -14,6 +14,7 @@ def main():
 
     parser = ArgumentParser()
     parser.add_argument("-s", "--model_save_root_path", dest="model_save_root_path", help="root path where pytorch checkpoint file should be saved")
+    parser.add_argument('t', "--test_images_save_path", dest="test_images_save_path", help="path to where visualizations from inference on test images are saved")
     parser.add_argument("-r", "--root", dest="root", help="root path to folder where data training data is stored")
     args = parser.parse_args()
 
@@ -25,8 +26,12 @@ def main():
 
     # Data paths
     # ROADWork data
-    roadwork_labels_filepath= root + 'ACDC/label/'
-    roadwork_images_filepath = root + 'ACDC/image/'
+    roadwork_labels_filepath = root + 'ROADWork/label/'
+    roadwork_images_filepath = root + 'ROADWork/image/'
+
+    # Test data
+    test_images = root + '/Test/'
+    test_images_save_path = args.test_images_save_path
 
 
     # ROADWork - Data Loading
