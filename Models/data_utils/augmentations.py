@@ -74,23 +74,28 @@ class Augmentations():
         )
 
     # ========================== Data type specific transform functions ========================== #
-    # SEMANTIC SEGMENTATION - SceneSeg
-    # Set data values
-    def setDataSeg(self, image, ground_truth):
 
+    # Set ground truth and image data
+
+    def setData(self, image, ground_truth):
         self.image = image
         self.ground_truth = ground_truth
         
         self.augmented_data = ground_truth
         self.augmented_image = image  
 
+    def setImage(self, image):
+        self.image = image
+        self.augmented_image = image
+
+    # SEMANTIC SEGMENTATION - SceneSeg
     # Apply augmentations transform
     def applyTransformSeg(self, image, ground_truth):
 
         if(self.data_type != 'SEGMENTATION'):
             raise ValueError('Please set dataset type to SEGMENTATION in intialization of class')
         
-        self.setDataSeg(image, ground_truth)
+        self.setData(image, ground_truth)
 
         if(self.is_train):
 
@@ -116,21 +121,13 @@ class Augmentations():
         return self.augmented_image, self.augmented_data
     
     # BINARY SEGMENTATION - DomainSeg, EgoSpace
-    # Set data values
-    def setDataBinarySeg(self, image, ground_truth):
-
-        self.image = image
-        self.ground_truth = ground_truth
-        self.augmented_data = ground_truth
-        self.augmented_image = image  
-
     # Apply augmentations transform
     def applyTransformBinarySeg(self, image, ground_truth):
 
         if(self.data_type != 'BINARY_SEGMENTATION'):
             raise ValueError('Please set dataset type to BINARY_SEGMENTATION in intialization of class')
 
-        self.setDataBinarySeg(image, ground_truth)
+        self.setData(image, ground_truth)
 
         if(self.is_train):
 
@@ -157,21 +154,13 @@ class Augmentations():
         return self.augmented_image, self.augmented_data
 
     # DEPTH ESTIMATION - Scene3D
-    # Set data values
-    def setDataDepth(self, image, ground_truth):
-
-        self.image = image
-        self.ground_truth = ground_truth
-        self.augmented_data = ground_truth
-        self.augmented_image = image  
-
     # Apply augmentations transform
     def applyTransformDepth(self, image, ground_truth):
 
         if(self.data_type != 'DEPTH'):
             raise ValueError('Please set dataset type to DEPTH in intialization of class')
 
-        self.setDataDepth(image, ground_truth)
+        self.setData(image, ground_truth)
 
         if(self.is_train):
 
@@ -198,19 +187,13 @@ class Augmentations():
         return self.augmented_image, self.augmented_data
     
     # KEYPOINTS - EgoPath, EgoLanes
-    # Set data values
-    def setDataKeypoints(self, image):
-
-        self.image = image
-        self.augmented_image = image
-
     # Apply augmentation transform
     def applyTransformKeypoint(self, image):
 
         if (self.data_type != "KEYPOINTS"):
             raise ValueError("Please set dataset type to KEYPOINTS in intialization of class")
         
-        self.setDataKeypoints(image)
+        self.setImage(image)
 
         # For train set
         if (self.is_train):
