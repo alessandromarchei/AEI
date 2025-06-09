@@ -33,7 +33,7 @@ class LoadDataDomainSeg():
             # Assigning ground truth data to train/val split
             for count in range (0, self.num_images):
         
-                if((count+1) % 10 == 0):
+                if((count+1) % 50 == 0):
                     self.val_images.append(str(self.images[count]))
                     self.val_labels.append(str(self.labels[count]))
                     self.num_val_samples += 1 
