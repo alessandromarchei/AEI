@@ -49,124 +49,59 @@ def main():
     num_epochs = 20
     batch_size = 24
 
-    '''
     # Epochs
     for epoch in range(0, num_epochs):
 
-        # Iterators for datasets
-        acdc_count = 0
-        iddaw_count = 0
-        muses_count = 0
-        comma10k_count = 0
-        mapillary_count = 0
+        # Printing epochs
+        print('Epoch: ', epoch + 1)
 
-        is_acdc_complete = False
-        is_iddaw_complete = False
-        is_muses_complete = False
-        is_mapillary_complete = False
-        is_comma10k_complete = False
+        # Randomizing data
+        randomlist_train_data = random.sample(range(0, total_train_samples), total_train_samples)
 
-        data_list = []
-        data_list.append('ACDC')
-        data_list.append('IDDAW')
-        data_list.append('MUSES')
-        data_list.append('MAPILLARY')
-        data_list.append('COMMA10K')
-        random.shuffle(data_list)
-        data_list_count = 0
-
-        if(epoch == 1):
+        # Batch size schedule
+        if(epoch >= 1 and epoch < 5):
             batch_size = 16
         
-        if(epoch == 2):
+        if(epoch >= 5 and epoch < 10):
             batch_size = 8
         
-        if(epoch == 3):
-            batch_size = 5
+        if(epoch >= 10 and epoch < 15):
+            batch_size = 4
 
-        if(epoch >= 4 and epoch < 6):
-            batch_size = 3
-
-        if (epoch >= 6 and epoch < 8):
+        if (epoch >= 15 and epoch < 20):
             batch_size = 2
 
-        if (epoch > 8):
+        if (epoch >= 20):
             batch_size = 1
 
+        # Learning rate schedule
+        if(epoch >= 10):
+            trainer.set_learning_rate(0.000025)
+
+        # Augmentations schedule
+        apply_augmentations = True
+        if(epoch >= 15):
+            apply_augmentations = False
 
         # Loop through data
         for count in range(0, total_train_samples):
 
+            # Log counter
             log_count = count + total_train_samples*epoch
 
-            # Reset iterators
-            if(acdc_count == acdc_num_train_samples and \
-               is_acdc_complete == False):
-                is_acdc_complete =  True
-                data_list.remove("ACDC")
-            
-            if(iddaw_count == iddaw_num_train_samples and \
-               is_iddaw_complete == False):
-                is_iddaw_complete = True
-                data_list.remove("IDDAW")
-            
-            if(muses_count == muses_num_train_samples and \
-                is_muses_complete == False):
-                is_muses_complete = True
-                data_list.remove('MUSES')
-            
-            if(mapillary_count == mapillary_num_train_samples and \
-               is_mapillary_complete == False):
-                is_mapillary_complete = True
-                data_list.remove('MAPILLARY')
-
-            if(comma10k_count == comma10k_num_train_samples and \
-               is_comma10k_complete == False):
-                is_comma10k_complete = True
-                data_list.remove('COMMA10K')
-
-            if(data_list_count >= len(data_list)):
-                data_list_count = 0
-
+    
             # Read images, apply augmentation, run prediction, calculate
             # loss for iterated image from each dataset, and increment
             # dataset iterators
 
-            if(data_list[data_list_count] == 'ACDC' and \
-                is_acdc_complete == False):
-                image, gt, class_weights = \
-                        acdc_Dataset.getItemTrain(acdc_count)
-                acdc_count += 1
-            
-            if(data_list[data_list_count] == 'IDDAW' and \
-               is_iddaw_complete == False):
-                image, gt, class_weights = \
-                    iddaw_Dataset.getItemTrain(iddaw_count)      
-                iddaw_count += 1
-
-            if(data_list[data_list_count] == 'MUSES' and \
-               is_muses_complete == False):
-                image, gt, class_weights = \
-                    muses_Dataset.getItemTrain(muses_count)
-                muses_count += 1
-            
-            if(data_list[data_list_count] == 'MAPILLARY' and \
-               is_mapillary_complete == False):
-                image, gt, class_weights = \
-                    mapillary_Dataset.getItemTrain(mapillary_count)
-                mapillary_count +=1
-            
-            if(data_list[data_list_count] == 'COMMA10K' and \
-                is_comma10k_complete == False):
-                image, gt, class_weights = \
-                    comma10k_Dataset.getItemTrain(comma10k_count)
-                comma10k_count += 1
+            # Get data
+            image, gt = roadwork_Dataset.getItemTrain(randomlist_train_data[count])
             
             # Assign Data
-            trainer.set_data(image, gt, class_weights)
+            trainer.set_data(image, gt)
             
             # Augmenting Image
-            trainer.apply_augmentations(is_train=True)
+            trainer.apply_augmentations(apply_augmentations)
 
             # Converting to tensor and loading
             trainer.load_data(is_train=True)
@@ -189,118 +124,51 @@ def main():
             if((count+1) % 1000 == 0):  
                 trainer.save_visualization(log_count)
             
-            # Save model and run validation on entire validation 
-            # dataset after 8000 steps
-            if((count+1) % 8000 == 0):
-                
-                # Save Model
-                model_save_path = model_save_root_path + 'iter_' + \
-                    str(count + total_train_samples*epoch) \
-                    + '_epoch_' +  str(epoch) + '_step_' + \
-                    str(count) + '.pth'
-                
-                trainer.save_model(model_save_path)
-                
-                # Validate
-                print('Validating')
+        # Save model and run validation on entire validation 
+        # dataset after each epoch
 
-                # Setting model to evaluation mode
-                trainer.set_eval_mode()
+        # Save Model
+        model_save_path = model_save_root_path + 'iter_' + \
+            str(count + total_train_samples*epoch) \
+            + '_epoch_' +  str(epoch) + '_step_' + \
+            str(count) + '.pth'
+        
+        trainer.save_model(model_save_path)
+        
+        # Validate
+        print('Validating')
 
-                running_IoU_full = 0
-                running_IoU_bg = 0
-                running_IoU_fg = 0
-                running_IoU_rd = 0
+        # Setting model to evaluation mode
+        trainer.set_eval_mode()
 
-                # No gradient calculation
-                with torch.no_grad():
+        # Overall IoU
+        running_IoU = 0
 
-                    # ACDC
-                    for val_count in range(0, acdc_num_val_samples):
-                        image_val, gt_val, _ = \
-                            acdc_Dataset.getItemVal(val_count)
+        # No gradient calculation
+        with torch.no_grad():
 
-                        # Run Validation and calculate IoU Score
-                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
-                            trainer.validate(image_val, gt_val)
+            # ACDC
+            for val_count in range(0, roadwork_num_val_samples):
+                image_val, gt_val = roadwork_num_val_samples.getItemVal(val_count)
 
-                        running_IoU_full += IoU_score_full
-                        running_IoU_bg += IoU_score_bg
-                        running_IoU_fg += IoU_score_fg
-                        running_IoU_rd += IoU_score_rd
+                # Run Validation and calculate IoU Score
+                IoU_score = trainer.validate(image_val, gt_val)
 
-                    # MUSES
-                    for val_count in range(0, muses_num_val_samples):
-                        image_val, gt_val, _ = \
-                            muses_Dataset.getItemVal(val_count)
-                        
-                        # Run Validation and calculate IoU Score
-                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
-                            trainer.validate(image_val, gt_val)
+                # Accumulate individual IoU scores for validation samples
+                running_IoU += IoU_score
+            
+            # Calculating average loss of complete validation set
+            mIoU = running_IoU/total_val_samples
+          
+            # Logging average validation loss to TensorBoard
+            trainer.log_IoU(mIoU, log_count)
 
-                        running_IoU_full += IoU_score_full
-                        running_IoU_bg += IoU_score_bg
-                        running_IoU_fg += IoU_score_fg
-                        running_IoU_rd += IoU_score_rd
-                    
-                    # IDDAW
-                    for val_count in range(0, iddaw_num_val_samples):
-                        image_val, gt_val, _ = \
-                            iddaw_Dataset.getItemVal(val_count)
-                        
-                        # Run Validation and calculate IoU Score
-                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
-                            trainer.validate(image_val, gt_val)
-
-                        running_IoU_full += IoU_score_full
-                        running_IoU_bg += IoU_score_bg
-                        running_IoU_fg += IoU_score_fg
-                        running_IoU_rd += IoU_score_rd
-
-                    # MAPILLARY
-                    for val_count in range(0, mapillary_num_val_samples):
-                        image_val, gt_val, _ = \
-                            mapillary_Dataset.getItemVal(val_count)
-                        
-                         # Run Validation and calculate IoU Score
-                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
-                            trainer.validate(image_val, gt_val)
-
-                        running_IoU_full += IoU_score_full
-                        running_IoU_bg += IoU_score_bg
-                        running_IoU_fg += IoU_score_fg
-                        running_IoU_rd += IoU_score_rd
-
-                    # COMMA10K
-                    for val_count in range(0, comma10k_num_val_samples):
-                        image_val, gt_val, _ = \
-                            comma10k_Dataset.getItemVal(val_count)
-                        
-                        # Run Validation and calculate IoU Score
-                        IoU_score_full, IoU_score_bg, IoU_score_fg, IoU_score_rd = \
-                            trainer.validate(image_val, gt_val)
-
-                        running_IoU_full += IoU_score_full
-                        running_IoU_bg += IoU_score_bg
-                        running_IoU_fg += IoU_score_fg
-                        running_IoU_rd += IoU_score_rd
-                    
-                    # Calculating average loss of complete validation set
-                    mIoU_full = running_IoU_full/total_val_samples
-                    mIoU_bg = running_IoU_bg/total_val_samples
-                    mIoU_fg = running_IoU_fg/total_val_samples
-                    mIoU_rd = running_IoU_rd/total_val_samples
-                    
-                    # Logging average validation loss to TensorBoard
-                    trainer.log_IoU(mIoU_full, mIoU_bg, mIoU_fg, mIoU_rd, log_count)
-
-                # Resetting model back to training
-                trainer.set_train_mode()
-                
-            data_list_count += 1
+        # Resetting model back to training
+        trainer.set_train_mode()
+            
 
     trainer.cleanup()
-    '''
+    
 
 if __name__ == '__main__':
     main()
