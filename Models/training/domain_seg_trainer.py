@@ -83,6 +83,12 @@ class DomainSegTrainer():
             ]
         )
 
+        self.gt_loader = transforms.Compose(
+            [
+                transforms.ToTensor()
+            ]
+        )
+
     # Logging Training Loss
     def log_loss(self, log_count):
         print('Logging Training Loss', log_count, self.get_loss())
@@ -117,12 +123,13 @@ class DomainSegTrainer():
     # Load Data
     def load_data(self):
         self.load_image_tensor()
+        self.load_gt_tensor()
 
-        gt_tensor = torch.from_numpy(self.gt)
-        gt_tensor = gt_tensor.permute(2, 0, 1)
-        gt_tensor = gt_tensor.unsqueeze(0)
-        gt_tensor = gt_tensor.type(torch.FloatTensor)
-        self.gt_tensor = gt_tensor.to(self.device)
+        #gt_tensor = torch.from_numpy(self.gt)
+        #gt_tensor = gt_tensor.permute(2, 0, 1)
+        #gt_tensor = gt_tensor.unsqueeze(0)
+        #gt_tensor = gt_tensor.type(torch.FloatTensor)
+        #self.gt_tensor = gt_tensor.to(self.device)
 
 
     # Run Model
