@@ -14,8 +14,11 @@ def main():
 
     parser = ArgumentParser()
     parser.add_argument("-s", "--model_save_root_path", dest="model_save_root_path", help="root path where pytorch checkpoint file should be saved")
+    parser.add_argument("-m", "--pretrained_checkpoint_path", dest="pretrained_checkpoint_path", help="path to SceneSeg weights file for pre-trained backbone")
+    parser.add_argument("-c", "--checkpoint_path", dest="checkpoint_path", help="path to Scene3D weights file for training from saved checkpoint")
     parser.add_argument('-t', "--test_images_save_path", dest="test_images_save_path", help="path to where visualizations from inference on test images are saved")
     parser.add_argument("-r", "--root", dest="root", help="root path to folder where data training data is stored")
+    parser.add_argument('-l', "--load_from_save", action='store_true', help="flag for whether model is being loaded from a Scene3D checkpoint file")
     args = parser.parse_args()
 
     # Root path
@@ -33,7 +36,6 @@ def main():
     test_images = root + '/Test/'
     test_images_save_path = args.test_images_save_path
 
-
     # ROADWork - Data Loading
     roadwork_Dataset = LoadDataDomainSeg(roadwork_labels_filepath, roadwork_images_filepath)
     roadwork_num_train_samples, roadwork_num_val_samples = roadwork_Dataset.getItemCount()
@@ -46,8 +48,22 @@ def main():
     total_val_samples = roadwork_num_val_samples
     print(total_val_samples, ': total validation samples')
 
+    # Load from checkpoint
+    load_from_checkpoint = False
+    if(args.load_from_save):
+        load_from_checkpoint = True
+
+    # Pre-trained model checkpoint path
+    pretrained_checkpoint_path = args.pretrained_checkpoint_path
+    checkpoint_path = args.checkpoint_path
+
     # Trainer Class
-    trainer = DomainSegTrainer()
+    trainer = 0
+    if(load_from_checkpoint == False):
+        trainer = DomainSegTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
+    else:
+        trainer = DomainSegTrainer(checkpoint_path=checkpoint_path, is_pretrained=True)
+
     trainer.zero_grad()
     
     # Total training epochs
