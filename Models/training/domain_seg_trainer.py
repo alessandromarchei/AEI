@@ -31,9 +31,6 @@ class DomainSegTrainer():
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print(f'Using {self.device} for inference')
         
-        # Checking devices (GPU vs CPU)
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        print(f'Using {self.device} for inference')
 
         if(is_pretrained):
 
@@ -67,6 +64,8 @@ class DomainSegTrainer():
             else:
                 raise ValueError('Please ensure SceneSeg network weights are provided for upstream elements')
 
+        # Model to device
+        self.model = self.model.to(self.device)
 
         # TensorBoard
         self.writer = SummaryWriter()
@@ -125,15 +124,6 @@ class DomainSegTrainer():
         self.load_image_tensor()
         self.load_gt_tensor()
 
-        #gt_tensor = torch.from_numpy(self.gt)
-        #gt_tensor = gt_tensor.permute(2, 0, 1)
-        #gt_tensor = gt_tensor.unsqueeze(0)
-        #gt_tensor = gt_tensor.type(torch.FloatTensor)
-        #self.gt_tensor = gt_tensor.to(self.device)
-
-        print(self.image_tensor.shape)
-        print(self.gt_tensor.shape)
-
     # Load Image as Tensor
     def load_image_tensor(self):
         image_tensor = self.image_loader(self.image)
@@ -149,6 +139,8 @@ class DomainSegTrainer():
     # Run Model
     def run_model(self):     
         self.prediction = self.model(self.image_tensor)
+        print(self.prediction.type())
+        print(self.gt_tensor.type())
         BCELoss = nn.BCEWithLogitsLoss()
         self.loss = BCELoss(self.prediction, self.gt_tensor)
 

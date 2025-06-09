@@ -65,7 +65,9 @@ class EgoSpaceTrainer():
             else:
                 raise ValueError('Please ensure SceneSeg network weights are provided for upstream elements')
 
-
+        # Model to device
+        self.model = self.model.to(self.device)
+        
         # TensorBoard
         self.writer = SummaryWriter()
 
