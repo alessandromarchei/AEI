@@ -194,7 +194,7 @@ class DomainSegTrainer():
             fig_gt, global_step=(log_count))
         
     # Run network on test image and visualize result
-    def test(self, test_images, test_images_save_path):
+    def test(self, test_images, test_images_save_path, log_count):
 
         test_images_list = sorted([f for f in pathlib.Path(test_images).glob("*")])
 
@@ -224,7 +224,7 @@ class DomainSegTrainer():
             alpha, self.image, 1 - alpha, 0)
 
             # Save visualization
-            image_save_path = test_images_save_path + str(i) + '.jpg'
+            image_save_path = test_images_save_path + str(log_count) + '_'+ str(i) + '.jpg'
             cv2.imwrite(image_save_path, test_visualization)
 
 
