@@ -124,12 +124,12 @@ class EgoPathTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='KEYPOINTS')
-            augTrain.setDataKeypoints(self.image)
+            augTrain.setImage(self.image)
             self.image = augTrain.applyTransformKeypoint(self.image)
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='KEYPOINTS')
-            augVal.setDataKeypoints(self.image)
+            augVal.setImage(self.image)
             self.image = augVal.applyTransformKeypoint(self.image)
 
     # Load Data as Pytorch Tensors

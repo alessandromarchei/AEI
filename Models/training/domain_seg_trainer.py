@@ -104,13 +104,13 @@ class DomainSegTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='BINARY_SEGMENTATION')
-            augTrain.setDataSeg(self.image, self.gt)
+            augTrain.setData(self.image, self.gt)
             self.image, self.augmented  = \
                 augTrain.applyTransformBinarySeg(image=self.image, ground_truth=self.gt)
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='BINARY_SEGMENTATION')
-            augVal.setDataSeg(self.image, self.gt)
+            augVal.setData(self.image, self.gt)
             self.image, self.augmented = \
                 augVal.applyTransformBinarySeg(image=self.image, ground_truth=self.gt)
     
