@@ -4,6 +4,7 @@
 import torch
 import random
 from argparse import ArgumentParser
+import matplotlib.pyplot as plt
 import sys
 sys.path.append('..')
 from data_utils.load_data_domain_seg import LoadDataDomainSeg
@@ -12,20 +13,20 @@ from training.domain_seg_trainer import DomainSegTrainer
 
 def main():
 
-    parser = ArgumentParser()
-    parser.add_argument("-s", "--model_save_root_path", dest="model_save_root_path", help="root path where pytorch checkpoint file should be saved")
-    parser.add_argument("-m", "--pretrained_checkpoint_path", dest="pretrained_checkpoint_path", help="path to SceneSeg weights file for pre-trained backbone")
-    parser.add_argument("-c", "--checkpoint_path", dest="checkpoint_path", help="path to Scene3D weights file for training from saved checkpoint")
-    parser.add_argument('-t', "--test_images_save_path", dest="test_images_save_path", help="path to where visualizations from inference on test images are saved")
-    parser.add_argument("-r", "--root", dest="root", help="root path to folder where data training data is stored")
-    parser.add_argument('-l', "--load_from_save", action='store_true', help="flag for whether model is being loaded from a Scene3D checkpoint file")
-    args = parser.parse_args()
+    #parser = ArgumentParser()
+    #parser.add_argument("-s", "--model_save_root_path", dest="model_save_root_path", help="root path where pytorch checkpoint file should be saved")
+    #parser.add_argument("-m", "--pretrained_checkpoint_path", dest="pretrained_checkpoint_path", help="path to SceneSeg weights file for pre-trained backbone")
+    #parser.add_argument("-c", "--checkpoint_path", dest="checkpoint_path", help="path to Scene3D weights file for training from saved checkpoint")
+    #parser.add_argument('-t', "--test_images_save_path", dest="test_images_save_path", help="path to where visualizations from inference on test images are saved")
+    #parser.add_argument("-r", "--root", dest="root", help="root path to folder where data training data is stored")
+    #parser.add_argument('-l', "--load_from_save", action='store_true', help="flag for whether model is being loaded from a Scene3D checkpoint file")
+    #args = parser.parse_args()
 
     # Root path
-    root = args.root
+    root = '/mnt/media/DomainSeg/' #args.root
 
     # Model save path
-    model_save_root_path = args.model_save_root_path
+    model_save_root_path = 'home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/DomainSeg/models/'#args.model_save_root_path
 
     # Data paths
     # ROADWork data
@@ -34,7 +35,7 @@ def main():
 
     # Test data
     test_images = root + '/Test/'
-    test_images_save_path = args.test_images_save_path
+    test_images_save_path = 'home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/DomainSeg/test/'#args.test_images_save_path
 
     # ROADWork - Data Loading
     roadwork_Dataset = LoadDataDomainSeg(roadwork_labels_filepath, roadwork_images_filepath)
@@ -50,12 +51,12 @@ def main():
 
     # Load from checkpoint
     load_from_checkpoint = False
-    if(args.load_from_save):
-        load_from_checkpoint = True
+    #if(args.load_from_save):
+    #    load_from_checkpoint = True
 
     # Pre-trained model checkpoint path
-    pretrained_checkpoint_path = args.pretrained_checkpoint_path
-    checkpoint_path = args.checkpoint_path
+    pretrained_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth' #args.pretrained_checkpoint_path
+    checkpoint_path = 0 #args.checkpoint_path
 
     # Trainer Class
     trainer = 0
@@ -116,7 +117,12 @@ def main():
             # dataset iterators
 
             # Get data
-            image, gt = roadwork_Dataset.getItemTrain(randomlist_train_data[count])
+            image, gt = roadwork_Dataset.getItemTrain(count)
+            plt.figure()
+            plt.imshow(image)
+            plt.figure()
+            plt.imshow(gt)
+            print(gt)
             
             # Assign Data
             trainer.set_data(image, gt)
@@ -125,7 +131,7 @@ def main():
             trainer.apply_augmentations(apply_augmentations)
 
             # Converting to tensor and loading
-            trainer.load_data(is_train=True)
+            trainer.load_data()
 
             # Run model and calculate loss
             trainer.run_model()
