@@ -388,18 +388,29 @@ if __name__ == "__main__":
             normalized = False
         )
 
-        # Round, normalize egopath, and sort by descending y
-        bev_egopath = sorted(
-            round_line_floats(
-                normalizeCoords(
-                    bev_egopath,
-                    width = BEV_W,
-                    height = BEV_H
-                )
+        # Round, normalize egopath, and sort by descending y (with flag)
+        zipped_path_flag = sorted(
+            zip(
+                round_line_floats(
+                    normalizeCoords(
+                        bev_egopath,
+                        width = BEV_W,
+                        height = BEV_H
+                    )
+                ),
+                flag_list
             ),
-            key = lambda point: point[1],
+            key = lambda point: point[0][1],
             reverse = True
         )
+        bev_egopath = [
+            zipped_ent[0]
+            for zipped_ent in zipped_path_flag
+        ]
+        flag_list = [
+            zipped_ent[1]
+            for zipped_ent in zipped_path_flag
+        ]
 
         # Register this frame GT to master JSON
         # Each point has tuple format (x, y, flag)
