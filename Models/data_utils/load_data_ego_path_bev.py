@@ -93,3 +93,26 @@ class LoadDataBEVEgoPath():
                     raise ValueError(f"Mismatch data detected in {self.dataset_name}!")
 
         print(f"Dataset {self.dataset_name} loaded with {self.N_trains} trains and {self.N_vals} vals.")
+
+    # Get sizes of Train/Val sets
+    def getItemCount(self):
+        return self.N_trains, self.N_vals
+       
+    # Get item at index ith, returning img and EgoPath
+    def getItem(self, index, is_train: bool):
+        if (is_train):
+            img = Image.open(str(self.train_images[index])).convert("RGB")
+            label = self.train_labels[index]
+        else:
+            img = Image.open(str(self.val_images[index])).convert("RGB")
+            label = self.val_labels[index]
+
+        # Convert image to OpenCV/Numpy format for augmentations
+        img = np.array(img)
+
+        # Split label to 3 lists
+        xs = [lab[0] for lab in label]
+        ys = [lab[1] for lab in label]
+        flags = [lab[2] for lab in label]
+        
+        return img, xs, ys, flags
