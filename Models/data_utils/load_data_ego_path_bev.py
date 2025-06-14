@@ -61,3 +61,35 @@ class LoadDataBEVEgoPath():
             self.N_images,
             self.N_labels
         )
+
+        # ================= Initiate data loading ================= #
+
+        self.train_images = []
+        self.train_labels = []
+        self.val_images = []
+        self.val_labels = []
+
+        self.N_trains = 0
+        self.N_vals = 0
+
+        if (checkData.getCheck()):
+            for set_idx, frame_id in enumerate(self.labels):
+
+                # Check if there might be frame ID mismatch - happened to CULane before, just to make sure
+                frame_id_from_img_path = str(self.images[set_idx]).split("/")[-1].replace(".png", "")
+                if (frame_id == frame_id_from_img_path):
+
+                    if (set_idx % 10 == 0):
+                        # Slap it to Val
+                        self.val_images.append(str(self.images[set_idx]))
+                        self.val_labels.append(self.labels[frame_id])
+                        self.N_vals += 1 
+                    else:
+                        # Slap it to Train
+                        self.train_images.append(str(self.images[set_idx]))
+                        self.train_labels.append(self.labels[frame_id])
+                        self.N_trains += 1
+                else:
+                    raise ValueError(f"Mismatch data detected in {self.dataset_name}!")
+
+        print(f"Dataset {self.dataset_name} loaded with {self.N_trains} trains and {self.N_vals} vals.")
