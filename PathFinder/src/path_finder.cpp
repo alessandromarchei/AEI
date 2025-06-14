@@ -61,7 +61,10 @@ std::vector<Lane> loadLanesFromYaml(const std::string &filename)
         for (const auto &pt2d : lane2d)
         {
             std::cout << "  [" << pt2d[0].as<double>() << ", " << pt2d[1].as<double>() << "]\n";
-            lane_pixels.emplace_back(cv::Point2f(pt2d[0].as<double>(), pt2d[1].as<double>()));
+            auto noise = generatePixelNoise(1.0);
+            double u = pt2d[0].as<double>() + noise[0];
+            double v = pt2d[1].as<double>() + noise[1];
+            lane_pixels.emplace_back(cv::Point2f(u,v));
         }
         std::vector<cv::Point2f> bev_pixels;
         cv::perspectiveTransform(lane_pixels, bev_pixels, H);
@@ -77,6 +80,17 @@ std::vector<Lane> loadLanesFromYaml(const std::string &filename)
         lanes.emplace_back(i, gt_pts, bev_pixels);
     }
     return lanes;
+}
+
+// Function to generate uv noise in pixel units
+std::array<double, 2> generatePixelNoise(double max_noise = 10.0)
+{
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dist_pix(-max_noise, max_noise);
+    double du = dist_pix(gen);
+    double dv = dist_pix(gen);
+    return {du, dv};  // Pixel-space noise to be added to (u, v)
 }
 
 cv::Mat loadHFromYaml(const std::string &filename)

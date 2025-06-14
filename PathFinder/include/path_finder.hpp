@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <random>
 #include <yaml-cpp/yaml.h>
 #include <Eigen/Dense>
 
@@ -25,6 +26,7 @@ public:
 
 void drawLanes(const std::vector<Lane> &lanes);
 std::vector<Lane> loadLanesFromYaml(const std::string &filename);
+std::array<double, 2> generatePixelNoise(double max_noise);
 
 
 cv::Mat loadHFromYaml(const std::string &filename);
