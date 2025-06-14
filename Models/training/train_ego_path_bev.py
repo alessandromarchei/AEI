@@ -10,7 +10,7 @@ from typing import Literal, get_args
 import sys
 sys.path.append('../..')
 from Models.data_utils.load_data_ego_path_bev import LoadDataBEVEgoPath
-from Models.training.ego_path_trainer import EgoPathTrainer
+from Models.training.ego_path_trainer_bev import BEVEgoPathTrainer
 
 # Currently limiting to available datasets only. Will unlock eventually
 VALID_DATASET_LITERALS = Literal[
@@ -123,4 +123,106 @@ def main():
     ])
     print(f"Total val samples: {dict_datasets['Nsum_vals']}")
 
+    # ====================== Training params ====================== #
+
+    # Trainer instance
+    trainer = None
+
+    BACKBONE_PATH = args.backbone_path
+    CHECKPOINT_PATH = args.checkpoint_path
+
+    if (BACKBONE_PATH and not CHECKPOINT_PATH):
+        trainer = BEVEgoPathTrainer(pretrained_checkpoint_path = BACKBONE_PATH)
+    elif (CHECKPOINT_PATH and not BACKBONE_PATH):
+        trainer = BEVEgoPathTrainer(
+            checkpoint_path = CHECKPOINT_PATH, 
+            is_pretrained = True
+        )
+    elif (not CHECKPOINT_PATH and not BACKBONE_PATH):
+        raise ValueError(
+            "No checkpoint file found - Please ensure that you pass in either " \
+            "a saved BEVEgoPath checkpoint file or SceneSeg checkpoint to load " \
+            "the backbone weights"
+        )
+    else:
+        raise ValueError(
+            "Both BEVEgoPath checkpoint and SceneSeg checkpoint file provided - " \
+            "please provide either the BEVEgoPath checkponit to continue training " \
+            "from a saved checkpoint, or the SceneSeg checkpoint file to train " \
+            "BEVEgoPath from scratch"
+        )
     
+    # Zero gradients
+    trainer.zero_grad()
+    
+    # Training loop parameters
+    NUM_EPOCHS = 20
+    LOGSTEP_LOSS = 250
+    LOGSTEP_VIS = 1000
+    LOGSTEP_MODEL = 20000
+
+    # MODIFIABLE PARAMETERS
+    # You can adjust the SCALE FACTORS, GRAD_LOSS_TYPE, DATA_SAMPLING_SCHEME 
+    # and BATCH_SIZE_DECAY during training
+
+    # SCALE FACTORS
+    # These scale factors impact the relative weight of different
+    # loss terms in calculating the overall loss. A scale factor
+    # value of 0.0 means that this loss is ignored, 1.0 means that
+    # the loss is not scaled, and any other number applies a simple
+    # scaling to increase or decrease the contribution of that specific
+    # loss towards the overall loss
+
+    DATA_LOSS_SCALE_FACTOR = 1.0
+    SMOOTHING_LOSS_SCALE_FACTOR = 1.0
+    FLAG_LOSS_SCALE_FACTOR = 1.0
+
+    # Set training loss term scale factors
+    trainer.set_loss_scale_factors(
+        DATA_LOSS_SCALE_FACTOR,
+        SMOOTHING_LOSS_SCALE_FACTOR,
+        FLAG_LOSS_SCALE_FACTOR
+    )
+    
+    print(f"DATA_LOSS_SCALE_FACTOR : {DATA_LOSS_SCALE_FACTOR}")
+    print(f"SMOOTHING_LOSS_SCALE_FACTOR : {SMOOTHING_LOSS_SCALE_FACTOR}")
+    print(f"FLAG_LOSS_SCALE_FACTOR : {FLAG_LOSS_SCALE_FACTOR}")
+
+    # GRAD_LOSS_TYPE
+    # There are two types of gradients loss, and either can be selected.
+    # One option is 'NUMERICAL' which calculates the gradient through
+    # the tangent angle between consecutive pairs of points along the
+    # curve. The second option is 'ANALYTICAL' which uses the equation
+    # of the curve to calculate the true mathematical gradient from
+    # the curve's partial dervivatives
+
+    GRAD_LOSS_TYPE = "NUMERICAL" # NUMERICAL or ANALYTICAL
+    trainer.set_gradient_loss_type(GRAD_LOSS_TYPE)
+
+    print(f"GRAD_LOSS_TYPE : {GRAD_LOSS_TYPE}")
+
+    # DATA_SAMPLING_SCHEME
+    # There are two data sampling schemes. The 'EQUAL' data sampling scheme
+    # ensures that in each batch, we have an equal representation of samples
+    # from each specific dataset. This schemes over-fits the network on 
+    # smaller and underepresented datasets. The second sampling scheme is
+    # 'CONCATENATE', in which the data is sampled randomly and the network
+    # only sees each image from each dataset once in an epoch
+
+    DATA_SAMPLING_SCHEME = "CONCATENATE" # EQUAL or CONCATENATE
+
+    print(f"DATA_SAMPLING_SCHEME : {DATA_SAMPLING_SCHEME}")
+
+    # BATCH_SIZE_SCHEME
+    # There are three type of BATCH_SIZE_SCHEME, the 'CONSTANT' batch size
+    # scheme sets a constant, fixed batch size value of 24 throughout training.
+    # The 'SLOW_DECAY' batch size scheme reduces the batch size during training,
+    # helping the model escape from local minima. The 'FAST_DECAY' batch size
+    # scheme decays the batch size faster, and may help with quicker model
+    # convergence.
+
+    BATCH_SIZE_SCHEME = "SLOW_DECAY" # FAST_DECAY or SLOW_DECAY or CONSTANT
+
+    print(f"BATCH_SIZE_SCHEME : {BATCH_SIZE_SCHEME}")
+    
+    # ======================================================================= #
