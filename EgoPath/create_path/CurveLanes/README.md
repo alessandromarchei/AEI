@@ -107,7 +107,54 @@ This script processes annotated CurveLanes dataset frames to generate a bird-eye
 
 ## I. Algorithm
 
+### From EgoPath dataset
 
+From EgoPath datasets, each frame we have ground-truth info of:
+- Egolines, left ego line and right ego line.
+- Drivable path, derived from algorithm.
+- Other lanes, but for now no need to care about them.
+
+In order to conduct BEV transformation, we need 4 points of a frustum:
+- Left start (`LS`)
+- Right start (`RS`)
+- Left end (`LE`)
+- Right end (`RE`)
+
+### Step 1
+
+Acquire 2 anchors of left and right egolines:
+- Left anchor : $(x_{0L}, a_L, b_L)$ with anchor point $(x_{0L}, h)$
+- Right anchor : $(x_{0R}, a_R, b_R)$ with anchor point $(x_{0R}, h)$
+
+In which:
+- $x0$ : intercept of egoline and bottom edge of frame
+- `a, b` : linear constants of that egoline, at bottom edge.
+
+These 2 points will serve as left start and right start of the frustum - `LS` and `RS` - respectively.
+
+### Step 2
+
+- Get midpoint of 2 egolines `MS` (mid-start) at $x_{M_S} = (x_{0L} + x_{0R}) / 2$.
+- Get a tangential value $a_M$ at `MS` that is average of the 2 values $a_L$ and $a_R$.
+
+### Step 3
+
+- Extend from midpoint along $a_M$ until it intercepts the height of shorter egoline, denoted by `lower_ego_y`.
+- This new intercept point is denoted by `ME` (mid-end).
+
+### Step 4
+
+- Calculate the width between left and right egolines at $y_L = y_R = $ `lower_ego_y`.
+- This width is denoted by $𝚫D = 2𝚫d$
+
+### Step 5
+
+- At $y = $ `lower_ego_y`, obtain 2 points at $x = x_{M_E} ± 𝚫d$ (remember $𝚫D = 2𝚫d$).
+- These 2 points will serve as left end `LE` and right end `RE` of the frustum.
+
+### Step 6
+
+Now the frustum is completed, we can conduct BEV transformation based on the 4 source points left start (`LS`), right start (`RS`), left end (`LE`) and right end (`RE`).
 
 ## II. Usage
 
