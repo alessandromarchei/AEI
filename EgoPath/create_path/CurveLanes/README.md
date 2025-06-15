@@ -38,8 +38,8 @@ Each image, upon being parsed into those functions, will have 2 params of `origi
 
 - `--dataset_dir` : path to CurveLane dataset directory, should contains exactly `Curvelanes` if you get it from Kaggle.
 - `--output_dir` : path to directory where you wanna save the images.
-- `--sampling_step` : optional. Basically tells the process to skip several images for increased model learning capability during the latter training.
-- `--early_stopping` : optional. For debugging purpose. Force the process to halt upon reaching a certain amount of images. Default is 5, which means process 1 image then skip 4, and continue.
+- `--sampling_step` : optional. Basically tells the process to skip several images for increased model learning capability during the latter training. Default is 5, which means process 1 image then skip 4, and continue.
+- `--early_stopping` : optional. For debugging purpose. Force the process to halt upon reaching a certain amount of images.
 
 ## 2. Execute
 
