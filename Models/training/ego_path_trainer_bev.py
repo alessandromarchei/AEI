@@ -147,4 +147,54 @@ class EgoPathTrainer():
             augVal.setImage(self.image)
             self.image = augVal.applyTransformKeypoint(self.image)
 
+    # Load Data as Pytorch Tensors
+    def load_data(self):
+        
+        # Converting image to Pytorch Tensor
+        image_tensor = self.image_loader(self.image)
+        image_tensor = image_tensor.unsqueeze(0)
+        self.image_tensor = image_tensor.to(self.device)
+
+        # Converting keypoint list to Pytorch Tensor
+        # List is in x0,y0,x1,y1,....xn, yn format
+        gt_tensor = torch.from_numpy(self.gt)
+        gt_tensor = gt_tensor.unsqueeze(0)
+        self.gt_tensor = gt_tensor.to(self.device)
     
+    # Run Model
+    def run_model(self):
+        self.prediction = self.model(self.image_tensor)
+        self.loss = self.calc_loss(self.prediction, self.gt_tensor)
+
+    # Calculate loss
+    def calc_loss(self, prediction, ground_truth):
+
+        # Endpoint loss - align the end control point of the Prediciton
+        # vs Ground Truth Bezier Curves
+        #self.endpoint_loss = self.calc_endpoints_loss(prediction, ground_truth)
+
+        # Mid-point loss - similar to the BezierLaneNet paper, this loss ensures that
+        # points along the curve have small x and y deviation - also acts as a regulariation term
+        #self.mid_point_loss = self.calc_mid_points_loss(prediction, ground_truth)
+
+        # Gradient Loss - either NUMERICAL tangent angle calcualation or
+        # ANALYTICAL derviative of bezier curve, this loss ensures the curve is 
+        # smooth and acts as a regularization term
+        #if(self.gradient_type == 'NUMERICAL'):
+        #    self.gradient_loss = self.calc_numerical_gradient_loss(prediction, ground_truth)
+        #elif(self.gradient_type == 'ANALYTICAL'):
+        #    self.gradient_loss = self.calc_analytical_gradient_loss(prediction, ground_truth)
+
+        # Total loss is sum of individual losses multiplied by scailng factors
+        #total_loss = self.gradient_loss*self.grad_scale_factor + \
+        #    self.mid_point_loss*self.mid_point_scale_factor + \
+        #    self.endpoint_loss*self.endpoint_loss_scale_factor
+
+        self.start_point_x_offset_loss = self.calc_start_point_x_offset_loss(prediction, ground_truth)
+        self.heading_angle_loss = self.calc_heading_angle_loss(prediction, ground_truth)
+        #self.endpoint_loss = self.calc_endpoint_loss(prediction, ground_truth)
+
+        #total_loss = self.start_point_x_offset_loss*self.start_point_x_offset_loss_scale_factor + \
+        #            self.endpoint_loss*self.endpoint_loss_scale_factor
+        total_loss = self.start_point_x_offset_loss + self.heading_angle_loss
+        return total_loss 
