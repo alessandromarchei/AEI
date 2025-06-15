@@ -103,7 +103,11 @@ python3 EgoPath/create_path/CurveLanes/process_curvelanes.py --dataset_dir ../po
 
 ## Overview
 
+This script processes annotated CurveLanes dataset frames to generate a bird-eyes view (BEV) representation of the drivable path. It reads per-frame image and lane data, computes the BEV transform using ego-lane boundaries, projects the drivable path into BEV space, and saves both the transformed images and path data for downstream use (training, visualization, etc.).
+
 ## I. Algorithm
+
+
 
 ## II. Usage
 
