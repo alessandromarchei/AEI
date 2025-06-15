@@ -113,14 +113,21 @@ python3 EgoPath/create_path/CurveLanes/process_curvelanes.py --dataset_dir ../po
 
 - **Description**: draws a polyline on an image given a list of points.
 - **Parameters**:
-    - `img` (np.ndarray): The image on which to draw the line.
-    - `anno_entry` (dict): Annotation data including lanes and drivable path.
-    - `raw_dir` (str): Directory to save raw images.
-    - `visualization_dir` (str): Directory to save annotated images.
-    - `mask_dir` (str): Directory to save segmentation masks.
-    - `init_img_width` (int): Original width of the image.
-    - `init_img_height` (int): Original height of the image.
-    - `normalized` (bool, optional): Whether coordinates are normalized. Defaults to `True`.
-    - `resize` (float, optional): Resize factor. Defaults to `None`.
-    - `crop` (dict, optional): Cropping dimensions. Defaults to `None`.
+    - `img` (np.ndarray): the image on which to draw the line.
+    - `line` (list): a list of `(x, y)` tuples representing the line points.
+    - `color` (tuple): the BGR color of the line.
+    - `thickness` (int, optional): thickness of the line. Defaults to `2`.
 - **Returns**: None
+
+### 2. `annotateGT(img, frame_id, bev_egopath, raw_dir, visualization_dir, normalized)`
+
+- **Description**: annotates and saves both raw and visualization images with the drivable path.
+- **Parameters**:
+    - `img` (np.ndarray): the BEV-transformed image.
+    - `frame_id` (str): identifier for current frame.
+    - `bev_egopath` (list): drivable path line in BEV space.
+    - `raw_dir` (str): directory to save the raw BEV image.
+    - `visualization_dir` (str): directory to save the BEV visualization image.
+    - `normalized` (bool): whether the coords are normalized to `[0, 1]`.
+- **Returns**: None
+
