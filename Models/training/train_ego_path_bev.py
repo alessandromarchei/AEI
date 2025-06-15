@@ -226,3 +226,100 @@ def main():
     print(f"BATCH_SIZE_SCHEME : {BATCH_SIZE_SCHEME}")
     
     # ======================================================================= #
+
+    # ========================= Main training loop ========================= #
+
+    # Batchsize
+    batch_size = 0
+
+    data_list = VALID_DATASET_LIST.copy()
+
+    for epoch in range(0, NUM_EPOCHS):
+
+        print(f"EPOCH : {epoch}")
+
+        if (BATCH_SIZE_SCHEME == "CONSTANT"):
+            batch_size = 3
+        elif (BATCH_SIZE_SCHEME == "FAST_DECAY"):
+            if (epoch == 0):
+                batch_size = 24
+            elif ((epoch >= 2) and (epoch < 4)):
+                batch_size = 12
+            elif ((epoch >= 4) and (epoch < 6)):
+                batch_size = 6
+            elif ((epoch >= 6) and (epoch < 8)):
+                batch_size = 3
+            elif ((epoch >= 8) and (epoch < 10)):
+                batch_size = 2
+            elif (epoch >= 10):
+                batch_size = 1
+        elif (BATCH_SIZE_SCHEME == "SLOW_DECAY"):
+            if (epoch == 0):
+                batch_size = 24
+            elif ((epoch >= 2) and (epoch < 6)):
+                batch_size = 12
+            elif ((epoch >= 6) and (epoch < 10)):
+                batch_size = 6
+            elif ((epoch >= 10) and (epoch < 14)):
+                batch_size = 3
+            elif ((epoch >= 14) and (epoch < 18)):
+                batch_size = 2
+            elif (epoch >= 18):
+                batch_size = 1
+        else:
+            raise ValueError(
+                "Please speficy BATCH_SIZE_SCHEME as either " \
+                " CONSTANT or FAST_DECAY or SLOW_DECAY"
+            )
+        
+        # Learning Rate Schedule
+        if ((epoch >= 6) and (epoch < 12)):
+            trainer.set_learning_rate(0.00005)
+        elif ((epoch >= 12) and (epoch < 18)):
+            trainer.set_learning_rate(0.000025)
+        elif (epoch >= 18):
+            trainer.set_learning_rate(0.0000125)
+
+        # Shuffle overall data list at start of epoch
+        random.shuffle(data_list)
+        
+        # Reset all data counters
+        dict_datasets["sample_counter"] = 0
+        for dataset in VALID_DATASET_LIST:
+            dict_datasets[dataset]["iter"] = 0
+            dict_datasets[dataset]["completed"] = False
+
+        # Checking data sampling scheme
+        if(
+            (DATA_SAMPLING_SCHEME != "EQUAL") and 
+            (DATA_SAMPLING_SCHEME != "CONCATENATE")
+        ):
+            raise ValueError(
+                "Please speficy DATA_SAMPLING_SCHEME as either " \
+                " EQUAL or CONCATENATE"
+            )
+        
+        # Loop through data
+        while (True):
+
+            # Log count
+            dict_datasets["sample_counter"] += 1
+            dict_datasets["log_counter"] = (
+                dict_datasets["sample_counter"] + \
+                dict_datasets["Nsum_trains"] * epoch
+            )
+
+            # Reset iterators and shuffle individual datasets
+            # based on data sampling scheme
+            for dataset in VALID_DATASET_LIST:
+                if (dict_datasets[dataset]["iter"] == dict_datasets[dataset]["N_trains"]):
+                    if (DATA_SAMPLING_SCHEME == "EQUAL"):
+                        dict_datasets[dataset]["iter"] = 0
+                        random.shuffle(dict_datasets[dataset]["sample_list"])
+                    elif (
+                        (DATA_SAMPLING_SCHEME == "CONCATENATE") and 
+                        (dict_datasets[dataset]["completed"] == False)
+                    ):
+                        data_list.remove(dataset)
+
+                    dict_datasets[dataset]["completed"] = True
