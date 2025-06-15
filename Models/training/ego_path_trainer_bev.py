@@ -115,4 +115,36 @@ class EgoPathTrainer():
         )
 
     
+    # Zero gradient
+    def zero_grad(self):
+        self.optimizer.zero_grad()
+
+    # Learning rate adjustment
+    def set_learning_rate(self, learning_rate):
+        self.learning_rate = learning_rate
+
+    # Assign input variables
+    def set_data(self, image, gt):
+        self.image = image
+        self.gt = gt
+
+    # Image agumentations
+    def apply_augmentations(self, is_train):
+        if(is_train):
+            # Augmenting data for training
+            augTrain = Augmentations(
+                is_train = True, 
+                data_type = "KEYPOINTS"
+            )
+            augTrain.setImage(self.image)
+            self.image = augTrain.applyTransformKeypoint(self.image)
+        else:
+            # Augmenting data for testing/validation
+            augVal = Augmentations(
+                is_train = False, 
+                data_type = "KEYPOINTS"
+            )
+            augVal.setImage(self.image)
+            self.image = augVal.applyTransformKeypoint(self.image)
+
     
