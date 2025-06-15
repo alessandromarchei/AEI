@@ -95,3 +95,24 @@ class EgoPathTrainer():
                 print("Loading pre-trained backbone model weights only, EgoPath initialised with random weights")
             else:
                 raise ValueError("Please ensure EgoPath network weights are provided for upstream elements")
+            
+        # Model to device
+        self.model = self.model.to(self.device)
+        
+        # TensorBoard
+        self.writer = SummaryWriter()
+
+        # Learning rate and optimizer
+        self.learning_rate = 0.0001
+        self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
+
+        # Loaders
+        self.image_loader = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ]
+        )
+
+    
+    
