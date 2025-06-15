@@ -158,6 +158,19 @@ Now the frustum is completed, we can conduct BEV transformation based on the 4 s
 
 ## II. Usage
 
+### 1. Args
+
+- `--dataset_dir` : path to **processed** CurveLane dataset directory, including `image`, `visualization` and `drivable_path.json`.
+- `--early_stopping` : optional. For debugging purpose. Force the process to halt upon reaching a certain amount of images.
+
+## 2. Execute
+
+```bash
+# `pov_datasets` includes `CURVELANES` which is the processed CurveLanes directory in this case
+# Process first 100 images, then stop (for a quick run, instead of going through ~100k processed images)
+python3 EgoPath/create_path/CurveLanes/parse_curvelanes_bev.py --dataset_dir ../pov_datasets/CURVELANES --early_stopping 100
+```
+
 ## III. Functions
 
 ### 1. `drawLine(img, line, color, thickness=2)`
