@@ -282,6 +282,7 @@ def main():
 
         # Shuffle overall data list at start of epoch
         random.shuffle(data_list)
+        dict_datasets["data_list_count"] = 0
         
         # Reset all data counters
         dict_datasets["sample_counter"] = 0
@@ -323,3 +324,33 @@ def main():
                         data_list.remove(dataset)
 
                     dict_datasets[dataset]["completed"] = True
+
+            # If we have looped through each dataset at least once - restart the epoch
+            if (all([
+                dict_datasets[dataset]["completed"]
+                for dataset in VALID_DATASET_LIST
+            ])):
+                break
+
+            # Reset the data list count if out of range
+            if (dict_datasets["data_list_count"] >= len(data_list)):
+                dict_datasets["data_list_count"] = 0
+
+            # Fetch data from current processed dataset
+            
+            image = None
+            xs = []
+            ys = []
+            flags = None
+
+            current_dataset = data_list[dict_datasets["data_list_count"]]
+            current_dataset_iter = dict_datasets[current_dataset]["iter"]
+            image, xs, ys, flags = dict_datasets[current_dataset]["loader"].getItem(
+                dict_datasets[current_dataset]["sample_list"][current_dataset_iter],
+                is_train = True
+            )
+            current_dataset_iter += 1
+
+            # Start the training on this data
+
+            
