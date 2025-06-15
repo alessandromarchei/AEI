@@ -374,23 +374,22 @@ def main():
 
             # Logging loss to Tensor Board
             if ((msdict["sample_counter"] + 1) % LOGSTEP_LOSS == 0):
-                trainer.log_loss(log_count + 1)
+                trainer.log_loss(msdict["log_counter"] + 1)
             
             # Logging Visualization to Tensor Board
-            if((count+1) % LOGSTEP_VIS == 0):  
-                trainer.save_visualization(log_count+1)
+            if((msdict["sample_counter"] + 1) % LOGSTEP_VIS == 0):  
+                trainer.save_visualization(msdict["log_counter"] + 1)
             
             # Save model and run Validation on entire validation dataset
-            if ((count+1) % LOGSTEP_MODEL == 0):
+            if ((msdict["sample_counter"] + 1) % LOGSTEP_MODEL == 0):
                 
-                print('\n')
-                print('Iteration:', count+1)
-                print('----- Saving Model -----')
+                print(f"\nIteration: {msdict['sample_counter'] + 1}")
+                print("================ Saving Model ================")
 
                 # Save model
                 model_save_path = os.path.join(
-                    model_save_root_path,
-                    f"iter_{log_count+1}_epoch_{epoch}_step_{count+1}.pth"
+                    MODEL_SAVE_ROOT_PATH,
+                    f"iter_{msdict['log_counter'] + 1}_epoch_{epoch}_step_{msdict['sample_counter'] + 1}.pth"
                 )
                 trainer.save_model(model_save_path)
                 
