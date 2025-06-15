@@ -75,15 +75,15 @@ def main():
     MODEL_SAVE_ROOT_PATH = args.model_save_root_path
 
     # Init metadata for datasets
-    dict_datasets = {}
+    msdict = {}
     for dataset in VALID_DATASET_LIST:
-        dict_datasets[dataset] = {
+        msdict[dataset] = {
             "path_labels" : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
             "path_images" : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH)
         }
 
     # Deal with TEST dataset
-    dict_datasets["TEST"] = {
+    msdict["TEST"] = {
         "list_images" : sorted([
             f for f in pathlib.Path(
                 os.path.join(ROOT_PATH, "TEST")
@@ -95,33 +95,33 @@ def main():
     # Load datasets
     for dataset in VALID_DATASET_LIST:
         this_dataset_loader = LoadDataBEVEgoPath(
-            labels_filepath = dict_datasets[dataset]["path_labels"],
-            images_filepath = dict_datasets[dataset]["path_images"],
+            labels_filepath = msdict[dataset]["path_labels"],
+            images_filepath = msdict[dataset]["path_images"],
             dataset = dataset
         )
         N_trains, N_vals = this_dataset_loader.getItemCount()
         random_sample_list = random.shuffle(list(range(0, N_trains)))
 
-        dict_datasets[dataset]["loader"] = this_dataset_loader
-        dict_datasets[dataset]["N_trains"] = N_trains
-        dict_datasets[dataset]["N_vals"] = N_vals
-        dict_datasets[dataset]["sample_list"] = random_sample_list
+        msdict[dataset]["loader"] = this_dataset_loader
+        msdict[dataset]["N_trains"] = N_trains
+        msdict[dataset]["N_vals"] = N_vals
+        msdict[dataset]["sample_list"] = random_sample_list
 
         print(f"LOADED: {dataset} with {N_trains} train samples, {N_vals} val samples.")
 
     # All datasets - stats
 
-    dict_datasets["Nsum_trains"] = sum([
-        dict_datasets[dataset]["N_trains"]
+    msdict["Nsum_trains"] = sum([
+        msdict[dataset]["N_trains"]
         for dataset in VALID_DATASET_LIST
     ])
-    print(f"Total train samples: {dict_datasets['Nsum_trains']}")
+    print(f"Total train samples: {msdict['Nsum_trains']}")
 
-    dict_datasets["Nsum_vals"] = sum([
-        dict_datasets[dataset]["N_vals"]
+    msdict["Nsum_vals"] = sum([
+        msdict[dataset]["N_vals"]
         for dataset in VALID_DATASET_LIST
     ])
-    print(f"Total val samples: {dict_datasets['Nsum_vals']}")
+    print(f"Total val samples: {msdict['Nsum_vals']}")
 
     # ====================== Training params ====================== #
 
@@ -282,13 +282,13 @@ def main():
 
         # Shuffle overall data list at start of epoch
         random.shuffle(data_list)
-        dict_datasets["data_list_count"] = 0
+        msdict["data_list_count"] = 0
         
         # Reset all data counters
-        dict_datasets["sample_counter"] = 0
+        msdict["sample_counter"] = 0
         for dataset in VALID_DATASET_LIST:
-            dict_datasets[dataset]["iter"] = 0
-            dict_datasets[dataset]["completed"] = False
+            msdict[dataset]["iter"] = 0
+            msdict[dataset]["completed"] = False
 
         # Checking data sampling scheme
         if(
@@ -304,37 +304,37 @@ def main():
         while (True):
 
             # Log count
-            dict_datasets["sample_counter"] += 1
-            dict_datasets["log_counter"] = (
-                dict_datasets["sample_counter"] + \
-                dict_datasets["Nsum_trains"] * epoch
+            msdict["sample_counter"] += 1
+            msdict["log_counter"] = (
+                msdict["sample_counter"] + \
+                msdict["Nsum_trains"] * epoch
             )
 
             # Reset iterators and shuffle individual datasets
             # based on data sampling scheme
             for dataset in VALID_DATASET_LIST:
-                if (dict_datasets[dataset]["iter"] == dict_datasets[dataset]["N_trains"]):
+                if (msdict[dataset]["iter"] == msdict[dataset]["N_trains"]):
                     if (DATA_SAMPLING_SCHEME == "EQUAL"):
-                        dict_datasets[dataset]["iter"] = 0
-                        random.shuffle(dict_datasets[dataset]["sample_list"])
+                        msdict[dataset]["iter"] = 0
+                        random.shuffle(msdict[dataset]["sample_list"])
                     elif (
                         (DATA_SAMPLING_SCHEME == "CONCATENATE") and 
-                        (dict_datasets[dataset]["completed"] == False)
+                        (msdict[dataset]["completed"] == False)
                     ):
                         data_list.remove(dataset)
 
-                    dict_datasets[dataset]["completed"] = True
+                    msdict[dataset]["completed"] = True
 
             # If we have looped through each dataset at least once - restart the epoch
             if (all([
-                dict_datasets[dataset]["completed"]
+                msdict[dataset]["completed"]
                 for dataset in VALID_DATASET_LIST
             ])):
                 break
 
             # Reset the data list count if out of range
-            if (dict_datasets["data_list_count"] >= len(data_list)):
-                dict_datasets["data_list_count"] = 0
+            if (msdict["data_list_count"] >= len(data_list)):
+                msdict["data_list_count"] = 0
 
             # Fetch data from current processed dataset
             
@@ -343,14 +343,197 @@ def main():
             ys = []
             flags = None
 
-            current_dataset = data_list[dict_datasets["data_list_count"]]
-            current_dataset_iter = dict_datasets[current_dataset]["iter"]
-            image, xs, ys, flags = dict_datasets[current_dataset]["loader"].getItem(
-                dict_datasets[current_dataset]["sample_list"][current_dataset_iter],
+            current_dataset = data_list[msdict["data_list_count"]]
+            current_dataset_iter = msdict[current_dataset]["iter"]
+            image, xs, ys, flags = msdict[current_dataset]["loader"].getItem(
+                msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
             current_dataset_iter += 1
 
             # Start the training on this data
 
+            # Assign data
+            trainer.set_data(image, xs, ys, flags)
             
+            # Augment image
+            trainer.apply_augmentations(is_train = True)
+            
+            # Converting to tensor and loading
+            trainer.load_data()
+
+            # Run model and get loss
+            trainer.run_model()
+            
+            # Gradient accumulation
+            trainer.loss_backward()
+
+            # Simulating batch size through gradient accumulation
+            if ((msdict["sample_counter"] + 1) % batch_size == 0):
+                trainer.run_optimizer()
+
+            # Logging loss to Tensor Board
+            if ((msdict["sample_counter"] + 1) % LOGSTEP_LOSS == 0):
+                trainer.log_loss(log_count + 1)
+            
+            # Logging Visualization to Tensor Board
+            if((count+1) % LOGSTEP_VIS == 0):  
+                trainer.save_visualization(log_count+1)
+            
+            # Save model and run Validation on entire validation dataset
+            if ((count+1) % LOGSTEP_MODEL == 0):
+                
+                print('\n')
+                print('Iteration:', count+1)
+                print('----- Saving Model -----')
+
+                # Save model
+                model_save_path = os.path.join(
+                    model_save_root_path,
+                    f"iter_{log_count+1}_epoch_{epoch}_step_{count+1}.pth"
+                )
+                trainer.save_model(model_save_path)
+                
+                # Set model to eval mode
+                trainer.set_eval_mode()
+
+                # # Running test
+                # print('----- Running Testing -----')
+                # for i in range(0, len(test_images_list)):
+                    
+                #     test_image_save_path = os.path.join(
+                #         test_images_save_root_path,
+                #         f"iter_{log_count+1}_epoch_{epoch}_step_{count+1}_{i}.png"
+                #     )
+
+                #     test_image_path = str(test_images_list[i])
+                #     trainer.test(test_image_path, test_image_save_path)
+
+                # Validation metrics for each dataset
+                # val_bdd100k_running = 0
+                # num_val_bdd100k_samples = 0
+
+                # val_comma2k19_running = 0
+                # num_val_comma2k19_samples = 0
+
+                # val_culane_running = 0
+                # num_val_culane_samples = 0
+
+                val_curvelanes_running = 0
+                num_val_curvelanes_samples = 0
+
+                # val_roadwork_running = 0
+                # num_val_roadwork_samples = 0
+
+                # val_tusimple_running = 0
+                # num_val_tusimple_samples = 0
+
+                # Temporarily disable gradient computation for backpropagation
+                with torch.no_grad():
+
+                    print('----- Running validation calculation -----')
+                    # Compute val loss per dataset
+                    
+                    # # BDD100K
+                    # for val_count in range(0, bdd100k_num_val_samples):
+                    #     image, gt, is_valid = bdd100k_Dataset.getItem(val_count, is_train=False)
+
+                    #     if(is_valid):
+                    #         num_val_bdd100k_samples += 1
+                    #         val_metric = trainer.validate(image, gt)
+                    #         val_bdd100k_running = val_bdd100k_running + val_metric
+                    
+                    # # COMMA2K19
+                    # for val_count in range(0, comma2k19_num_val_samples):
+                    #     image, gt, is_valid = comma2k19_Dataset.getItem(val_count, is_train=False)
+
+                    #     if(is_valid):
+                    #         num_val_comma2k19_samples += 1
+                    #         val_metric = trainer.validate(image, gt)
+                    #         val_comma2k19_running = val_comma2k19_running + val_metric
+                    
+                    # # CULANE
+                    # for val_count in range(0, culane_num_val_samples):
+                    #     image, gt, is_valid = culane_Dataset.getItem(val_count, is_train=False)
+
+                    #     if(is_valid):
+                    #         num_val_culane_samples += 1
+                    #         val_metric = trainer.validate(image, gt)
+                    #         val_culane_running = val_culane_running + val_metric
+                    
+                    # CURVELANES
+                    for val_count in range(0, curvelanes_num_val_samples):
+                        image, gt, is_valid = curvelanes_Dataset.getItem(val_count, is_train=False)
+
+                        if(is_valid):
+                            num_val_curvelanes_samples += 1
+                            val_metric = trainer.validate(image, gt)
+                            val_curvelanes_running = val_curvelanes_running + val_metric
+                    
+                    # # ROADWORK
+                    # for val_count in range(0, roadwork_num_val_samples):
+                    #     image, gt, is_valid = roadwork_Dataset.getItem(val_count, is_train=False)
+
+                    #     if(is_valid):
+                    #         num_val_roadwork_samples += 1
+                    #         val_metric = trainer.validate(image, gt)
+                    #         val_roadwork_running = val_roadwork_running + val_metric
+                    
+                    # # TUSIMPLE
+                    # for val_count in range(0, tusimple_num_val_samples):
+                    #     image, gt, is_valid = tusimple_Dataset.getItem(val_count, is_train=False)
+
+                    #     if(is_valid):
+                    #         num_val_tusimple_samples += 1
+                    #         val_metric = trainer.validate(image, gt)
+                    #         val_tusimple_running = val_tusimple_running + val_metric
+                    
+                    # Calculate final validation scores for network on each dataset
+                    # as well as overall validation score - A lower score is better
+                    # bdd100k_val_score = val_bdd100k_running/num_val_bdd100k_samples
+                    # comma2k19_val_score = val_comma2k19_running/num_val_comma2k19_samples
+                    # culane_val_score = val_culane_running/num_val_culane_samples
+                    curvelanes_val_score = val_curvelanes_running/num_val_curvelanes_samples
+                    # roadwork_val_score = val_roadwork_running/num_val_roadwork_samples
+                    # tusimple_val_score = val_tusimple_running/num_val_tusimple_samples
+
+                    # Ovearll validation metric
+                    # val_overall_running = val_bdd100k_running + val_comma2k19_running + \
+                    #     val_culane_running + val_curvelanes_running + val_roadwork_running + \
+                    #     val_tusimple_running
+                    val_overall_running = val_curvelanes_running
+                    
+                    # num_val_overall_samples = num_val_bdd100k_samples + num_val_comma2k19_samples + \
+                    #     num_val_culane_samples + num_val_curvelanes_samples + num_val_roadwork_samples + \
+                    #     num_val_tusimple_samples
+                    num_val_overall_samples = num_val_curvelanes_samples
+                    
+                    overall_validation_score = val_overall_running/num_val_overall_samples
+                    
+                    print('---------- Complete - Validation Scores ----------')
+                    # print('BDD100K: ', bdd100k_val_score)
+                    # print('COMM2K19: ', comma2k19_val_score)
+                    # print('CULANE: ', culane_val_score)
+                    # print('CURVELANES: ', curvelanes_val_score)
+                    # print('ROADWORK: ', roadwork_val_score)
+                    # print('TUSIMPLE: ', tusimple_val_score)
+                    print('OVERALL:', overall_validation_score)
+                    print('\n')
+
+                    # Logging average metrics
+                    trainer.log_validation(
+                        log_count, 
+                        # bdd100k_val_score, 
+                        # comma2k19_val_score,
+                        # culane_val_score, 
+                        # curvelanes_val_score, 
+                        # roadwork_val_score,
+                        # tusimple_val_score, 
+                        overall_validation_score
+                    )
+
+                # Switch back to training
+                print('----- Continuing with training -----')
+                trainer.set_train_mode()
+            
+            data_list_count += 1
