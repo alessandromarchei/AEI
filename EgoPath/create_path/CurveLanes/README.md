@@ -53,41 +53,67 @@ python3 EgoPath/create_path/CurveLanes/process_curvelanes.py --dataset_dir ../po
 ## III. Functions
 
 ### 1. `normalizeCoords(lane, width, height)`
-- **Description**: Normalizes lane coordinates to a scale of `[0, 1]` based on image dimensions.
+- **Description**: normalizes lane coordinates to a scale of `[0, 1]` based on image dimensions.
 - **Parameters**:
-    - `lane` (list of tuples): List of `(x, y)` points defining a lane.
-    - `width` (int): Width of the image.
-    - `height` (int): Height of the image.
-- **Returns**: A list of normalized `(x, y)` points.
+    - `lane` (list of tuples): list of `(x, y)` points defining a lane.
+    - `width` (int): width of the image.
+    - `height` (int): height of the image.
+- **Returns**: a list of normalized `(x, y)` points.
 
 ### 2. `getLaneAnchor(lane, new_img_height)`
-- **Description**: Determines the "anchor" point of a lane, which helps in lane classification.
+- **Description**: determines the "anchor" point of a lane, which helps in lane classification.
 - **Parameters**:
-    - `lane` (list of tuples): List of `(x, y)` points representing a lane.
-    - `new_img_height` (int): Height of the resized or cropped image.
-- **Returns**: A tuple `(x0, a, b)` representing the x-coordinate of the anchor and the linear equation parameters `a` and `b` for the lane.
+    - `lane` (list of tuples): list of `(x, y)` points representing a lane.
+    - `new_img_height` (int): height of the resized or cropped image.
+- **Returns**: a tuple `(x0, a, b)` representing the x-coordinate of the anchor and the linear equation parameters `a` and `b` for the lane.
 
 ### 3. `getEgoIndexes(anchors, new_img_width)`
-- **Description**: Identifies two ego lanes (left and right) from a sorted list of lane anchors.
+- **Description**: identifies two ego lanes (left and right) from a sorted list of lane anchors.
 - **Parameters**:
-    - `anchors` (list of tuples): List of lane anchors sorted by x-coordinate.
-    - `new_img_width` (int): Width of the processed image.
-- **Returns**: A tuple `(left_ego_idx, right_ego_idx)` with the indexes of the two ego lanes or an error message if lanes are missing.
+    - `anchors` (list of tuples): list of lane anchors sorted by x-coordinate.
+    - `new_img_width` (int): width of the processed image.
+- **Returns**: a tuple `(left_ego_idx, right_ego_idx)` with the indexes of the two ego lanes or an error message if lanes are missing.
 
 ### 4. `getDrivablePath(left_ego, right_ego, new_img_height, new_img_width, y_coords_interp=False)`
-- **Description**: Computes the drivable path as the midpoint between two ego lanes.
+- **Description**: computes the drivable path as the midpoint between two ego lanes.
 - **Parameters**:
-    - `left_ego` (list of tuples): Points of the left ego lane.
-    - `right_ego` (list of tuples): Points of the right ego lane.
-    - `new_img_height` (int): Height of the processed image.
-    - `new_img_width` (int): Width of the processed image.
-    - `y_coords_interp` (bool, optional): Whether to interpolate y-coordinates for smoother curves. Defaults to `False`.
-- **Returns**: A list of `(x, y)` points representing the drivable path, or an error message if the path violates heuristics.
+    - `left_ego` (list of tuples): points of the left ego lane.
+    - `right_ego` (list of tuples): points of the right ego lane.
+    - `new_img_height` (int): height of the processed image.
+    - `new_img_width` (int): width of the processed image.
+    - `y_coords_interp` (bool, optional): whether to interpolate y-coordinates for smoother curves. Defaults to `False`.
+- **Returns**: a list of `(x, y)` points representing the drivable path, or an error message if the path violates heuristics.
 
 ### 5. `annotateGT(raw_img, anno_entry, raw_dir, visualization_dir, mask_dir, init_img_width, init_img_height, normalized=True, resize=None, crop=None)`
-- **Description**: Annotates and saves an image with lane markings, drivable path, and segmentation mask.
+- **Description**: annotates and saves an image with lane markings, drivable path, and segmentation mask.
 - **Parameters**:
-    - `raw_img` (PIL.Image): The original image.
+    - `raw_img` (PIL.Image): the original image.
+    - `anno_entry` (dict): annotation data including lanes and drivable path.
+    - `raw_dir` (str): directory to save raw images.
+    - `visualization_dir` (str): directory to save annotated images.
+    - `mask_dir` (str): directory to save segmentation masks.
+    - `init_img_width` (int): original width of the image.
+    - `init_img_height` (int): original height of the image.
+    - `normalized` (bool, optional): whether coordinates are normalized. Defaults to `True`.
+    - `resize` (float, optional): resize factor. Defaults to `None`.
+    - `crop` (dict, optional): cropping dimensions. Defaults to `None`.
+- **Returns**: None
+
+# CurveLane Dataset BEV (Bird-Eyes-View) Processing Script
+
+## Overview
+
+## I. Algorithm
+
+## II. Usage
+
+## III. Functions
+
+### 1. `drawLine(img, line, color, thickness=2)`
+
+- **Description**: draws a polyline on an image given a list of points.
+- **Parameters**:
+    - `img` (np.ndarray): The image on which to draw the line.
     - `anno_entry` (dict): Annotation data including lanes and drivable path.
     - `raw_dir` (str): Directory to save raw images.
     - `visualization_dir` (str): Directory to save annotated images.
