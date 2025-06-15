@@ -131,3 +131,52 @@ python3 EgoPath/create_path/CurveLanes/process_curvelanes.py --dataset_dir ../po
     - `normalized` (bool): whether the coords are normalized to `[0, 1]`.
 - **Returns**: None
 
+### 3. `interpX(line, y)`
+
+- **Description**: interpolates the x-value of a line at a given y-coordinate.
+- **Parameters**:
+    - `line` (list): a list of `(x, y)` tuples representing the line points.
+    - `y` (float): the y-value at which to interpolate the x-value.
+- **Returns**: the interpolated x-value as a `float`.
+
+### 4. `polyfit_BEV(bev_egopath, order, y_step, y_limit)`
+
+- **Description**: fits a polynomial curve to the BEV path and generates evenly spaced points along the y-axis.
+- **Parameters**:
+    - `bev_egopath` (list): list of `(x, y)` points in BEV space.
+    - `order` (int): order of the polynomial fit, preferrably `2`.
+    - `y_step` (int): step size between y-values.
+    - `y_limit` (int): maximum y-value for interpolation.
+- **Returns**:
+    - `fitted_bev_egopath` (tuple): tuple of fitted `(x, y)` points.
+    - `flag_list` (list): list of booleans indicating whether each x is within valid bounds.
+
+### 5. `imagePointTuplize(point)`
+
+- **Description**: converts a point's coordinates to integers for image operations.
+- **Parameters**:
+    - `point` (tuple): a `(float, float)` point to be converted.
+- **Returns**: an `(int, int)` tuple of the converted point.
+
+### 6. `findSourcePointsBEV(h, w, egoleft, egoright)`
+
+- **Description**: computes four source points for homography transformation to BEV space.
+- **Parameters**:
+    - `h` (int): height of the image.
+    - `w` (int): width of the image.
+    - `egoleft` (list): normalized points representing the left ego lane.
+    - `egoright` (list): normalized points representing the right ego lane.
+- **Returns**: a dictionary with keys `LS`, `RS`, `LE`, `RE` for source points, and `ego_h` for ego lane height.
+
+### 7. `transformBEV(img, egopath, sps)`
+
+- **Description**: applies a perspective transform to convert the image and drivable path into BEV space.
+- **Parameters**:
+    - `img` (np.ndarray): original perspective-view image.
+    - `egopath` (list): drivable path in normalized coordinates.
+    - `sps` (dict): source points for the homography transform.
+- **Returns**:
+    - `im_dst` (np.ndarray): transformed BEV image.
+    - `bev_egopath` (list): polyfitted drivable path in BEV space.
+    - `flag_list` (list): boolean list indicating valid x-values in BEV space.
+    - `mat` (np.ndarray): homography matrix used for the transformation.
