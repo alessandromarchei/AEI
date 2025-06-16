@@ -93,6 +93,10 @@ class DomainSegTrainer():
         self.image = image
         self.gt = gt
 
+    # Set learning rate
+    def set_learning_rate(self, learning_rate):
+        self.learning_rate = learning_rate
+
     # Image agumentations
     def apply_augmentations(self, is_train):
 
@@ -220,7 +224,6 @@ class DomainSegTrainer():
 
     # Logging Training Loss
     def log_loss(self, log_count):
-        print('Logging Training Loss', log_count, self.get_loss())
         self.writer.add_scalar("Loss/train",self.get_loss(), (log_count))
 
     # Logging Validation mIoU Score

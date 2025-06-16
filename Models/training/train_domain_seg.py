@@ -55,12 +55,13 @@ def main():
     #    load_from_checkpoint = True
 
     # Pre-trained model checkpoint path
-    pretrained_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth' #args.pretrained_checkpoint_path
-    checkpoint_path = 0 #args.checkpoint_path
+    pretrained_checkpoint_path = 0##'/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth' args.pretrained_checkpoint_path
+    checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/DomainSeg/models/iter_72679_epoch_9_step_7267.pth' #args.pretrained_checkpoint_path
+    
 
     # Trainer Class
     trainer = 0
-    if(load_from_checkpoint == False):
+    if(load_from_checkpoint == True):
         trainer = DomainSegTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
     else:
         trainer = DomainSegTrainer(checkpoint_path=checkpoint_path, is_pretrained=True)
@@ -72,7 +73,7 @@ def main():
     batch_size = 24
 
     # Epochs
-    for epoch in range(0, num_epochs):
+    for epoch in range(10, num_epochs):
 
         # Printing epochs
         print('Epoch: ', epoch + 1)
@@ -106,7 +107,7 @@ def main():
             apply_augmentations = False
 
         # Loop through data
-        for count in range(0, 50):
+        for count in range(0, total_train_samples):
 
             # Log counter
             log_count = count + total_train_samples*epoch
@@ -117,7 +118,7 @@ def main():
             # dataset iterators
 
             # Get data
-            image, gt = roadwork_Dataset.getItemTrain(count)
+            image, gt = roadwork_Dataset.getItemTrain(randomlist_train_data[count])
             
             # Assign Data
             trainer.set_data(image, gt)
