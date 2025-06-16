@@ -26,16 +26,16 @@ def main():
     root = '/mnt/media/DomainSeg/' #args.root
 
     # Model save path
-    model_save_root_path = 'home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/DomainSeg/models/'#args.model_save_root_path
+    model_save_root_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/DomainSeg/models/'#args.model_save_root_path
 
     # Data paths
     # ROADWork data
-    roadwork_labels_filepath = root + 'ROADWork/label/'
-    roadwork_images_filepath = root + 'ROADWork/image/'
+    roadwork_labels_filepath = root + 'ROADWork_V2/labels/'
+    roadwork_images_filepath = root + 'ROADWork_V2/images/'
 
     # Test data
-    test_images = root + '/Test/'
-    test_images_save_path = 'home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/DomainSeg/test/'#args.test_images_save_path
+    test_images = root + 'Test/'
+    test_images_save_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/DomainSeg/test/'#args.test_images_save_path
 
     # ROADWork - Data Loading
     roadwork_Dataset = LoadDataDomainSeg(roadwork_labels_filepath, roadwork_images_filepath)
@@ -106,7 +106,7 @@ def main():
             apply_augmentations = False
 
         # Loop through data
-        for count in range(0, total_train_samples):
+        for count in range(0, 50):
 
             # Log counter
             log_count = count + total_train_samples*epoch
@@ -118,11 +118,6 @@ def main():
 
             # Get data
             image, gt = roadwork_Dataset.getItemTrain(count)
-            plt.figure()
-            plt.imshow(image)
-            plt.figure()
-            plt.imshow(gt)
-            print(gt)
             
             # Assign Data
             trainer.set_data(image, gt)
@@ -178,9 +173,9 @@ def main():
         # No gradient calculation
         with torch.no_grad():
 
-            # ACDC
+            # ROADWork
             for val_count in range(0, roadwork_num_val_samples):
-                image_val, gt_val = roadwork_num_val_samples.getItemVal(val_count)
+                image_val, gt_val = roadwork_Dataset.getItemVal(val_count)
 
                 # Run Validation and calculate IoU Score
                 IoU_score = trainer.validate(image_val, gt_val)
@@ -190,6 +185,7 @@ def main():
             
             # Calculating average loss of complete validation set
             mIoU = running_IoU/total_val_samples
+            print('mIoU: ', mIoU)
           
             # Logging average validation loss to TensorBoard
             trainer.log_IoU(mIoU, log_count)
