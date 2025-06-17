@@ -174,7 +174,6 @@ class EgoPathTrainer():
 
     # Calculate loss
     def calc_loss(self, prediction, xs, flags):
-
         self.data_loss = self.calc_data_loss(prediction, xs, flags)
         self.smoothing_loss = self.calc_smoothing_loss(prediction, xs, flags)
         self.flag_loss = self.calc_flag_loss(prediction, flags)
@@ -197,3 +196,14 @@ class EgoPathTrainer():
         self.data_loss_scale_factor = data_loss_scale_factor
         self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
         self.flag_loss_scale_factor = flag_loss_scale_factor
+
+    # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
+    def set_gradient_loss_type(self, type):
+        if (type == "NUMERICAL"):
+            self.gradient_type = "NUMERICAL"
+        elif(type == "ANALYTICAL"):
+            self.gradient_type = "ANALYTICAL"
+        else:
+            raise ValueError("Please specify either NUMERICAL or ANALYTICAL gradient loss as a string")
+        
+    
