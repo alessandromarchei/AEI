@@ -51,6 +51,11 @@ class EgoPathTrainer():
         self.flag_loss = 0
         self.gradient_type = "NUMERICAL"
 
+        # Loss scale factors
+        self.data_loss_scale_factor = 1.0
+        self.smoothing_loss_scale_factor = 1.0
+        self.flag_loss_scale_factor = 1.0
+
         # Checking devices (GPU vs CPU)
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() 
@@ -124,77 +129,71 @@ class EgoPathTrainer():
         self.learning_rate = learning_rate
 
     # Assign input variables
-    def set_data(self, image, gt):
+    def set_data(self, image, xs, ys, flags):
         self.image = image
-        self.gt = gt
+        self.xs = xs
+        self.ys = ys
+        self.flags = flags
 
     # Image agumentations
     def apply_augmentations(self, is_train):
-        if(is_train):
-            # Augmenting data for training
-            augTrain = Augmentations(
-                is_train = True, 
-                data_type = "KEYPOINTS"
-            )
-            augTrain.setImage(self.image)
-            self.image = augTrain.applyTransformKeypoint(self.image)
-        else:
-            # Augmenting data for testing/validation
-            augVal = Augmentations(
-                is_train = False, 
-                data_type = "KEYPOINTS"
-            )
-            augVal.setImage(self.image)
-            self.image = augVal.applyTransformKeypoint(self.image)
+        # Augmenting data for train or val/test
+        aug = Augmentations(
+            is_train = is_train, 
+            data_type = "KEYPOINTS"
+        )
+        aug.setImage(self.image)
+        self.image = aug.applyTransformKeypoint(self.image)
 
-    # Load Data as Pytorch Tensors
+    # Load data as Pytorch tensors
     def load_data(self):
-        
-        # Converting image to Pytorch Tensor
+        # Converting image to Pytorch tensor
         image_tensor = self.image_loader(self.image)
         image_tensor = image_tensor.unsqueeze(0)
         self.image_tensor = image_tensor.to(self.device)
 
-        # Converting keypoint list to Pytorch Tensor
-        # List is in x0,y0,x1,y1,....xn, yn format
-        gt_tensor = torch.from_numpy(self.gt)
-        gt_tensor = gt_tensor.unsqueeze(0)
-        self.gt_tensor = gt_tensor.to(self.device)
+        # Converting gt lists to Pytorch Tensor
+        # Xs
+        xs_tensor = torch.from_numpy(self.xs)
+        xs_tensor = xs_tensor.unsqueeze(0)
+        self.xs_tensor = xs_tensor.to(self.device)
+
+        # Flags
+        flags_tensor = torch.from_numpy(self.flags)
+        flags_tensor = flags_tensor.unsqueeze(0)
+        self.flags_tensor = flags_tensor.to(self.device)
     
     # Run Model
     def run_model(self):
         self.prediction = self.model(self.image_tensor)
-        self.loss = self.calc_loss(self.prediction, self.gt_tensor)
+        self.loss = self.calc_loss(
+            self.prediction, 
+            self.xs_tensor,
+            self.flags_tensor
+        )
 
     # Calculate loss
-    def calc_loss(self, prediction, ground_truth):
+    def calc_loss(self, prediction, xs, flags):
 
-        # Endpoint loss - align the end control point of the Prediciton
-        # vs Ground Truth Bezier Curves
-        #self.endpoint_loss = self.calc_endpoints_loss(prediction, ground_truth)
+        self.data_loss = self.calc_data_loss(prediction, xs, flags)
+        self.smoothing_loss = self.calc_smoothing_loss(prediction, xs, flags)
+        self.flag_loss = self.calc_flag_loss(prediction, flags)
 
-        # Mid-point loss - similar to the BezierLaneNet paper, this loss ensures that
-        # points along the curve have small x and y deviation - also acts as a regulariation term
-        #self.mid_point_loss = self.calc_mid_points_loss(prediction, ground_truth)
+        total_loss = (
+            self.data_loss * self.data_loss_scale_factor + \
+            self.smoothing_loss * self.smoothing_loss_scale_factor + \
+            self.flag_loss * self.flag_loss_scale_factor
+        )
 
-        # Gradient Loss - either NUMERICAL tangent angle calcualation or
-        # ANALYTICAL derviative of bezier curve, this loss ensures the curve is 
-        # smooth and acts as a regularization term
-        #if(self.gradient_type == 'NUMERICAL'):
-        #    self.gradient_loss = self.calc_numerical_gradient_loss(prediction, ground_truth)
-        #elif(self.gradient_type == 'ANALYTICAL'):
-        #    self.gradient_loss = self.calc_analytical_gradient_loss(prediction, ground_truth)
-
-        # Total loss is sum of individual losses multiplied by scailng factors
-        #total_loss = self.gradient_loss*self.grad_scale_factor + \
-        #    self.mid_point_loss*self.mid_point_scale_factor + \
-        #    self.endpoint_loss*self.endpoint_loss_scale_factor
-
-        self.start_point_x_offset_loss = self.calc_start_point_x_offset_loss(prediction, ground_truth)
-        self.heading_angle_loss = self.calc_heading_angle_loss(prediction, ground_truth)
-        #self.endpoint_loss = self.calc_endpoint_loss(prediction, ground_truth)
-
-        #total_loss = self.start_point_x_offset_loss*self.start_point_x_offset_loss_scale_factor + \
-        #            self.endpoint_loss*self.endpoint_loss_scale_factor
-        total_loss = self.start_point_x_offset_loss + self.heading_angle_loss
         return total_loss 
+    
+    # Set scale factors for losses
+    def set_loss_scale_factors(
+        self,
+        data_loss_scale_factor,
+        smoothing_loss_scale_factor,
+        flag_loss_scale_factor
+    ):
+        self.data_loss_scale_factor = data_loss_scale_factor
+        self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
+        self.flag_loss_scale_factor = flag_loss_scale_factor
