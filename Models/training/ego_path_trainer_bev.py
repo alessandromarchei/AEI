@@ -253,3 +253,17 @@ class EgoPathTrainer():
     def get_flag_loss(self):
         scaled_flag_loss = self.flag_loss * self.flag_loss_scale_factor
         return scaled_flag_loss.item()
+    
+    # Logging all losses
+    def log_loss(self, log_count):
+        self.writer.add_scalars(
+            "Train", {
+                "total_loss" : self.get_loss(),
+                "data_loss" : self.get_data_loss(),
+                "smoothing_loss" : self.get_smoothing_loss(),
+                "flag_loss" : self.get_flag_loss()
+            }, 
+            (log_count)
+        )
+
+    
