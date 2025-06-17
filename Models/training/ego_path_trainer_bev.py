@@ -290,3 +290,12 @@ class EgoPathTrainer():
         self.writer.flush()
         self.writer.close()
         print("Finished training")
+
+    # Save predicted visualization
+    def save_visualization(self, log_count):
+
+        # Get pred/gt tensors and detach em
+        pred_xs = self.prediction.cpu().detach().numpy()
+        gt_xs = self.xs_tensor.cpu().detach().numpy()
+
+        
