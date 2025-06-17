@@ -266,4 +266,27 @@ class EgoPathTrainer():
             (log_count)
         )
 
-    
+    # Run optimizer
+    def run_optimizer(self):
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+
+    # Set train mode
+    def set_train_mode(self):
+        self.model = self.model.train()
+
+    # Set evaluation mode
+    def set_eval_mode(self):
+        self.model = self.model.eval()
+
+    # Save model
+    def save_model(self, model_save_path):
+        torch.save(
+            self.model.state_dict(), 
+            model_save_path
+        )
+
+    def cleanup(self):
+        self.writer.flush()
+        self.writer.close()
+        print("Finished training")
