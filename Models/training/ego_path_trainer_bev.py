@@ -230,3 +230,26 @@ class EgoPathTrainer():
         )
 
         return loss
+    
+    # Loss backward pass
+    def loss_backward(self):
+        self.loss.backward()
+
+    # Get total loss value
+    def get_loss(self):
+        return self.loss.item()
+
+    # Get data loss
+    def get_data_loss(self):
+        scaled_data_loss = self.data_loss * self.data_loss_scale_factor
+        return scaled_data_loss.item()
+    
+    # Get smoothing (gradient) loss
+    def get_smoothing_loss(self):
+        scaled_smoothing_loss = self.smoothing_loss * self.smoothing_loss_scale_factor
+        return scaled_smoothing_loss.item()
+    
+    # Get flag loss
+    def get_flag_loss(self):
+        scaled_flag_loss = self.flag_loss * self.flag_loss_scale_factor
+        return scaled_flag_loss.item()
