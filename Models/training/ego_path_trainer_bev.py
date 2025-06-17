@@ -206,4 +206,27 @@ class EgoPathTrainer():
         else:
             raise ValueError("Please specify either NUMERICAL or ANALYTICAL gradient loss as a string")
         
-    
+    # Data loss - MAE between x-point GTs and preds
+    def calc_data_loss(self, pred_xs, gt_xs):
+        return torch.abs(pred_xs - gt_xs).mean()
+
+    # Smoothing loss - MAE between gradient angle (tangent angle) of point pairs between GTs and preds
+    def calc_smoothing_loss(self, pred_xs, gt_xs):
+        pred_gradients = pred_xs[1 : ] - pred_xs[ : -1]
+        gt_gradients = gt_xs[1 : ] - gt_xs[ : -1]
+
+        loss = torch.abs(pred_gradients - gt_gradients).mean()
+
+        return loss
+
+    # Flags loss - binary cross entropy loss
+    def calc_flag_loss(self, pred_flags, gt_flags):
+        pred_flags_tensor = torch.tensor(pred_flags, dtype = torch.float32)
+        gt_flags_tensor = torch.tensor(gt_flags, dtype = torch.float32)
+
+        loss = torch.nn.functional.binary_cross_entropy(
+            pred_flags_tensor,
+            gt_flags_tensor
+        )
+
+        return loss
