@@ -20,8 +20,10 @@ class DomainSegTrainer():
         # Image and ground truth as Numpy arrays and Pytorch tensors
         self.image = 0
         self.gt = 0
+        self.class_weights = 0
         self.image_tensor = 0
         self.gt_tensor = 0
+        self.class_weights_tensor = 0
 
         # Loss and prediction
         self.loss = 0
@@ -89,9 +91,10 @@ class DomainSegTrainer():
         )
 
     # Assign input variables
-    def set_data(self, image, gt):
+    def set_data(self, image, gt, class_weights):
         self.image = image
         self.gt = gt
+        self.class_weights = class_weights
 
     # Set learning rate
     def set_learning_rate(self, learning_rate):
