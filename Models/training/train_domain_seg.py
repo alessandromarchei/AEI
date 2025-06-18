@@ -30,8 +30,8 @@ def main():
 
     # Data paths
     # ROADWork data
-    roadwork_labels_filepath = root + 'ROADWork_V2/labels/'
-    roadwork_images_filepath = root + 'ROADWork_V2/images/'
+    roadwork_labels_filepath = root + 'ROADWork_Processed/label/'
+    roadwork_images_filepath = root + 'ROADWork_Processed/image/'
 
     # Test data
     test_images = root + 'Test/'
@@ -61,7 +61,7 @@ def main():
 
     # Trainer Class
     trainer = 0
-    if(load_from_checkpoint == True):
+    if(load_from_checkpoint == False):
         trainer = DomainSegTrainer(pretrained_checkpoint_path=pretrained_checkpoint_path)
     else:
         trainer = DomainSegTrainer(checkpoint_path=checkpoint_path, is_pretrained=True)
@@ -69,11 +69,11 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 20
+    num_epochs = 30
     batch_size = 24
 
     # Epochs
-    for epoch in range(10, num_epochs):
+    for epoch in range(0, num_epochs):
 
         # Printing epochs
         print('Epoch: ', epoch + 1)
@@ -107,8 +107,7 @@ def main():
             apply_augmentations = False
 
         # Loop through data
-        #for count in range(0, total_train_samples):
-        for count in range(0, 1):
+        for count in range(0, total_train_samples):
 
             # Log counter
             log_count = count + total_train_samples*epoch
@@ -127,7 +126,6 @@ def main():
             # Augmenting Image
             trainer.apply_augmentations(apply_augmentations)
 
-            '''
             # Converting to tensor and loading
             trainer.load_data()
 
@@ -148,10 +146,10 @@ def main():
             # Logging Image to Tensor Board every 1000 steps
             if((count+1) % 1000 == 0):  
                 trainer.save_visualization(log_count)
-            '''
+            
         # Save model and run validation on entire validation 
         # dataset after each epoch
-        '''
+        
         # Save Model
         model_save_path = model_save_root_path + 'iter_' + \
             str(count + total_train_samples*epoch) \
@@ -178,10 +176,10 @@ def main():
 
             # ROADWork
             for val_count in range(0, roadwork_num_val_samples):
-                image_val, gt_val = roadwork_Dataset.getItemVal(val_count)
+                image_val, gt_val, class_weights = roadwork_Dataset.getItemVal(val_count)
 
                 # Run Validation and calculate IoU Score
-                IoU_score = trainer.validate(image_val, gt_val)
+                IoU_score = trainer.validate(image_val, gt_val, class_weights)
 
                 # Accumulate individual IoU scores for validation samples
                 running_IoU += IoU_score
@@ -195,7 +193,7 @@ def main():
 
         # Resetting model back to training
         trainer.set_train_mode()
-        '''    
+            
 
     trainer.cleanup()
     
