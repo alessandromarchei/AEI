@@ -5,6 +5,7 @@ import torch
 import random
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt
+import numpy as np
 import sys
 sys.path.append('..')
 from data_utils.load_data_domain_seg import LoadDataDomainSeg
@@ -56,9 +57,8 @@ def main():
 
     # Pre-trained model checkpoint path
     pretrained_checkpoint_path ='/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth' #args.pretrained_checkpoint_path
-    checkpoint_path = 0 #args.pretrained_checkpoint_path
+    checkpoint_path = '0' #args.pretrained_checkpoint_path
     
-
     # Trainer Class
     trainer = 0
     if(load_from_checkpoint == False):
@@ -120,32 +120,34 @@ def main():
             # Get data
             image, gt, class_weights = roadwork_Dataset.getItemTrain(randomlist_train_data[count])
             
-            # Assign Data
-            trainer.set_data(image, gt, class_weights)
-            
-            # Augmenting Image
-            trainer.apply_augmentations(apply_augmentations)
+            if(np.sum(gt[0] > 0)):
 
-            # Converting to tensor and loading
-            trainer.load_data()
+                # Assign Data
+                trainer.set_data(image, gt, class_weights)
+                
+                # Augmenting Image
+                trainer.apply_augmentations(apply_augmentations)
 
-            # Run model and calculate loss
-            trainer.run_model()
-            
-            # Gradient accumulation
-            trainer.loss_backward()
+                # Converting to tensor and loading
+                trainer.load_data()
 
-            # Simulating batch size through gradient accumulation
-            if((count+1) % batch_size == 0):
-                trainer.run_optimizer()
+                # Run model and calculate loss
+                trainer.run_model()
+                
+                # Gradient accumulation
+                trainer.loss_backward()
 
-            # Logging loss to Tensor Board every 250 steps
-            if((count+1) % 250 == 0):
-                trainer.log_loss(log_count)
-            
-            # Logging Image to Tensor Board every 1000 steps
-            if((count+1) % 1000 == 0):  
-                trainer.save_visualization(log_count)
+                # Simulating batch size through gradient accumulation
+                if((count+1) % batch_size == 0):
+                    trainer.run_optimizer()
+
+                # Logging loss to Tensor Board every 250 steps
+                if((count+1) % 250 == 0):
+                    trainer.log_loss(log_count)
+                
+                # Logging Image to Tensor Board every 1000 steps
+                if((count+1) % 1000 == 0): 
+                    trainer.save_visualization(log_count)
             
         # Save model and run validation on entire validation 
         # dataset after each epoch
@@ -170,22 +172,26 @@ def main():
 
         # Overall IoU
         running_IoU = 0
+        num_valid_samples = 0
 
         # No gradient calculation
         with torch.no_grad():
 
             # ROADWork
             for val_count in range(0, roadwork_num_val_samples):
+
                 image_val, gt_val, class_weights = roadwork_Dataset.getItemVal(val_count)
 
-                # Run Validation and calculate IoU Score
-                IoU_score = trainer.validate(image_val, gt_val, class_weights)
+                if(np.sum(gt[0] > 0)):
+                    # Run Validation and calculate IoU Score
+                    IoU_score = trainer.validate(image_val, gt_val, class_weights)
 
-                # Accumulate individual IoU scores for validation samples
-                running_IoU += IoU_score
+                    # Accumulate individual IoU scores for validation samples
+                    running_IoU += IoU_score
+                    num_valid_samples += 1
             
             # Calculating average loss of complete validation set
-            mIoU = running_IoU/total_val_samples
+            mIoU = running_IoU/num_valid_samples
             print('mIoU: ', mIoU)
           
             # Logging average validation loss to TensorBoard
