@@ -231,3 +231,5 @@ class Augmentations():
         if(self.is_train):
             self.add_noise = self.transform_noise_roadwork(image=self.augmented_image)
             self.augmented_image = self.add_noise["image"]
+
+        return self.augmented_image
