@@ -16,6 +16,8 @@ from model_components.scene_seg_network import SceneSegNetwork
 from model_components.ego_path_network import EgoPathNetwork
 from data_utils.augmentations import Augmentations
 
+BEV_FIGSIZE = (4, 8)
+
 
 class EgoPathTrainer():
     def __init__(
@@ -27,6 +29,8 @@ class EgoPathTrainer():
         
         # Image and gts
         self.image = None
+        self.H = None
+        self.W = None
         self.xs = []
         self.ys = []
         self.flags = []
@@ -130,7 +134,10 @@ class EgoPathTrainer():
 
     # Assign input variables
     def set_data(self, image, xs, ys, flags):
+        h, w, _ = image.shape
         self.image = image
+        self.H = h
+        self.W = w
         self.xs = xs
         self.ys = ys
         self.flags = flags
@@ -298,4 +305,46 @@ class EgoPathTrainer():
         pred_xs = self.prediction.cpu().detach().numpy()
         gt_xs = self.xs_tensor.cpu().detach().numpy()
 
-        
+        # GROUNDTRUTH
+
+        # Visualize image
+        fig_gt = plt.figure(figsize = BEV_FIGSIZE)
+        plt.axis("off")
+        plt.imshow(self.image)
+
+        # Plot BEV egopath
+        plt.plot(
+            [x * self.W for x in gt_xs],
+            [y * self. H for y in self.ys],
+            color = "yellow"
+        )
+
+        # Write fig
+        self.writer.add_figure(
+            "Groundtruth",
+            fig_gt,
+            global_step = (log_count)
+        )
+
+        # PREDICTION
+
+        # Visualize image
+        fig_pred = plt.figure(figsize = BEV_FIGSIZE)
+        plt.axis("off")
+        plt.imshow(self.image)
+
+        # Plot BEV egopath
+        plt.plot(
+            [x * self.W for x in pred_xs],
+            [y * self. H for y in self.ys],
+            color = "yellow"
+        )
+
+        # Write fig
+        self.writer.add_figure(
+            "Prediction",
+            fig_pred,
+            global_step = (log_count)
+        )
+
+    
