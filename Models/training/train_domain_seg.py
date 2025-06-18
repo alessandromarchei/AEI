@@ -55,8 +55,8 @@ def main():
     #    load_from_checkpoint = True
 
     # Pre-trained model checkpoint path
-    pretrained_checkpoint_path = 0##'/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth' args.pretrained_checkpoint_path
-    checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/DomainSeg/models/iter_72679_epoch_9_step_7267.pth' #args.pretrained_checkpoint_path
+    pretrained_checkpoint_path ='/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth' #args.pretrained_checkpoint_path
+    checkpoint_path = 0 #args.pretrained_checkpoint_path
     
 
     # Trainer Class
@@ -107,7 +107,8 @@ def main():
             apply_augmentations = False
 
         # Loop through data
-        for count in range(0, total_train_samples):
+        #for count in range(0, total_train_samples):
+        for count in range(0, 1):
 
             # Log counter
             log_count = count + total_train_samples*epoch
@@ -118,14 +119,15 @@ def main():
             # dataset iterators
 
             # Get data
-            image, gt = roadwork_Dataset.getItemTrain(randomlist_train_data[count])
+            image, gt, class_weights = roadwork_Dataset.getItemTrain(randomlist_train_data[count])
             
             # Assign Data
-            trainer.set_data(image, gt)
+            trainer.set_data(image, gt, class_weights)
             
             # Augmenting Image
             trainer.apply_augmentations(apply_augmentations)
 
+            '''
             # Converting to tensor and loading
             trainer.load_data()
 
@@ -146,10 +148,10 @@ def main():
             # Logging Image to Tensor Board every 1000 steps
             if((count+1) % 1000 == 0):  
                 trainer.save_visualization(log_count)
-            
+            '''
         # Save model and run validation on entire validation 
         # dataset after each epoch
-
+        '''
         # Save Model
         model_save_path = model_save_root_path + 'iter_' + \
             str(count + total_train_samples*epoch) \
@@ -193,7 +195,7 @@ def main():
 
         # Resetting model back to training
         trainer.set_train_mode()
-            
+        '''    
 
     trainer.cleanup()
     
