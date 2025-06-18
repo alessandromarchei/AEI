@@ -316,7 +316,7 @@ class EgoPathTrainer():
         # Plot BEV egopath
         plt.plot(
             [x * self.W for x in gt_xs],
-            [y * self. H for y in self.ys],
+            [y * self.H for y in self.ys],
             color = "yellow"
         )
 
@@ -337,7 +337,7 @@ class EgoPathTrainer():
         # Plot BEV egopath
         plt.plot(
             [x * self.W for x in pred_xs],
-            [y * self. H for y in self.ys],
+            [y * self.H for y in self.ys],
             color = "yellow"
         )
 
@@ -396,4 +396,37 @@ class EgoPathTrainer():
             (log_count)
         )
 
-    
+    # Validate network on TEST dataset and visualize result
+    def test(
+        self,
+        image_test,
+        save_path
+    ):
+        
+        # Acquire test image
+        frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        test_H, test_W, _ = frame.shape
+        test_img = Image.fromarray(frame).resize((320, 640))
+
+        # Load as tensor
+        test_img_tensor = self.image_loader(test_img).unsqueeze(0).to(self.device)
+
+        # Model inference
+        test_output = self.model(test_img_tensor).cpu().detach().numpy()
+
+        # Visualize image
+        fig_test = plt.figure(figsize = BEV_FIGSIZE)
+        plt.axis("off")
+        plt.imshow(frame)
+
+        # Plot BEV egopath
+        plt.plot(
+            [x * test_W for x in test_output],
+            [y * test_H for y in self.ys],
+            color = "yellow"
+        )
+
+        # Write fig
+        fig_test.savefig(save_path)
+        plt.close(fig_test)
