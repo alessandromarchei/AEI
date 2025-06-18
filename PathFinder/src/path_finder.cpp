@@ -61,7 +61,7 @@ std::vector<Lane> loadLanesFromYaml(const std::string &filename)
         for (const auto &pt2d : lane2d)
         {
             std::cout << "  [" << pt2d[0].as<double>() << ", " << pt2d[1].as<double>() << "]\n";
-            auto noise = generatePixelNoise(1.0);
+            auto noise = generatePixelNoise(5.0);
             double u = pt2d[0].as<double>() + noise[0];
             double v = pt2d[1].as<double>() + noise[1];
             lane_pixels.emplace_back(cv::Point2f(u,v));
