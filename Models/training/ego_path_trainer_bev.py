@@ -347,4 +347,29 @@ class EgoPathTrainer():
             global_step = (log_count)
         )
 
+    # Run validation with metrics
+    def validate(self, image, gt_xs, gt_ys, gt_flags):
+
+        # Set data
+        self.set_data(image, gt_xs, gt_ys, gt_flags)
+
+        # Augment image
+        self.apply_augmentations(is_train = False)
+
+        # Tensor conversion
+        self.load_data()
+
+        # Run model
+        prediction = self.model(self.image_tensor)
+
+        # Validation loss
+        val_loss_tensor = self.calc_data_loss(
+            prediction,
+            self.xs_tensor
+        )
+
+        val_loss = val_loss_tensor.detach().cpu().numpy()
+
+        return val_loss
+    
     
