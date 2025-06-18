@@ -291,8 +291,7 @@ class DomainSegTrainer():
         forground_mask[foreground_labels[0], foreground_labels[1]] = 255
 
         # Get ground truth
-        gt_vis = self.gt_tensor.squeeze(0).cpu().detach()
-        gt_vis = gt_vis.permute(1,2,0)
+        gt_vis = self.gt[0]
         
         # Create visualization
         # Blending factor
