@@ -4,6 +4,7 @@ import torch
 from torchvision import transforms
 from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
+from train_ego_path_bev import VALID_DATASET_LIST
 import matplotlib.pyplot as plt
 import math
 import cv2
@@ -372,4 +373,27 @@ class EgoPathTrainer():
 
         return val_loss
     
+    # Log val loss to TensorBoard
+    def log_validation(
+        self,
+        log_count,
+        msdict
+    ):
+        # Val score for each dataset
+        val_score_payload = {}
+        for dataset in VALID_DATASET_LIST:
+            val_score_payload[dataset] = msdict[dataset]["val_score"]
+        self.writer.add_scalars(
+            "Val Score - Dataset",
+            val_score_payload,
+            (log_count)
+        )
+
+        # Overall val score
+        self.writer.add_scalar(
+            "Val Score - Overall",
+            msdict["overall_val_score"],
+            (log_count)
+        )
+
     
