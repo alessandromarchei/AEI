@@ -73,6 +73,14 @@ class Augmentations():
             ]
         )
 
+        self.transform_noise_roadwork = A.Compose(
+            [      
+                A.HueSaturationValue(hue_shift_limit=[-180, 180], sat_shift_limit=[-150,150], \
+                    val_shift_limit=[-150, 150], p=1.0),
+                A.ToGray(num_output_channels=3, method='weighted_average', p=0.5)           
+            ]
+        )
+
     # ========================== Data type specific transform functions ========================== #
 
     # Set ground truth and image data
@@ -216,3 +224,10 @@ class Augmentations():
             self.augmented_image = self.adjust_shape["image"]
 
         return self.augmented_image
+    
+    # ADDITIONAL DATA SPECIFIC NOISE
+    # Apply roadwork objects noise for DomainSeg
+    def transformNoiseRoadWork(self):
+        if(self.is_train):
+            self.add_noise = self.transform_noise_roadwork(image=self.augmented_image)
+            self.augmented_image = self.add_noise["image"]
