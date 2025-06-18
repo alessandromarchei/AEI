@@ -52,7 +52,7 @@ class LoadDataDomainSeg():
         foreground_pixels = np.where(mask != 0)
 
         # Image Size
-        row, col, _ = mask.shape
+        row, col = mask.shape
         num_pixels = row*col
 
         class_weights = []
