@@ -367,9 +367,12 @@ def parseAnnotations(
             warnings.warn(f"Parsing {anno_path} : insufficient line amount: {len(read_data)}")
             return None
         else:
-            # Parse data from those JSON lines
+            # Parse data from those JSON lines, also sort by y
             lines = [
-                [(float(point["x"]), float(point["y"])) for point in line]
+                [(float(point["x"]), float(point["y"])) for point in line].sort(
+                    key = lambda x: x[1], 
+                    reverse = True
+                )
                 for line in read_data
             ]
 
