@@ -187,6 +187,7 @@ def findSourcePointsBEV(
     mid_intercept = h - mid_grad * midanchor_start[0]
 
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * 1.05
+    print(f"egoheight = {ego_height} with egoleft[-1][1] = {egoleft[-1][1]} and egoright[-1][1] = {egoright[-1][1]}")
     midanchor_end = [
         (ego_height - mid_intercept) / mid_grad,
         ego_height
@@ -219,10 +220,12 @@ def transformBEV(
     h, w, _ = img.shape
 
     # Renorm/tuplize drivable path
+    print(egopath)
     egopath = [
         (point[0] * w, point[1] * h) for point in egopath
         if (point[1] * h >= sps["ego_h"])
     ]
+    print(egopath)
 
     # Interp more points for original egopath
     egopath = interpLine(egopath, MIN_POINTS)
@@ -356,6 +359,7 @@ if __name__ == "__main__":
     for frame_id, frame_content in json_data.items():
 
         counter += 1
+        print(frame_id)
 
         # Acquire frame
         frame_img_path = os.path.join(
@@ -375,9 +379,11 @@ if __name__ == "__main__":
             egoleft = this_frame_data["egoleft_lane"],
             egoright = this_frame_data["egoright_lane"]
         )
+        print(sps_dict)
 
         # Skip if invalid frame (due to vertical egolines)
         if (not sps_dict):
+            print(f"Skipped frame ID = {frame_id} due to vertical egoline.")
             continue
 
         # Transform to BEV space
