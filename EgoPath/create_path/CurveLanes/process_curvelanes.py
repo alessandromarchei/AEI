@@ -429,9 +429,8 @@ def parseAnnotations(
 
             # Determine drivable path from 2 egos, and switch on interp cuz this is CurveLanes
             drivable_path = getDrivablePath(
-                frame_id,
                 left_ego, right_ego,
-                new_img_height, new_img_width,
+                new_img_height,
                 y_coords_interp = True
             )
 
