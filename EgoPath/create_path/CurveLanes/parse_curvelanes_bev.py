@@ -376,6 +376,10 @@ if __name__ == "__main__":
             egoright = this_frame_data["egoright_lane"]
         )
 
+        # Skip if invalid frame (due to vertical egolines)
+        if (not sps_dict):
+            continue
+
         # Transform to BEV space
         im_dst, bev_egopath, flag_list, mat = transformBEV(
             img = img,
