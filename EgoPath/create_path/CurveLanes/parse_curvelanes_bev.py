@@ -180,8 +180,8 @@ def findSourcePointsBEV(
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
-    left_deg = math.degrees(math.atan(anchor_left[1])) % 180
-    right_deg = math.degrees(math.atan(anchor_right[1])) % 180
+    left_deg = 90 if not anchor_left[1] else math.degrees(math.atan(anchor_left[1])) % 180
+    right_deg = 90 if not anchor_right[1] else math.degrees(math.atan(anchor_right[1])) % 180
     mid_deg = (left_deg + right_deg) / 2
     mid_grad = - math.tan(math.radians(mid_deg))
     mid_intercept = h - mid_grad * midanchor_start[0]
