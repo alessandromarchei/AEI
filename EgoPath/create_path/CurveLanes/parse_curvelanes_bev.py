@@ -172,6 +172,11 @@ def findSourcePointsBEV(
     sps["LS"] = [anchor_left[0], h]
     sps["RS"] = [anchor_right[0], h]
 
+    # Deal with cases when either of 2 egolines are vertical
+    # In these cases, anchor = (x0, None, None)
+    if (not anchor_left[1] or not anchor_right[1]):
+        return None
+
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
