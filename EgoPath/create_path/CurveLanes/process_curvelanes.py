@@ -369,7 +369,7 @@ def parseAnnotations(
         else:
             # Parse data from those JSON lines, also sort by y
             lines = [
-                [(float(point["x"]), float(point["y"])) for point in line].sort(
+                sorted([(float(point["x"]), float(point["y"])) for point in line],
                     key = lambda x: x[1], 
                     reverse = True
                 )
