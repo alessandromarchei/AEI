@@ -107,12 +107,14 @@ class LoadDataBEVEgoPath():
             img = Image.open(str(self.val_images[index])).convert("RGB")
             label = self.val_labels[index]
 
+        W, H = img.size
+
         # Convert image to OpenCV/Numpy format for augmentations
         img = np.array(img)
 
         # Split label to 3 lists
-        xs = [lab[0] for lab in label]
-        ys = [lab[1] for lab in label]
+        xs = [lab[0] / W for lab in label]
+        ys = [lab[1] / H for lab in label]
         flags = [lab[2] for lab in label]
         valids = [lab[3] for lab in label]
         

@@ -316,6 +316,18 @@ class EgoPathTrainer():
         pred_xs = self.prediction.cpu().detach().numpy()
         gt_xs = self.xs_tensor.cpu().detach().numpy()
 
+        # Trim by valids
+        valid_pred_xs = [
+            pred_xs[i] 
+            for i in range(len(pred_xs)) 
+            if self.valids[i] == 1
+        ]
+        valid_gt_xs = [
+            gt_xs[i] 
+            for i in range(len(gt_xs)) 
+            if self.valids[i] == 1
+        ]
+
         # GROUNDTRUTH
 
         # Visualize image
@@ -325,7 +337,7 @@ class EgoPathTrainer():
 
         # Plot BEV egopath
         plt.plot(
-            [x * self.W for x in gt_xs],
+            [x * self.W for x in valid_gt_xs],
             [y * self.H for y in self.ys],
             color = "yellow"
         )
@@ -346,7 +358,7 @@ class EgoPathTrainer():
 
         # Plot BEV egopath
         plt.plot(
-            [x * self.W for x in pred_xs],
+            [x * self.W for x in valid_pred_xs],
             [y * self.H for y in self.ys],
             color = "yellow"
         )
@@ -436,12 +448,12 @@ class EgoPathTrainer():
             [
                 x * test_W 
                 for x in self.xs 
-                if (0 <= x < test_W)
+                if (0 <= x * test_W < test_W)
             ],
             [
                 y * test_H 
                 for y in self.ys 
-                if (0 <= y < test_H)
+                if (0 <= y * test_H < test_H)
             ],
             color = "yellow"
         )
