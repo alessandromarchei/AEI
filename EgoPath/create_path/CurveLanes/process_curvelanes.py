@@ -104,7 +104,7 @@ def getLineAnchor(line, new_img_height):
     return (x0, a, b)
 
 
-def getEgoIndexes(frame_id, anchors, new_img_width):
+def getEgoIndexes(anchors, new_img_width):
     """
     Identifies 2 ego lanes - left and right - from a sorted list of line anchors.
     """
@@ -318,7 +318,7 @@ def parseAnnotations(
     with open(anno_path, "r") as f:
         read_data = json.load(f)["Lines"]
         if (len(read_data) < 2):    # Some files are empty, or having less than 2 lines
-            warnings.warn(f"Parsing {anno_path} : insufficient line amount: {len(read_data)}")
+            warnings.warn(f"Parsing {anno_path} : insufficient line amount: {len(read_data)} in raw data. Skipping this frame.")
             return None
         else:
             # Parse data from those JSON lines, also sort by y
@@ -367,7 +367,7 @@ def parseAnnotations(
             # Remove empty lanes
             lines = [line for line in lines if (line and len(line) >= 2)]   # Pick lines with >= 2 points
             if (len(lines) < 2):    # Ignore frames with less than 2 lines
-                warnings.warn(f"Parsing {anno_path}: insufficient line amount after cropping: {len(lines)}")
+                warnings.warn(f"Parsing {anno_path}: insufficient line amount after cropping: {len(lines)}. Skipping this frame.")
                 return None
             
             # Determine 2 ego lines via line anchors
