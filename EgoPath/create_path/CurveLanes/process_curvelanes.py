@@ -10,26 +10,6 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 
-anomaly_dict = {
-    "one-sided-anchors" : {
-        "count" : 0,
-        "list" : []
-    },
-    "non-mid-egopath" : {
-        "count" : 0,
-        "list" : {}
-    },
-    "too-short-egopath" : {
-        "count" : 0,
-        "list" : {}
-    },
-    "too-steep-egopath" : {
-        "count" : 0,
-        "list" : {}
-    },
-}
-
-
 # ============================= Format functions ============================= #
 
 
@@ -42,14 +22,6 @@ def round_line_floats(line, ndigits = 6):
         ]
     line = tuple(line)
     return line
-
-
-def add_anomaly(frame_id, anomaly_code, drivable_path = None):
-    anomaly_dict[anomaly_code]["count"] += 1
-    if (drivable_path):
-        anomaly_dict[anomaly_code]["list"][frame_id] = drivable_path
-    else:
-        anomaly_dict[anomaly_code]["list"].append(frame_id)
 
 
 # Custom warning format cuz the default one is wayyyyyy too verbose
@@ -139,13 +111,13 @@ def getEgoIndexes(frame_id, anchors, new_img_width):
     for i in range(len(anchors)):
         if (anchors[i][0] >= new_img_width / 2):
             if (i == 0):
-                add_anomaly(frame_id, "one-sided-anchors")
-                return "NO LINES on the LEFT side of frame. Something's sussy out there!"
-            left_ego_idx, right_ego_idx = i - 1, i
-            return (left_ego_idx, right_ego_idx)
-        
-    add_anomaly(frame_id, "one-sided-anchors")
-    return "NO LINES on the RIGHT side of frame. Something's sussy out there!"
+                print("NO LINES on the LEFT side of frame. Registering FIRST 2 lines on the right side as egolines.")
+                return (i, i + 1)
+            
+            return (i - 1, i)
+    
+    print("NO LINES on the RIGHT side of frame. Registering LAST 2 lines on the left side as egolines.")
+    return (-2, -1)
 
 
 def getDrivablePath(
