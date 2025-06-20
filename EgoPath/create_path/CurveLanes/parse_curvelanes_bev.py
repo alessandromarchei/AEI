@@ -172,27 +172,29 @@ def findSourcePointsBEV(
     sps["LS"] = [anchor_left[0], h]
     sps["RS"] = [anchor_right[0], h]
 
-    # Deal with cases when either of 2 egolines are vertical
-    # In these cases, anchor = (x0, None, None)
-    if (not anchor_left[1] or not anchor_right[1]):
-        return None
-
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
-    left_deg = 90 if not anchor_left[1] else math.degrees(math.atan(anchor_left[1])) % 180
-    right_deg = 90 if not anchor_right[1] else math.degrees(math.atan(anchor_right[1])) % 180
-    mid_deg = (left_deg + right_deg) / 2
-    mid_grad = - math.tan(math.radians(mid_deg))
-    mid_intercept = h - mid_grad * midanchor_start[0]
-
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * 1.05
     print(f"egoheight = {ego_height} with egoleft[-1][1] = {egoleft[-1][1]} and egoright[-1][1] = {egoright[-1][1]}")
-    midanchor_end = [
-        (ego_height - mid_intercept) / mid_grad,
-        ego_height
-    ]
-    original_end_w = interpX(egoright, ego_height) - interpX(egoleft, ego_height)
+
+    # Both egos have Null anchors
+    if ((not anchor_left[1]) and (not anchor_right[1])):
+        midanchor_end = [midanchor_start[0], h]
+        original_end_w = sps["RS"][0] - sps["LS"][0]
+
+    else:
+        left_deg = 90 if (not anchor_left[1]) else math.degrees(math.atan(anchor_left[1])) % 180
+        right_deg = 90 if (not anchor_right[1]) else math.degrees(math.atan(anchor_right[1])) % 180
+        mid_deg = (left_deg + right_deg) / 2
+        mid_grad = - math.tan(math.radians(mid_deg))
+        mid_intercept = h - mid_grad * midanchor_start[0]
+        midanchor_end = [
+            (ego_height - mid_intercept) / mid_grad,
+            ego_height
+        ]
+        original_end_w = interpX(egoright, ego_height) - interpX(egoleft, ego_height)
+
     sps["LE"] = [
         midanchor_end[0] - original_end_w / 2,
         ego_height
