@@ -114,5 +114,6 @@ class LoadDataBEVEgoPath():
         xs = [lab[0] for lab in label]
         ys = [lab[1] for lab in label]
         flags = [lab[2] for lab in label]
+        valids = [lab[3] for lab in label]
         
-        return img, xs, ys, flags
+        return img, xs, ys, flags, valids
