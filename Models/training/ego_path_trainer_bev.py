@@ -35,6 +35,7 @@ class EgoPathTrainer():
         self.xs = []
         self.ys = []
         self.flags = []
+        self.valids = []
 
         # Dims
         self.height = 640
@@ -44,6 +45,7 @@ class EgoPathTrainer():
         self.image_tensor = None
         self.xs_tensor = []
         self.flags_tensor = []
+        self.valids_tensor = []
 
         # Model and pred
         self.model = None
@@ -134,7 +136,7 @@ class EgoPathTrainer():
         self.learning_rate = learning_rate
 
     # Assign input variables
-    def set_data(self, image, xs, ys, flags):
+    def set_data(self, image, xs, ys, flags, valids):
         h, w, _ = image.shape
         self.image = image
         self.H = h
@@ -142,6 +144,7 @@ class EgoPathTrainer():
         self.xs = xs
         self.ys = ys
         self.flags = flags
+        self.valids = valids
 
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -170,6 +173,11 @@ class EgoPathTrainer():
         flags_tensor = torch.from_numpy(self.flags)
         flags_tensor = flags_tensor.unsqueeze(0)
         self.flags_tensor = flags_tensor.to(self.device)
+
+        # Valids
+        valids_tensor = torch.from_numpy(self.valids)
+        valids_tensor = valids_tensor.unsqueeze(0)
+        self.valids_tensor = valids_tensor.to(self.device)
     
     # Run Model
     def run_model(self):
@@ -181,9 +189,9 @@ class EgoPathTrainer():
         )
 
     # Calculate loss
-    def calc_loss(self, prediction, xs, flags):
-        self.data_loss = self.calc_data_loss(prediction, xs, flags)
-        self.smoothing_loss = self.calc_smoothing_loss(prediction, xs, flags)
+    def calc_loss(self, prediction, xs, flags, valids):
+        self.data_loss = self.calc_data_loss(prediction, xs, flags, valids)
+        self.smoothing_loss = self.calc_smoothing_loss(prediction, xs, flags, valids)
         self.flag_loss = self.calc_flag_loss(prediction, flags)
 
         total_loss = (
@@ -215,13 +223,15 @@ class EgoPathTrainer():
             raise ValueError("Please specify either NUMERICAL or ANALYTICAL gradient loss as a string")
         
     # Data loss - MAE between x-point GTs and preds
-    def calc_data_loss(self, pred_xs, gt_xs):
-        return torch.abs(pred_xs - gt_xs).mean()
+    def calc_data_loss(self, pred_xs, gt_xs, valids):
+        return torch.abs(pred_xs * valids - gt_xs * valids).mean()
 
     # Smoothing loss - MAE between gradient angle (tangent angle) of point pairs between GTs and preds
-    def calc_smoothing_loss(self, pred_xs, gt_xs):
-        pred_gradients = pred_xs[1 : ] - pred_xs[ : -1]
-        gt_gradients = gt_xs[1 : ] - gt_xs[ : -1]
+    def calc_smoothing_loss(self, pred_xs, gt_xs, valids):
+        pred_xs_valids = pred_xs * valids
+        gt_xs_valids = gt_xs * valids
+        pred_gradients = pred_xs_valids[1 : ] - pred_xs_valids[ : -1]
+        gt_gradients = gt_xs_valids[1 : ] - gt_xs_valids[ : -1]
 
         loss = torch.abs(pred_gradients - gt_gradients).mean()
 
@@ -232,7 +242,7 @@ class EgoPathTrainer():
         pred_flags_tensor = torch.tensor(pred_flags, dtype = torch.float32)
         gt_flags_tensor = torch.tensor(gt_flags, dtype = torch.float32)
 
-        loss = torch.nn.functional.binary_cross_entropy(
+        loss = torch.nn.functional.binary_cross_entropy_with_logits(
             pred_flags_tensor,
             gt_flags_tensor
         )
@@ -349,10 +359,10 @@ class EgoPathTrainer():
         )
 
     # Run validation with metrics
-    def validate(self, image, gt_xs, gt_ys, gt_flags):
+    def validate(self, image, gt_xs, gt_ys, gt_flags, valids):
 
         # Set data
-        self.set_data(image, gt_xs, gt_ys, gt_flags)
+        self.set_data(image, gt_xs, gt_ys, gt_flags, valids)
 
         # Augment image
         self.apply_augmentations(is_train = False)
@@ -366,7 +376,8 @@ class EgoPathTrainer():
         # Validation loss
         val_loss_tensor = self.calc_data_loss(
             prediction,
-            self.xs_tensor
+            self.xs_tensor,
+            valids
         )
 
         val_loss = val_loss_tensor.detach().cpu().numpy()
@@ -422,8 +433,16 @@ class EgoPathTrainer():
 
         # Plot BEV egopath
         plt.plot(
-            [x * test_W for x in test_output],
-            [y * test_H for y in self.ys],
+            [
+                x * test_W 
+                for x in self.xs 
+                if (0 <= x < test_W)
+            ],
+            [
+                y * test_H 
+                for y in self.ys 
+                if (0 <= y < test_H)
+            ],
             color = "yellow"
         )
 
