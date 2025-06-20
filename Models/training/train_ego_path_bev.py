@@ -343,11 +343,12 @@ def main():
             image = None
             xs = []
             ys = []
-            flags = None
+            flags = []
+            valids = []
 
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            image, xs, ys, flags = msdict[current_dataset]["loader"].getItem(
+            image, xs, ys, flags, valids = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
@@ -356,7 +357,7 @@ def main():
             # Start the training on this data
 
             # Assign data
-            trainer.set_data(image, xs, ys, flags)
+            trainer.set_data(image, xs, ys, flags, valids)
             
             # Augment image
             trainer.apply_augmentations(is_train = True)
@@ -424,12 +425,12 @@ def main():
                     # Compute val loss per dataset
                     for dataset in VALID_DATASET_LIST:
                         for val_count in range(0, msdict[dataset]["N_vals"]):
-                            image, xs, ys, flags = msdict[dataset]["loader"].getItem(
+                            image, xs, ys, flags, valids = msdict[dataset]["loader"].getItem(
                                 val_count,
                                 is_train = False
                             )
                             msdict[dataset]["num_val_samples"] += 1
-                            val_metric = trainer.validate(image, xs, ys, flags)
+                            val_metric = trainer.validate(image, xs, ys, flags, valids)
                             msdict[dataset]["val_running"] += val_metric
                     
                     # Calculate final validation scores for network on each dataset
