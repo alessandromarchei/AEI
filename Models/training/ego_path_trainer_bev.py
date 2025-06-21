@@ -244,12 +244,8 @@ class BEVEgoPathTrainer():
     def calc_smoothing_loss(self, pred_xs, gt_xs, valids):
         pred_xs_valids = pred_xs * valids
         gt_xs_valids = gt_xs * valids
-        # print(f"pred_xs_valids = {pred_xs_valids}")
-        # print(f"gt_xs_valids = {gt_xs_valids}")
         pred_gradients = pred_xs_valids[0][1 : ] - pred_xs_valids[0][ : -1]
         gt_gradients = gt_xs_valids[0][1 : ] - gt_xs_valids[0][ : -1]
-        # print(f"pred_grads = {pred_gradients}")
-        # print(f"gt_grads = {gt_gradients}")
 
         loss = torch.abs(pred_gradients - gt_gradients).mean()
 
@@ -430,13 +426,13 @@ class BEVEgoPathTrainer():
         self.load_data()
 
         # Run model
-        prediction = self.model(self.image_tensor)
+        self.pred_xs, self.pred_flags = self.model(self.image_tensor)
 
         # Validation loss
         val_loss_tensor = self.calc_data_loss(
-            prediction,
+            self.pred_xs,
             self.xs_tensor,
-            valids
+            self.valids_tensor
         )
 
         val_loss = val_loss_tensor.detach().cpu().numpy()
@@ -444,11 +440,7 @@ class BEVEgoPathTrainer():
         return val_loss
     
     # Log val loss to TensorBoard
-    def log_validation(
-        self,
-        log_count,
-        msdict
-    ):
+    def log_validation(self, msdict):
         # Val score for each dataset
         val_score_payload = {}
         for dataset in self.VALID_DATASET_LIST:
@@ -456,14 +448,14 @@ class BEVEgoPathTrainer():
         self.writer.add_scalars(
             "Val Score - Dataset",
             val_score_payload,
-            (log_count)
+            (msdict["log_counter"])
         )
 
         # Overall val score
         self.writer.add_scalar(
             "Val Score - Overall",
             msdict["overall_val_score"],
-            (log_count)
+            (msdict["log_counter"])
         )
 
     # Validate network on TEST dataset and visualize result
@@ -483,7 +475,7 @@ class BEVEgoPathTrainer():
         test_img_tensor = self.image_loader(test_img).unsqueeze(0).to(self.device)
 
         # Model inference
-        test_output = self.model(test_img_tensor).cpu().detach().numpy()
+        test_pred_xs, test_pred_flag = self.model(test_img_tensor).cpu().detach().numpy()
 
         # Visualize image
         fig_test = plt.figure(figsize = self.BEV_FIGSIZE)

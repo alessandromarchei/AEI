@@ -158,9 +158,9 @@ def main():
     
     # Training loop parameters
     NUM_EPOCHS = 20
-    LOGSTEP_LOSS = 25
-    LOGSTEP_VIS = 100
-    LOGSTEP_MODEL = 200
+    LOGSTEP_LOSS = 250
+    LOGSTEP_VIS = 1000
+    LOGSTEP_MODEL = 20000
 
     # MODIFIABLE PARAMETERS
     # You can adjust the SCALE FACTORS, GRAD_LOSS_TYPE, DATA_SAMPLING_SCHEME 
@@ -210,7 +210,7 @@ def main():
     # 'CONCATENATE', in which the data is sampled randomly and the network
     # only sees each image from each dataset once in an epoch
 
-    DATA_SAMPLING_SCHEME = "CONCATENATE" # EQUAL or CONCATENATE
+    DATA_SAMPLING_SCHEME = "EQUAL" # EQUAL or CONCATENATE
 
     print(f"DATA_SAMPLING_SCHEME : {DATA_SAMPLING_SCHEME}")
 
@@ -305,7 +305,7 @@ def main():
         while (True):
 
             # Log count
-            msdict["sample_counter"] += 1
+            msdict["sample_counter"] = msdict["sample_counter"] + 1
             msdict["log_counter"] = (
                 msdict["sample_counter"] + \
                 msdict["Nsum_trains"] * epoch
@@ -314,10 +314,12 @@ def main():
             # Reset iterators and shuffle individual datasets
             # based on data sampling scheme
             for dataset in VALID_DATASET_LIST:
-                if (msdict[dataset]["iter"] == msdict[dataset]["N_trains"]):
+                N_trains = msdict[dataset]["N_trains"]
+                if (msdict[dataset]["iter"] == N_trains):
                     if (DATA_SAMPLING_SCHEME == "EQUAL"):
                         msdict[dataset]["iter"] = 0
-                        # random.shuffle(msdict[dataset]["sample_list"])
+
+                        msdict[dataset]["sample_list"] = random.sample(list(range(0, N_trains)), N_trains)
                     elif (
                         (DATA_SAMPLING_SCHEME == "CONCATENATE") and 
                         (msdict[dataset]["completed"] == False)
@@ -335,7 +337,6 @@ def main():
 
             # Reset the data list count if out of range
             if (msdict["data_list_count"] >= len(data_list)):
-                print(f"Reseting to 0")
                 msdict["data_list_count"] = 0
 
             # Fetch data from current processed dataset
@@ -346,13 +347,8 @@ def main():
             flags = []
             valids = []
 
-            print(msdict["data_list_count"])
-            print(data_list[0])
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            # print(current_dataset)
-            # print(current_dataset_iter)
-            # print(msdict[current_dataset]["sample_list"])
             image, xs, ys, flags, valids = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
@@ -434,9 +430,9 @@ def main():
                                 val_count,
                                 is_train = False
                             )
-                            msdict[dataset]["num_val_samples"] += 1
+                            msdict[dataset]["num_val_samples"] = msdict[dataset]["num_val_samples"] + 1
                             val_metric = trainer.validate(image, xs, ys, flags, valids)
-                            msdict[dataset]["val_running"] += val_metric
+                            msdict[dataset]["val_running"] = msdict[dataset]["val_running"] + val_metric
                     
                     # Calculate final validation scores for network on each dataset
                     # as well as overall validation score - A lower score is better
@@ -466,7 +462,7 @@ def main():
                 print("================ Continuing with training ================")
                 trainer.set_train_mode()
             
-            msdict["data_list_count"] += 1
+            msdict["data_list_count"] = msdict["data_list_count"] + 1
 
 
 if (__name__ == "__main__"):
