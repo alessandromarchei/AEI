@@ -4,12 +4,12 @@ import torch
 from torchvision import transforms
 from torch import nn, optim
 from torch.utils.tensorboard import SummaryWriter
-from train_ego_path_bev import VALID_DATASET_LIST
 import matplotlib.pyplot as plt
 import math
 import cv2
 from PIL import Image
 import numpy as np
+from typing import Literal, get_args
 import sys
 
 sys.path.append('..')
@@ -17,10 +17,8 @@ from model_components.scene_seg_network import SceneSegNetwork
 from model_components.ego_path_network import EgoPathNetwork
 from data_utils.augmentations import Augmentations
 
-BEV_FIGSIZE = (4, 8)
 
-
-class EgoPathTrainer():
+class BEVEgoPathTrainer():
     def __init__(
         self,  
         checkpoint_path = "", 
@@ -49,7 +47,8 @@ class EgoPathTrainer():
 
         # Model and pred
         self.model = None
-        self.prediction = None
+        self.pred_xs = None
+        self.pred_flags = None
 
         # Losses
         self.loss = 0
@@ -62,6 +61,19 @@ class EgoPathTrainer():
         self.data_loss_scale_factor = 1.0
         self.smoothing_loss_scale_factor = 1.0
         self.flag_loss_scale_factor = 1.0
+
+        self.BEV_FIGSIZE = (8, 4)
+
+        # Currently limiting to available datasets only. Will unlock eventually
+        self.VALID_DATASET_LITERALS = Literal[
+            # "BDD100K",
+            # "COMMA2K19",
+            # "CULANE",
+            "CURVELANES",
+            # "ROADWORK",
+            # "TUSIMPLE"
+        ]
+        self.VALID_DATASET_LIST = list(get_args(self.VALID_DATASET_LITERALS))
 
         # Checking devices (GPU vs CPU)
         self.device = torch.device(
@@ -141,10 +153,10 @@ class EgoPathTrainer():
         self.image = image
         self.H = h
         self.W = w
-        self.xs = xs
-        self.ys = ys
-        self.flags = flags
-        self.valids = valids
+        self.xs = np.array(xs, dtype = "float32")
+        self.ys = np.array(ys, dtype = "float32")
+        self.flags = np.array(flags, dtype = "float32")
+        self.valids = np.array(valids, dtype = "float32")
 
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -181,18 +193,20 @@ class EgoPathTrainer():
     
     # Run Model
     def run_model(self):
-        self.prediction = self.model(self.image_tensor)
+        self.pred_xs, self.pred_flags = self.model(self.image_tensor)
         self.loss = self.calc_loss(
-            self.prediction, 
+            self.pred_xs, 
+            self.pred_flags,
             self.xs_tensor,
-            self.flags_tensor
+            self.flags_tensor,
+            self.valids_tensor
         )
 
     # Calculate loss
-    def calc_loss(self, prediction, xs, flags, valids):
-        self.data_loss = self.calc_data_loss(prediction, xs, flags, valids)
-        self.smoothing_loss = self.calc_smoothing_loss(prediction, xs, flags, valids)
-        self.flag_loss = self.calc_flag_loss(prediction, flags)
+    def calc_loss(self, pred_xs, pred_flags, xs, flags, valids):
+        self.data_loss = self.calc_data_loss(pred_xs, xs, valids)
+        self.smoothing_loss = self.calc_smoothing_loss(pred_xs, xs, valids)
+        self.flag_loss = self.calc_flag_loss(pred_flags, flags)
 
         total_loss = (
             self.data_loss * self.data_loss_scale_factor + \
@@ -230,8 +244,12 @@ class EgoPathTrainer():
     def calc_smoothing_loss(self, pred_xs, gt_xs, valids):
         pred_xs_valids = pred_xs * valids
         gt_xs_valids = gt_xs * valids
-        pred_gradients = pred_xs_valids[1 : ] - pred_xs_valids[ : -1]
-        gt_gradients = gt_xs_valids[1 : ] - gt_xs_valids[ : -1]
+        # print(f"pred_xs_valids = {pred_xs_valids}")
+        # print(f"gt_xs_valids = {gt_xs_valids}")
+        pred_gradients = pred_xs_valids[0][1 : ] - pred_xs_valids[0][ : -1]
+        gt_gradients = gt_xs_valids[0][1 : ] - gt_xs_valids[0][ : -1]
+        # print(f"pred_grads = {pred_gradients}")
+        # print(f"gt_grads = {gt_gradients}")
 
         loss = torch.abs(pred_gradients - gt_gradients).mean()
 
@@ -313,25 +331,33 @@ class EgoPathTrainer():
     def save_visualization(self, log_count):
 
         # Get pred/gt tensors and detach em
-        pred_xs = self.prediction.cpu().detach().numpy()
+        pred_xs = self.pred_xs.cpu().detach().numpy()
+        pred_flags = self.pred_flags.cpu().detach().numpy()
+        pred_valids = [0] * len(pred_flags[0])
+        flag_index = len(pred_flags[0]) - 1
+        for i in range(len(pred_flags[0])):
+            if (pred_flags[0][i] == 1):
+                flag_index = i
+        for i in range(flag_index + 1):
+            pred_valids[i] = 1
         gt_xs = self.xs_tensor.cpu().detach().numpy()
 
         # Trim by valids
         valid_pred_xs = [
-            pred_xs[i] 
-            for i in range(len(pred_xs)) 
-            if self.valids[i] == 1
+            pred_xs[0][i] 
+            for i in range(len(pred_xs[0]))
+            if pred_valids[i] == 1
         ]
         valid_gt_xs = [
-            gt_xs[i] 
-            for i in range(len(gt_xs)) 
-            if self.valids[i] == 1
+            gt_xs[0][i] 
+            for i in range(len(gt_xs[0])) 
+            if pred_valids[i] == 1
         ]
 
         # GROUNDTRUTH
 
         # Visualize image
-        fig_gt = plt.figure(figsize = BEV_FIGSIZE)
+        fig_gt = plt.figure(figsize = self.BEV_FIGSIZE)
         plt.axis("off")
         plt.imshow(self.image)
 
@@ -349,10 +375,10 @@ class EgoPathTrainer():
             global_step = (log_count)
         )
 
-        # PREDICTION
+        # VALID PREDICTION
 
         # Visualize image
-        fig_pred = plt.figure(figsize = BEV_FIGSIZE)
+        fig_pred = plt.figure(figsize = self.BEV_FIGSIZE)
         plt.axis("off")
         plt.imshow(self.image)
 
@@ -365,7 +391,28 @@ class EgoPathTrainer():
 
         # Write fig
         self.writer.add_figure(
-            "Prediction",
+            "Valid Prediction",
+            fig_pred,
+            global_step = (log_count)
+        )
+
+        # RAW PREDICTION
+
+        # Visualize image
+        fig_pred = plt.figure(figsize = self.BEV_FIGSIZE)
+        plt.axis("off")
+        plt.imshow(self.image)
+
+        # Plot BEV egopath
+        plt.plot(
+            [x * self.W for x in pred_xs[0]],
+            [y * self.H for y in self.ys],
+            color = "yellow"
+        )
+
+        # Write fig
+        self.writer.add_figure(
+            "Raw Prediction",
             fig_pred,
             global_step = (log_count)
         )
@@ -404,7 +451,7 @@ class EgoPathTrainer():
     ):
         # Val score for each dataset
         val_score_payload = {}
-        for dataset in VALID_DATASET_LIST:
+        for dataset in self.VALID_DATASET_LIST:
             val_score_payload[dataset] = msdict[dataset]["val_score"]
         self.writer.add_scalars(
             "Val Score - Dataset",
@@ -439,7 +486,7 @@ class EgoPathTrainer():
         test_output = self.model(test_img_tensor).cpu().detach().numpy()
 
         # Visualize image
-        fig_test = plt.figure(figsize = BEV_FIGSIZE)
+        fig_test = plt.figure(figsize = self.BEV_FIGSIZE)
         plt.axis("off")
         plt.imshow(frame)
 

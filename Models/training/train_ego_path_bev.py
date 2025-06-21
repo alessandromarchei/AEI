@@ -5,7 +5,6 @@ import torch
 import random
 import pathlib
 from argparse import ArgumentParser
-import matplotlib.pyplot as plt
 from typing import Literal, get_args
 import sys
 sys.path.append('../..')
@@ -102,7 +101,7 @@ def main():
             dataset = dataset
         )
         N_trains, N_vals = this_dataset_loader.getItemCount()
-        random_sample_list = random.shuffle(list(range(0, N_trains)))
+        random_sample_list = random.sample(list(range(0, N_trains)), N_trains)
 
         msdict[dataset]["loader"] = this_dataset_loader
         msdict[dataset]["N_trains"] = N_trains
@@ -159,9 +158,9 @@ def main():
     
     # Training loop parameters
     NUM_EPOCHS = 20
-    LOGSTEP_LOSS = 250
-    LOGSTEP_VIS = 1000
-    LOGSTEP_MODEL = 20000
+    LOGSTEP_LOSS = 25
+    LOGSTEP_VIS = 100
+    LOGSTEP_MODEL = 200
 
     # MODIFIABLE PARAMETERS
     # You can adjust the SCALE FACTORS, GRAD_LOSS_TYPE, DATA_SAMPLING_SCHEME 
@@ -176,7 +175,7 @@ def main():
     # loss towards the overall loss
 
     DATA_LOSS_SCALE_FACTOR = 1.0
-    SMOOTHING_LOSS_SCALE_FACTOR = 1.0
+    SMOOTHING_LOSS_SCALE_FACTOR = 50.0
     FLAG_LOSS_SCALE_FACTOR = 1.0
 
     # Set training loss term scale factors
@@ -318,7 +317,7 @@ def main():
                 if (msdict[dataset]["iter"] == msdict[dataset]["N_trains"]):
                     if (DATA_SAMPLING_SCHEME == "EQUAL"):
                         msdict[dataset]["iter"] = 0
-                        random.shuffle(msdict[dataset]["sample_list"])
+                        # random.shuffle(msdict[dataset]["sample_list"])
                     elif (
                         (DATA_SAMPLING_SCHEME == "CONCATENATE") and 
                         (msdict[dataset]["completed"] == False)
@@ -336,6 +335,7 @@ def main():
 
             # Reset the data list count if out of range
             if (msdict["data_list_count"] >= len(data_list)):
+                print(f"Reseting to 0")
                 msdict["data_list_count"] = 0
 
             # Fetch data from current processed dataset
@@ -346,13 +346,18 @@ def main():
             flags = []
             valids = []
 
+            print(msdict["data_list_count"])
+            print(data_list[0])
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
+            # print(current_dataset)
+            # print(current_dataset_iter)
+            # print(msdict[current_dataset]["sample_list"])
             image, xs, ys, flags, valids = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
-            current_dataset_iter += 1
+            msdict[current_dataset]["iter"] = current_dataset_iter + 1
 
             # Start the training on this data
 
@@ -400,17 +405,17 @@ def main():
                 trainer.set_eval_mode()
 
                 # Running test
-                if ("TEST" in msdict):
-                    print("================ Running Testing ================")
-                    for i in range(0, len()):
+                # if ("TEST" in msdict):
+                #     print("================ Running Testing ================")
+                #     for i in range(0, len()):
                         
-                        test_image_save_path = os.path.join(
-                            msdict["TEST"]["path_test_save"],
-                            f"iter_{msdict['log_counter'] + 1}_epoch_{epoch}_step_{msdict['sample_counter'] + 1}_{i}.png"
-                        )
+                #         test_image_save_path = os.path.join(
+                #             msdict["TEST"]["path_test_save"],
+                #             f"iter_{msdict['log_counter'] + 1}_epoch_{epoch}_step_{msdict['sample_counter'] + 1}_{i}.png"
+                #         )
 
-                        test_image_path = str(msdict["TEST"]["list_images"][i])
-                        trainer.test(test_image_path, test_image_save_path)
+                #         test_image_path = str(msdict["TEST"]["list_images"][i])
+                #         trainer.test(test_image_path, test_image_save_path)
 
                 # Validation metrics for each dataset
                 for dataset in VALID_DATASET_LIST:
@@ -462,3 +467,7 @@ def main():
                 trainer.set_train_mode()
             
             msdict["data_list_count"] += 1
+
+
+if (__name__ == "__main__"):
+    main()
