@@ -196,7 +196,6 @@ def findSourcePointsBEV(
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * 1.05
-    # print(f"egoheight = {ego_height} with egoleft[-1][1] = {egoleft[-1][1]} and egoright[-1][1] = {egoright[-1][1]}")
 
     # Both egos have Null anchors
     if ((not anchor_left[1]) and (not anchor_right[1])):
@@ -242,12 +241,10 @@ def transformBEV(
     h, w, _ = img.shape
 
     # Renorm/tuplize drivable path
-    # print(egopath)
     egopath = [
         (point[0] * w, point[1] * h) for point in egopath
         if (point[1] * h >= sps["ego_h"])
     ]
-    # print(egopath)
     if (not egopath):
         return (None, None, None, None, None)
 
@@ -385,16 +382,12 @@ if __name__ == "__main__":
     for frame_id, frame_content in json_data.items():
 
         counter += 1
-        # print(frame_id)
 
         # Acquire frame
         frame_img_path = os.path.join(
             IMG_DIR,
             f"{frame_id}.png"
         )
-        # This is for single-frame testing only
-        # if (not os.path.exists(frame_img_path)):
-        #     continue
         img = cv2.imread(frame_img_path)
         h, w, _ = img.shape
 
@@ -450,17 +443,9 @@ if __name__ == "__main__":
                 flag_list,
                 validity_list
             )
-            # bev_egopath = [
-            #     zipped_ent[0]
-            #     for zipped_ent in zipped_path_flag
-            # ]
-            # flag_list = [
-            #     zipped_ent[1]
-            #     for zipped_ent in zipped_path_flag
-            # ]
 
             # Register this frame GT to master JSON
-            # Each point has tuple format (x, y, flag)
+            # Each point has tuple format (x, y, flag, valid)
             data_master[frame_id] = [
                 (point[0], point[1], flag, valid)
                 for point, flag, valid in list(zip(bev_egopath, flag_list, validity_list))
