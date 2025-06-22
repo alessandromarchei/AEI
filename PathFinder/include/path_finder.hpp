@@ -12,10 +12,10 @@
 struct LanePts
 {
     int id;
-    std::vector<cv::Point2f> BevPoints;          // meters
-    std::vector<std::array<double, 2>> GtPoints; // meters
+    std::vector<cv::Point2f> BevPoints;// meters
+    std::vector<cv::Point2f> GtPoints; // meters
     LanePts(int id,
-         std::vector<std::array<double, 2>> GtPoints,
+         std::vector<cv::Point2f> GtPoints,
          std::vector<cv::Point2f> BevPoints) : id(id), GtPoints(GtPoints), BevPoints(BevPoints) {}
 };
 
@@ -38,15 +38,11 @@ struct roadLane
     fittedCurve egoPath;
 };
 
-void drawLanes(const std::vector<LanePts> &lanes);
+void drawLanes(const std::vector<LanePts> &lanes, const std::vector<fittedCurve> &curves);
 std::vector<LanePts> loadLanesFromYaml(const std::string &filename);
 std::array<double, 2> generatePixelNoise(double max_noise);
-
+std::array<double, 3> fitQuadPoly(const std::vector<cv::Point2f> &points);
 cv::Mat loadHFromYaml(const std::string &filename);
 void cameraView(const std::vector<std::vector<cv::Point2f>> &lanes2d);
-
-// cv::Mat drawLanePoints(const std::vector<std::vector<cv::Point2f>> &lanes2d);
-// cv::Mat drawBEV(const std::vector<std::vector<cv::Point2f>> &lanesBEV);
-// void fitQuadraticPolynomial(const cv::Point2f &points, std::vector<double> &coefficients);
 
 #endif // PATH_FINDER_HPP

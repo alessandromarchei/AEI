@@ -1,39 +1,30 @@
 #include "path_finder.hpp"
 
 // TODO: calculate egoPath as centerline of EgoLanes
-// TODO: fit curves to the lanes
 
-void drawLanes(const std::vector<LanePts> &lanes) //, const LanePts &EgoPath
+bool gt = false; // true for ground truth, false for BEV points
+
+void drawLanes(const std::vector<LanePts> &lanes, const std::vector<fittedCurve> &curves) //, const LanePts &EgoPath
 {
     int width = 800, height = 1000, scale = 20, height_offset = 50;
     cv::Mat image = cv::Mat::zeros(height, width, CV_8UC3);
-    // cv::line(image, cv::Point(width / 2, 0), cv::Point(width / 2, height), cv::Scalar(255, 255, 255), 1); // white centerline
-    cv::circle(image, cv::Point(width / 2, height - height_offset), 5, cv::Scalar(0, 0, 255), -1); // red dot
+    cv::line(image, cv::Point(width / 2, 0), cv::Point(width / 2, height), cv::Scalar(255, 255, 255), 1); // white centerline
+    cv::circle(image, cv::Point(width / 2, height - height_offset), 5, cv::Scalar(0, 0, 255), -1);        // red dot
 
     int color = 0;
     for (const auto &lane : lanes)
     {
         int prev_u, prev_v;
-        // for (int i = 0; i < lane.GtPoints.size(); i++)
-        // {
-        //     const auto pt_m = lane.GtPoints[i];
-        //     int u = pt_m[0] * scale + width / 2;
-        //     int v = height - height_offset - pt_m[1] * scale;
-        //     cv::Point pt_pix(u, v);
-        //     cv::circle(image, pt_pix, 3, cv::Scalar(0, 255, 255), -1);
-        //     if (i > 0)
-        //     {
-        //         cv::Point prev(prev_u, prev_v);
-        //         cv::line(image, prev, pt_pix, cv::Scalar(255, 0, 255), 1);
-        //     }
-        //     prev_u = u;
-        //     prev_v = v;
-        // }
-
         color += 30;
-        for (int i = 0; i < lane.BevPoints.size(); i++)
+        std::vector<cv::Point2f> points;
+        if (gt)
+            points = lane.GtPoints;
+        else
+            points = lane.BevPoints;
+
+        for (int i = 0; i < points.size(); i++)
         {
-            const auto pt_m = lane.BevPoints[i];
+            const auto pt_m = points[i];
             int u = pt_m.x * scale + width / 2;
             int v = height - height_offset - pt_m.y * scale;
             cv::Point pt_pix(u, v);
@@ -48,28 +39,25 @@ void drawLanes(const std::vector<LanePts> &lanes) //, const LanePts &EgoPath
         }
     }
 
-    std::array<double, 3> coeffs = {0.001, 0.0, 0.0};
-
-    const double a = coeffs[0];
-    const double b = coeffs[1];
-    const double c = coeffs[2];
-
-    cv::Point2f prev_pt(0, 0);
-    for (double y = 0.0; y <= 50.0; y += 0.1) // y range in meters
+    for (auto curve : curves)
     {
-        double x = a * y * y + b * y + c;
-        int u = static_cast<int>(x * scale + width / 2);
-        int v = static_cast<int>(height - height_offset - y * scale);
-
-        if (y > 0.0) // skip the first point
+        cv::Point2f prev_pt(0, 0);
+        for (double y = 0.0; y <= 50.0; y += 0.1) // y range in meters
         {
-            cv::line(image, prev_pt, cv::Point2f(u,v) , cv::Scalar(0, 255, 255), 1); // yellow
+            double x = curve.coeff[0] * y * y + curve.coeff[1] * y + curve.coeff[2];
+            int u = static_cast<int>(x * scale + width / 2);
+            int v = static_cast<int>(height - height_offset - y * scale);
+            if (y > 0.0) // skip the first point
+            {
+                cv::line(image, prev_pt, cv::Point2f(u, v), cv::Scalar(0, 255, 255), 1); // yellow
+            }
+            prev_pt.x = u;
+            prev_pt.y = v;
         }
-        prev_pt.x = u;
-        prev_pt.y = v;
     }
 
     cv::imshow("BEV Lanes", image);
+    cv::imwrite("bev_lanes.png", image);
     cv::waitKey(0);
     cv::destroyAllWindows();
 }
@@ -97,13 +85,13 @@ std::vector<LanePts> loadLanesFromYaml(const std::string &filename)
         std::vector<cv::Point2f> bev_pixels;
         cv::perspectiveTransform(lane_pixels, bev_pixels, H);
 
-        std::vector<std::array<double, 2>> gt_pts;
+        std::vector<cv::Point2f> gt_pts;
         for (const auto &pt3d : lane3d)
         {
             std::cout << "  [" << pt3d[0].as<double>() << ", "
                       << pt3d[1].as<double>() << ", "
                       << pt3d[2].as<double>() << "]\n";
-            gt_pts.push_back({pt3d[0].as<double>(), pt3d[2].as<double>()});
+            gt_pts.emplace_back(cv::Point2f(pt3d[0].as<double>(), pt3d[2].as<double>()));
         }
         lanes.emplace_back(i, gt_pts, bev_pixels);
     }
@@ -167,7 +155,7 @@ void cameraView(const std::vector<std::vector<cv::Point2f>> &lanes2d) // camera 
     cv::waitKey(0);
 }
 
-void fitQuadraticPolynomial(const std::vector<std::array<double, 2>> &points, std::vector<double> &coefficients)
+std::array<double, 3> fitQuadPoly(const std::vector<cv::Point2f> &points)
 {
     const int degree = 2;
     const size_t N = points.size();
@@ -177,23 +165,21 @@ void fitQuadraticPolynomial(const std::vector<std::array<double, 2>> &points, st
 
     for (size_t i = 0; i < N; ++i)
     {
-        double x = points[i][0];
-        double y = points[i][1];
+        double x = points[i].x;
+        double y = points[i].y;
 
-        A(i, 0) = 1.0;
-        A(i, 1) = x;
-        A(i, 2) = x * x;
-        b(i) = y;
+        A(i, 0) = y * y;
+        A(i, 1) = y;
+        A(i, 2) = 1.0;
+        b(i) = x;
     }
-
-    // Solve using least squares (robust to overdetermined systems)
-    Eigen::VectorXd coeffs = A.colPivHouseholderQr().solve(b);
-
-    coefficients.resize(degree + 1);
+    std::array<double, 3> coeffs;
+    Eigen::VectorXd res = A.colPivHouseholderQr().solve(b);
     for (int i = 0; i <= degree; ++i)
     {
-        coefficients[i] = coeffs(i);
+        coeffs[i] = res(i);
     }
+    return coeffs;
 }
 
 void estimateH()
@@ -230,7 +216,17 @@ int main()
 {
     estimateH();
     auto egoLanes = loadLanesFromYaml("test.yaml");
-    drawLanes(egoLanes);
+
+    std::vector<fittedCurve> curves;
+    for (auto lane : egoLanes)
+    {
+        std::array<double, 3> coeff;
+        if (gt) coeff = fitQuadPoly(lane.GtPoints);
+        else coeff = fitQuadPoly(lane.BevPoints);
+        curves.emplace_back(fittedCurve(coeff));
+    }
+
+    drawLanes(egoLanes, curves);
     // auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[6]);// LanePts 1 and LanePts 7 are left and right lanes respectively
     return 0;
 }
