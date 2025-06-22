@@ -1,10 +1,12 @@
 #include "path_finder.hpp"
 
-// TODO: calculate egoPath as centerline of EgoLanes
+// TODO: find adjacent left and right lanes, group LanePts and fittedCurve into a single struct or class
 
-bool gt = false; // true for ground truth, false for BEV points
+bool gt = true; // true for ground truth, false for BEV points
 
-void drawLanes(const std::vector<LanePts> &lanes, const std::vector<fittedCurve> &curves) //, const LanePts &EgoPath
+void drawLanes(const std::vector<LanePts> &lanes,
+               const std::vector<fittedCurve> &egoLanes,
+               const std::vector<fittedCurve> &egoPaths)
 {
     int width = 800, height = 1000, scale = 20, height_offset = 50;
     cv::Mat image = cv::Mat::zeros(height, width, CV_8UC3);
@@ -15,7 +17,7 @@ void drawLanes(const std::vector<LanePts> &lanes, const std::vector<fittedCurve>
     for (const auto &lane : lanes)
     {
         int prev_u, prev_v;
-        color += 30;
+        color += 20;
         std::vector<cv::Point2f> points;
         if (gt)
             points = lane.GtPoints;
@@ -39,17 +41,36 @@ void drawLanes(const std::vector<LanePts> &lanes, const std::vector<fittedCurve>
         }
     }
 
-    for (auto curve : curves)
+    color = 0;
+    for (auto egoLane : egoLanes)
     {
+        color += 20;
         cv::Point2f prev_pt(0, 0);
         for (double y = 0.0; y <= 50.0; y += 0.1) // y range in meters
         {
-            double x = curve.coeff[0] * y * y + curve.coeff[1] * y + curve.coeff[2];
+            double x = egoLane.coeff[0] * y * y + egoLane.coeff[1] * y + egoLane.coeff[2];
             int u = static_cast<int>(x * scale + width / 2);
             int v = static_cast<int>(height - height_offset - y * scale);
             if (y > 0.0) // skip the first point
             {
-                cv::line(image, prev_pt, cv::Point2f(u, v), cv::Scalar(0, 255, 255), 1); // yellow
+                cv::line(image, prev_pt, cv::Point2f(u, v), cv::Scalar(0, color, 255), 1); // yellow
+            }
+            prev_pt.x = u;
+            prev_pt.y = v;
+        }
+    }
+
+    for (auto egoPath : egoPaths)
+    {
+        cv::Point2f prev_pt(0, 0);
+        for (double y = 0.0; y <= 50.0; y += 0.1) // y range in meters
+        {
+            double x = egoPath.coeff[0] * y * y + egoPath.coeff[1] * y + egoPath.coeff[2];
+            int u = static_cast<int>(x * scale + width / 2);
+            int v = static_cast<int>(height - height_offset - y * scale);
+            if (y > 0.0) // skip the first point
+            {
+                cv::line(image, prev_pt, cv::Point2f(u, v), cv::Scalar(255, 0, 0), 1);
             }
             prev_pt.x = u;
             prev_pt.y = v;
@@ -205,28 +226,40 @@ void estimateH()
     // cv::FileStorage fs("image_to_world_transform.yaml", cv::FileStorage::WRITE);
 }
 
-LanePts calculateEgoPath(const LanePts &leftLanes, const LanePts &rightLanes)
+fittedCurve calculateEgoPath(const fittedCurve &leftLane, const fittedCurve &rightLane)
 {
-    std::cout << "Calculating ego path based on loaded lanes..." << std::endl;
-
-    return LanePts(0, {}, {}); // Return a dummy LanePts object for now
+    return fittedCurve({(leftLane.coeff[0] + rightLane.coeff[0]) / 2.0,
+                        (leftLane.coeff[1] + rightLane.coeff[1]) / 2.0,
+                        (leftLane.coeff[2] + rightLane.coeff[2]) / 2.0});
 }
 
 int main()
 {
     estimateH();
-    auto egoLanes = loadLanesFromYaml("test.yaml");
+    auto egoLanesPts = loadLanesFromYaml("test.yaml");
 
-    std::vector<fittedCurve> curves;
-    for (auto lane : egoLanes)
+    std::vector<fittedCurve> egoLanes;
+    for (auto lanePts : egoLanesPts)
     {
         std::array<double, 3> coeff;
-        if (gt) coeff = fitQuadPoly(lane.GtPoints);
-        else coeff = fitQuadPoly(lane.BevPoints);
-        curves.emplace_back(fittedCurve(coeff));
+        if (gt)
+            coeff = fitQuadPoly(lanePts.GtPoints);
+        else
+            coeff = fitQuadPoly(lanePts.BevPoints);
+        egoLanes.emplace_back(fittedCurve(coeff));
     }
 
-    drawLanes(egoLanes, curves);
-    // auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[6]);// LanePts 1 and LanePts 7 are left and right lanes respectively
+    std::sort(egoLanes.begin(), egoLanes.end(), [](const fittedCurve &a, const fittedCurve &b)
+              { return a.coeff[2] > b.coeff[2]; });
+
+    std::vector<fittedCurve> egoPaths;
+
+    for (int i = 1; i < egoLanes.size(); ++i) // Skip the first curve
+    {
+        auto egoPath = calculateEgoPath(egoLanes[i - 1], egoLanes[i]);
+        egoPaths.emplace_back(egoPath);
+    }
+
+    drawLanes(egoLanesPts, egoLanes, egoPaths);
     return 0;
 }
