@@ -1,62 +1,90 @@
 #include "path_finder.hpp"
 
-void drawLanes(const std::vector<Lane> &lanes)
+// TODO: calculate egoPath as centerline of EgoLanes
+// TODO: fit curves to the lanes
+
+void drawLanes(const std::vector<LanePts> &lanes) //, const LanePts &EgoPath
 {
     int width = 800, height = 1000, scale = 20, height_offset = 50;
     cv::Mat image = cv::Mat::zeros(height, width, CV_8UC3);
-    cv::line(image, cv::Point(width / 2, 0), cv::Point(width / 2, height), cv::Scalar(255, 255, 255), 1); // white centerline
-    cv::circle(image, cv::Point(width / 2, height - height_offset), 5, cv::Scalar(0, 0, 255), -1);        // red dot
+    // cv::line(image, cv::Point(width / 2, 0), cv::Point(width / 2, height), cv::Scalar(255, 255, 255), 1); // white centerline
+    cv::circle(image, cv::Point(width / 2, height - height_offset), 5, cv::Scalar(0, 0, 255), -1); // red dot
 
+    int color = 0;
     for (const auto &lane : lanes)
     {
         int prev_u, prev_v;
-        for (int i = 0; i < lane.GtPoints.size(); i++)
-        {
-            const auto pt_m = lane.GtPoints[i];
-            int u = pt_m[0] * scale + width / 2;
-            int v = height - height_offset - pt_m[1] * scale;
-            cv::Point pt_pix(u, v);
-            cv::circle(image, pt_pix, 3, cv::Scalar(0, 255, 255), -1);
-            if (i > 0)
-            {
-                cv::Point prev(prev_u, prev_v);
-                cv::line(image, prev, pt_pix, cv::Scalar(255, 0, 255), 1);
-            }
-            prev_u = u;
-            prev_v = v;
-        }
+        // for (int i = 0; i < lane.GtPoints.size(); i++)
+        // {
+        //     const auto pt_m = lane.GtPoints[i];
+        //     int u = pt_m[0] * scale + width / 2;
+        //     int v = height - height_offset - pt_m[1] * scale;
+        //     cv::Point pt_pix(u, v);
+        //     cv::circle(image, pt_pix, 3, cv::Scalar(0, 255, 255), -1);
+        //     if (i > 0)
+        //     {
+        //         cv::Point prev(prev_u, prev_v);
+        //         cv::line(image, prev, pt_pix, cv::Scalar(255, 0, 255), 1);
+        //     }
+        //     prev_u = u;
+        //     prev_v = v;
+        // }
+
+        color += 30;
         for (int i = 0; i < lane.BevPoints.size(); i++)
         {
             const auto pt_m = lane.BevPoints[i];
             int u = pt_m.x * scale + width / 2;
             int v = height - height_offset - pt_m.y * scale;
             cv::Point pt_pix(u, v);
-            cv::circle(image, pt_pix, 3, cv::Scalar(0, 255, 0), -1); // green dots
+            cv::circle(image, pt_pix, 3, cv::Scalar(255 - color, color, 0), -1); // green dots
             if (i > 0)
             {
                 cv::Point prev(prev_u, prev_v);
-                cv::line(image, prev, pt_pix, cv::Scalar(255, 0, 0), 1); // blue line
+                // cv::line(image, prev, pt_pix, cv::Scalar(255, 0, 0), 1); // blue line
             }
             prev_u = u;
             prev_v = v;
         }
     }
+
+    std::array<double, 3> coeffs = {0.001, 0.0, 0.0};
+
+    const double a = coeffs[0];
+    const double b = coeffs[1];
+    const double c = coeffs[2];
+
+    cv::Point2f prev_pt(0, 0);
+    for (double y = 0.0; y <= 50.0; y += 0.1) // y range in meters
+    {
+        double x = a * y * y + b * y + c;
+        int u = static_cast<int>(x * scale + width / 2);
+        int v = static_cast<int>(height - height_offset - y * scale);
+
+        if (y > 0.0) // skip the first point
+        {
+            cv::line(image, prev_pt, cv::Point2f(u,v) , cv::Scalar(0, 255, 255), 1); // yellow
+        }
+        prev_pt.x = u;
+        prev_pt.y = v;
+    }
+
     cv::imshow("BEV Lanes", image);
     cv::waitKey(0);
     cv::destroyAllWindows();
 }
 
-std::vector<Lane> loadLanesFromYaml(const std::string &filename)
+std::vector<LanePts> loadLanesFromYaml(const std::string &filename)
 {
     cv::Mat H = loadHFromYaml("image_to_world_transform.yaml");
 
-    std::vector<Lane> lanes;
+    std::vector<LanePts> lanes;
     YAML::Node root = YAML::LoadFile(filename);
     int i = 0;
     for (const auto &lane3d : root["lanes3d"])
     {
         const auto &lane2d = root["lanes2d"][i++];
-        std::cout << "Lane " << i << ":\n";
+        std::cout << "LanePts " << i << ":\n";
         std::vector<cv::Point2f> lane_pixels;
         for (const auto &pt2d : lane2d)
         {
@@ -64,7 +92,7 @@ std::vector<Lane> loadLanesFromYaml(const std::string &filename)
             auto noise = generatePixelNoise(5.0);
             double u = pt2d[0].as<double>() + noise[0];
             double v = pt2d[1].as<double>() + noise[1];
-            lane_pixels.emplace_back(cv::Point2f(u,v));
+            lane_pixels.emplace_back(cv::Point2f(u, v));
         }
         std::vector<cv::Point2f> bev_pixels;
         cv::perspectiveTransform(lane_pixels, bev_pixels, H);
@@ -90,7 +118,7 @@ std::array<double, 2> generatePixelNoise(double max_noise = 10.0)
     std::uniform_real_distribution<> dist_pix(-max_noise, max_noise);
     double du = dist_pix(gen);
     double dv = dist_pix(gen);
-    return {du, dv};  // Pixel-space noise to be added to (u, v)
+    return {du, dv}; // Pixel-space noise to be added to (u, v)
 }
 
 cv::Mat loadHFromYaml(const std::string &filename)
@@ -186,14 +214,23 @@ void estimateH()
         {-1.217f, 39.064f},
         {1.657f, 38.649f}};
     cv::Mat H = cv::findHomography(imagePixels, BevPixels);
-    std::cout << "Estimated Homography Matrix H:\n" << H << std::endl;
+    std::cout << "Estimated Homography Matrix H:\n"
+              << H << std::endl;
     // cv::FileStorage fs("image_to_world_transform.yaml", cv::FileStorage::WRITE);
+}
+
+LanePts calculateEgoPath(const LanePts &leftLanes, const LanePts &rightLanes)
+{
+    std::cout << "Calculating ego path based on loaded lanes..." << std::endl;
+
+    return LanePts(0, {}, {}); // Return a dummy LanePts object for now
 }
 
 int main()
 {
     estimateH();
-    auto lanes = loadLanesFromYaml("test.yaml");
-    drawLanes(lanes);
+    auto egoLanes = loadLanesFromYaml("test.yaml");
+    drawLanes(egoLanes);
+    // auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[6]);// LanePts 1 and LanePts 7 are left and right lanes respectively
     return 0;
 }
