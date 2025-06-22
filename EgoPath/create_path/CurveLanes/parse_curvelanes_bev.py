@@ -21,7 +21,14 @@ warnings.formatwarning = custom_warning_format
 PointCoords = tuple[float, float]
 ImagePointCoords = tuple[int, int]
 
+# Skipped frames
+skipped_dict = {}
+
 # ============================== Helper functions ============================== #
+
+
+def log_skipped(frame_id, reason):
+    skipped_dict[frame_id] = reason
 
 
 def drawLine(
@@ -304,6 +311,7 @@ if __name__ == "__main__":
     BEV_IMG_DIR = "image_bev"
     BEV_VIS_DIR = "visualization_bev"
     BEV_JSON_PATH = "drivable_path_bev.json"
+    BEV_SKIPPED_JSON_PATH = "skipped_frames.json"
 
     # OTHER PARAMS
 
@@ -348,6 +356,7 @@ if __name__ == "__main__":
     IMG_DIR = os.path.join(dataset_dir, IMG_DIR)
     JSON_PATH = os.path.join(dataset_dir, JSON_PATH)
     BEV_JSON_PATH = os.path.join(dataset_dir, BEV_JSON_PATH)
+    BEV_SKIPPED_JSON_PATH = os.path.join(dataset_dir, BEV_SKIPPED_JSON_PATH)
 
     # Parse early stopping
     if (args.early_stopping):
@@ -383,71 +392,83 @@ if __name__ == "__main__":
             IMG_DIR,
             f"{frame_id}.png"
         )
+        # This is for single-frame testing only
+        # if (not os.path.exists(frame_img_path)):
+        #     continue
         img = cv2.imread(frame_img_path)
         h, w, _ = img.shape
 
         # Acquire frame data
         this_frame_data = json_data[frame_id]
 
-        # Get source points for transform
-        sps_dict = findSourcePointsBEV(
-            h = h,
-            w = w,
-            egoleft = this_frame_data["egoleft_lane"],
-            egoright = this_frame_data["egoright_lane"]
-        )
-        # print(sps_dict)
+        # MAIN ALGORITHM
+        try:
 
-        # Transform to BEV space
-        
-        (im_dst, bev_egopath, flag_list, validity_list, mat) = transformBEV(
-            img = img,
-            egopath = this_frame_data["drivable_path"],
-            sps = sps_dict
-        )
+            # Get source points for transform
+            sps_dict = findSourcePointsBEV(
+                h = h,
+                w = w,
+                egoleft = this_frame_data["egoleft_lane"],
+                egoright = this_frame_data["egoright_lane"]
+            )
 
-        # Skip if invalid frame (due to too high ego_height value)
-        if (not bev_egopath):
-            print(f"Skipped frame ID = {frame_id} due to Null EgoPath from BEV transformation algorithm.")
-            continue
+            # Transform to BEV space
+            
+            (im_dst, bev_egopath, flag_list, validity_list, mat) = transformBEV(
+                img = img,
+                egopath = this_frame_data["drivable_path"],
+                sps = sps_dict
+            )
 
-        # Save stuffs
-        annotateGT(
-            img = im_dst,
-            frame_id = frame_id,
-            bev_egopath = bev_egopath,
-            raw_dir = BEV_IMG_DIR,
-            visualization_dir = BEV_VIS_DIR,
-            normalized = False
-        )
-
-        # Round, normalize egopath
-        zipped_path_flag = zip(
-            round_line_floats(
-                normalizeCoords(
-                    bev_egopath,
-                    width = BEV_W,
-                    height = BEV_H
+            # Skip if invalid frame (due to too high ego_height value)
+            if (not bev_egopath):
+                log_skipped(
+                    frame_id,
+                    "Null EgoPath from BEV transformation algorithm."
                 )
-            ),
-            flag_list,
-            validity_list
-        )
-        # bev_egopath = [
-        #     zipped_ent[0]
-        #     for zipped_ent in zipped_path_flag
-        # ]
-        # flag_list = [
-        #     zipped_ent[1]
-        #     for zipped_ent in zipped_path_flag
-        # ]
+                continue
 
-        # Register this frame GT to master JSON
-        # Each point has tuple format (x, y, flag)
-        data_master[frame_id] = [
-            (point[0], point[1], flag, valid)
-            for point, flag, valid in list(zip(bev_egopath, flag_list, validity_list))
-        ]
+            # Save stuffs
+            annotateGT(
+                img = im_dst,
+                frame_id = frame_id,
+                bev_egopath = bev_egopath,
+                raw_dir = BEV_IMG_DIR,
+                visualization_dir = BEV_VIS_DIR,
+                normalized = False
+            )
+
+            # Round, normalize egopath
+            zipped_path_flag = zip(
+                round_line_floats(
+                    normalizeCoords(
+                        bev_egopath,
+                        width = BEV_W,
+                        height = BEV_H
+                    )
+                ),
+                flag_list,
+                validity_list
+            )
+            # bev_egopath = [
+            #     zipped_ent[0]
+            #     for zipped_ent in zipped_path_flag
+            # ]
+            # flag_list = [
+            #     zipped_ent[1]
+            #     for zipped_ent in zipped_path_flag
+            # ]
+
+            # Register this frame GT to master JSON
+            # Each point has tuple format (x, y, flag)
+            data_master[frame_id] = [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(bev_egopath, flag_list, validity_list))
+            ]
+
+        except Exception as e:
+            log_skipped(frame_id, str(e))
+            continue
 
         # Break if early_stopping reached
         if (early_stopping is not None):
@@ -457,3 +478,7 @@ if __name__ == "__main__":
     # Save master data
     with open(BEV_JSON_PATH, "w") as f:
         json.dump(data_master, f, indent = 4)
+
+    # Save skipped frames
+    with open(BEV_SKIPPED_JSON_PATH, "w") as f:
+        json.dump(skipped_dict, f, indent = 4)
