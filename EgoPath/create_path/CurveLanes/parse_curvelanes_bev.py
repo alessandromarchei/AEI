@@ -21,7 +21,14 @@ warnings.formatwarning = custom_warning_format
 PointCoords = tuple[float, float]
 ImagePointCoords = tuple[int, int]
 
+# Skipped frames
+skipped_dict = {}
+
 # ============================== Helper functions ============================== #
+
+
+def log_skipped(frame_id, reason):
+    skipped_dict[frame_id] = reason
 
 
 def drawLine(
@@ -127,14 +134,27 @@ def polyfit_BEV(
     )
     x_new = f(y_new)
 
-    fitted_bev_egopath = tuple(zip(x_new, y_new))
+    # Sort by decreasing y
+    fitted_bev_egopath = sorted(
+        tuple(zip(x_new, y_new)),
+        key = lambda x: x[1],
+        reverse = True
+    )
 
-    flag_list = [
-        True if (0 <= point[0] <= BEV_W) else False
-        for point in fitted_bev_egopath
-    ]
+    flag_list = [0] * len(fitted_bev_egopath)
+    for i in range(len(fitted_bev_egopath)):
+        if (not 0 <= fitted_bev_egopath[i][0] <= BEV_W):
+            flag_list[i - 1] = 1
+            break
+    if (not 1 in flag_list):
+        flag_list[-1] = 1
+
+    validity_list = [1] * len(fitted_bev_egopath)
+    last_valid_index = flag_list.index(1)
+    for i in range(last_valid_index + 1, len(validity_list)):
+        validity_list[i] = 0
     
-    return fitted_bev_egopath, flag_list
+    return fitted_bev_egopath, flag_list, validity_list
 
 
 def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
@@ -175,18 +195,25 @@ def findSourcePointsBEV(
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
-    left_deg = math.degrees(math.atan(anchor_left[1])) % 180
-    right_deg = math.degrees(math.atan(anchor_right[1])) % 180
-    mid_deg = (left_deg + right_deg) / 2
-    mid_grad = - math.tan(math.radians(mid_deg))
-    mid_intercept = h - mid_grad * midanchor_start[0]
-
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * 1.05
-    midanchor_end = [
-        (ego_height - mid_intercept) / mid_grad,
-        ego_height
-    ]
-    original_end_w = interpX(egoright, ego_height) - interpX(egoleft, ego_height)
+
+    # Both egos have Null anchors
+    if ((not anchor_left[1]) and (not anchor_right[1])):
+        midanchor_end = [midanchor_start[0], h]
+        original_end_w = sps["RS"][0] - sps["LS"][0]
+
+    else:
+        left_deg = 90 if (not anchor_left[1]) else math.degrees(math.atan(anchor_left[1])) % 180
+        right_deg = 90 if (not anchor_right[1]) else math.degrees(math.atan(anchor_right[1])) % 180
+        mid_deg = (left_deg + right_deg) / 2
+        mid_grad = - math.tan(math.radians(mid_deg))
+        mid_intercept = h - mid_grad * midanchor_start[0]
+        midanchor_end = [
+            (ego_height - mid_intercept) / mid_grad,
+            ego_height
+        ]
+        original_end_w = interpX(egoright, ego_height) - interpX(egoleft, ego_height)
+
     sps["LE"] = [
         midanchor_end[0] - original_end_w / 2,
         ego_height
@@ -218,6 +245,8 @@ def transformBEV(
         (point[0] * w, point[1] * h) for point in egopath
         if (point[1] * h >= sps["ego_h"])
     ]
+    if (not egopath):
+        return (None, None, None, None, None)
 
     # Interp more points for original egopath
     egopath = interpLine(egopath, MIN_POINTS)
@@ -256,14 +285,14 @@ def transformBEV(
     ]
 
     # Polyfit BEV egopath to get 33-coords format with flags
-    bev_egopath, flag_list = polyfit_BEV(
+    bev_egopath, flag_list, validity_list = polyfit_BEV(
         bev_egopath = bev_egopath,
         order = POLYFIT_ORDER,
         y_step = BEV_Y_STEP,
         y_limit = BEV_H
     )
 
-    return im_dst, bev_egopath, flag_list, mat
+    return (im_dst, bev_egopath, flag_list, validity_list, mat)
 
 
 # ============================== Main run ============================== #
@@ -279,6 +308,7 @@ if __name__ == "__main__":
     BEV_IMG_DIR = "image_bev"
     BEV_VIS_DIR = "visualization_bev"
     BEV_JSON_PATH = "drivable_path_bev.json"
+    BEV_SKIPPED_JSON_PATH = "skipped_frames.json"
 
     # OTHER PARAMS
 
@@ -323,6 +353,7 @@ if __name__ == "__main__":
     IMG_DIR = os.path.join(dataset_dir, IMG_DIR)
     JSON_PATH = os.path.join(dataset_dir, JSON_PATH)
     BEV_JSON_PATH = os.path.join(dataset_dir, BEV_JSON_PATH)
+    BEV_SKIPPED_JSON_PATH = os.path.join(dataset_dir, BEV_SKIPPED_JSON_PATH)
 
     # Parse early stopping
     if (args.early_stopping):
@@ -363,34 +394,45 @@ if __name__ == "__main__":
         # Acquire frame data
         this_frame_data = json_data[frame_id]
 
-        # Get source points for transform
-        sps_dict = findSourcePointsBEV(
-            h = h,
-            w = w,
-            egoleft = this_frame_data["egoleft_lane"],
-            egoright = this_frame_data["egoright_lane"]
-        )
+        # MAIN ALGORITHM
+        try:
 
-        # Transform to BEV space
-        im_dst, bev_egopath, flag_list, mat = transformBEV(
-            img = img,
-            egopath = this_frame_data["drivable_path"],
-            sps = sps_dict
-        )
+            # Get source points for transform
+            sps_dict = findSourcePointsBEV(
+                h = h,
+                w = w,
+                egoleft = this_frame_data["egoleft_lane"],
+                egoright = this_frame_data["egoright_lane"]
+            )
 
-        # Save stuffs
-        annotateGT(
-            img = im_dst,
-            frame_id = frame_id,
-            bev_egopath = bev_egopath,
-            raw_dir = BEV_IMG_DIR,
-            visualization_dir = BEV_VIS_DIR,
-            normalized = False
-        )
+            # Transform to BEV space
+            
+            (im_dst, bev_egopath, flag_list, validity_list, mat) = transformBEV(
+                img = img,
+                egopath = this_frame_data["drivable_path"],
+                sps = sps_dict
+            )
 
-        # Round, normalize egopath, and sort by descending y (with flag)
-        zipped_path_flag = sorted(
-            zip(
+            # Skip if invalid frame (due to too high ego_height value)
+            if (not bev_egopath):
+                log_skipped(
+                    frame_id,
+                    "Null EgoPath from BEV transformation algorithm."
+                )
+                continue
+
+            # Save stuffs
+            annotateGT(
+                img = im_dst,
+                frame_id = frame_id,
+                bev_egopath = bev_egopath,
+                raw_dir = BEV_IMG_DIR,
+                visualization_dir = BEV_VIS_DIR,
+                normalized = False
+            )
+
+            # Round, normalize egopath
+            zipped_path_flag = zip(
                 round_line_floats(
                     normalizeCoords(
                         bev_egopath,
@@ -398,26 +440,20 @@ if __name__ == "__main__":
                         height = BEV_H
                     )
                 ),
-                flag_list
-            ),
-            key = lambda point: point[0][1],
-            reverse = True
-        )
-        bev_egopath = [
-            zipped_ent[0]
-            for zipped_ent in zipped_path_flag
-        ]
-        flag_list = [
-            zipped_ent[1]
-            for zipped_ent in zipped_path_flag
-        ]
+                flag_list,
+                validity_list
+            )
 
-        # Register this frame GT to master JSON
-        # Each point has tuple format (x, y, flag)
-        data_master[frame_id] = [
-            (point[0], point[1], flag)
-            for point, flag in list(zip(bev_egopath, flag_list))
-        ]
+            # Register this frame GT to master JSON
+            # Each point has tuple format (x, y, flag, valid)
+            data_master[frame_id] = [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(bev_egopath, flag_list, validity_list))
+            ]
+
+        except Exception as e:
+            log_skipped(frame_id, str(e))
+            continue
 
         # Break if early_stopping reached
         if (early_stopping is not None):
@@ -427,3 +463,7 @@ if __name__ == "__main__":
     # Save master data
     with open(BEV_JSON_PATH, "w") as f:
         json.dump(data_master, f, indent = 4)
+
+    # Save skipped frames
+    with open(BEV_SKIPPED_JSON_PATH, "w") as f:
+        json.dump(skipped_dict, f, indent = 4)
