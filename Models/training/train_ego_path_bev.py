@@ -219,7 +219,7 @@ def main():
     # scheme decays the batch size faster, and may help with quicker model
     # convergence.
 
-    BATCH_SIZE_SCHEME = "SLOW_DECAY" # FAST_DECAY or SLOW_DECAY or CONSTANT
+    BATCH_SIZE_SCHEME = "FAST_DECAY" # FAST_DECAY or SLOW_DECAY or CONSTANT
 
     print(f"BATCH_SIZE_SCHEME : {BATCH_SIZE_SCHEME}")
     
@@ -241,29 +241,14 @@ def main():
         elif (BATCH_SIZE_SCHEME == "FAST_DECAY"):
             if (epoch == 0):
                 batch_size = 24
-            elif ((epoch >= 2) and (epoch < 4)):
-                batch_size = 12
-            elif ((epoch >= 4) and (epoch < 6)):
-                batch_size = 6
-            elif ((epoch >= 6) and (epoch < 8)):
+            else:
                 batch_size = 3
-            elif ((epoch >= 8) and (epoch < 10)):
-                batch_size = 2
-            elif (epoch >= 10):
-                batch_size = 1
         elif (BATCH_SIZE_SCHEME == "SLOW_DECAY"):
             if (epoch == 0):
                 batch_size = 24
-            elif ((epoch >= 2) and (epoch < 6)):
-                batch_size = 12
-            elif ((epoch >= 6) and (epoch < 10)):
-                batch_size = 6
-            elif ((epoch >= 10) and (epoch < 14)):
-                batch_size = 3
-            elif ((epoch >= 14) and (epoch < 18)):
-                batch_size = 2
-            elif (epoch >= 18):
-                batch_size = 1
+            else:
+                batch_size = 8
+
         else:
             raise ValueError(
                 "Please speficy BATCH_SIZE_SCHEME as either " \
@@ -271,11 +256,11 @@ def main():
             )
         
         # Learning Rate Schedule
-        if ((epoch >= 6) and (epoch < 12)):
+        if ((epoch >= 1) and (epoch < 2)):
             trainer.set_learning_rate(0.00005)
-        elif ((epoch >= 12) and (epoch < 18)):
+        elif ((epoch >= 2) and (epoch < 3)):
             trainer.set_learning_rate(0.000025)
-        elif (epoch >= 18):
+        elif (epoch >= 4):
             trainer.set_learning_rate(0.0000125)
 
         # Augmentation Schedule
