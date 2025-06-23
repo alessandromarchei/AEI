@@ -102,10 +102,12 @@ class LoadDataBEVEgoPath():
     def getItem(self, index, is_train: bool):
         if (is_train):
             img = Image.open(str(self.train_images[index])).convert("RGB")
-            label = self.train_labels[index]
+            drivable_path = self.train_labels[index]["drivable_path"]
+            transform_matrix = self.train_labels[index]["transform_matrix"]
         else:
             img = Image.open(str(self.val_images[index])).convert("RGB")
-            label = self.val_labels[index]
+            drivable_path = self.val_labels[index]["drivable_path"]
+            transform_matrix = self.val_labels[index]["transform_matrix"]
 
         W, H = img.size
 
@@ -113,9 +115,9 @@ class LoadDataBEVEgoPath():
         img = np.array(img)
 
         # Split label to 3 lists
-        xs = [lab[0] / W for lab in label]
-        ys = [lab[1] / H for lab in label]
-        flags = [lab[2] for lab in label]
-        valids = [lab[3] for lab in label]
+        xs = [lab[0] / W for lab in drivable_path]
+        ys = [lab[1] / H for lab in drivable_path]
+        flags = [lab[2] for lab in drivable_path]
+        valids = [lab[3] for lab in drivable_path]
         
-        return img, xs, ys, flags, valids
+        return img, xs, ys, flags, valids, transform_matrix
