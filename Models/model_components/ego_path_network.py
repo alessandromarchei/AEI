@@ -22,5 +22,5 @@ class EgoPathNetwork(nn.Module):
         features = self.PreTrainedBackbone(image)
         deep_features = features[4]
         context = self.PathContext(deep_features)
-        points_x_offset, points_validity = self.EgoPathHead(context)
-        return points_x_offset, points_validity
+        prediction = self.EgoPathHead(context)
+        return prediction

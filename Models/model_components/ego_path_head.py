@@ -14,7 +14,6 @@ class EgoPathHead(nn.Module):
         self.ego_path_layer_1 = nn.Linear(800, 800)
         self.ego_path_layer_2 = nn.Linear(800, 200)
         self.ego_path_layer_3 = nn.Linear(200, 33)
-        self.ego_path_layer_4 = nn.Linear(200, 33)
 
     def forward(self, features):
         # Pooling and averaging channel layers to get a single vector
@@ -31,10 +30,7 @@ class EgoPathHead(nn.Module):
         feature = self.GeLU(p2)
 
         # Regression output
-        points_x_offset = self.ego_path_layer_3(feature)
-
-        # Classification output
-        points_validity = self.ego_path_layer_4(feature)
+        prediction = self.ego_path_layer_3(feature)
 
         # Final result
-        return points_x_offset, points_validity
+        return prediction
