@@ -33,6 +33,7 @@ class BEVEgoPathTrainer():
         self.xs = []
         self.ys = []
         self.valids = []
+        self.mat = []
 
         # Dims
         self.height = 640
@@ -144,7 +145,7 @@ class BEVEgoPathTrainer():
         self.learning_rate = learning_rate
 
     # Assign input variables
-    def set_data(self, image, xs, ys, valids):
+    def set_data(self, image, xs, ys, valids, mat):
         h, w, _ = image.shape
         self.image = image
         self.H = h
@@ -152,6 +153,7 @@ class BEVEgoPathTrainer():
         self.xs = np.array(xs, dtype = "float32")
         self.ys = np.array(ys, dtype = "float32")
         self.valids = np.array(valids, dtype = "float32")
+        self.mat = np.array(mat, dtype = "float32")
 
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -357,10 +359,15 @@ class BEVEgoPathTrainer():
         )
 
     # Run validation with metrics
-    def validate(self, image, gt_xs, gt_ys, valids):
+    def validate(
+        self, 
+        image, 
+        gt_xs, gt_ys, valids, mat, 
+        save_path = None
+    ):
 
         # Set data
-        self.set_data(image, gt_xs, gt_ys, valids)
+        self.set_data(image, gt_xs, gt_ys, valids, mat)
 
         # Augment image
         self.apply_augmentations(is_train = False)
@@ -387,6 +394,14 @@ class BEVEgoPathTrainer():
         val_data_loss = val_data_loss_tensor.detach().cpu().numpy()
         val_smoothing_loss = val_smoothing_loss_tensor.detach().cpu().numpy()
         sum_val_loss = val_data_loss + val_smoothing_loss
+
+        # Save this visualization
+        if (save_path):
+            pred_xs = self.pred_xs.detach().cpu().numpy()
+            self.visualize(
+                pred_xs,
+                save_path
+            )
 
         return sum_val_loss, val_data_loss, val_smoothing_loss
     
@@ -427,7 +442,6 @@ class BEVEgoPathTrainer():
         # Acquire test image
         frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        test_H, test_W, _ = frame.shape
         test_img = Image.fromarray(frame).resize((320, 640))
 
         # Load as tensor
@@ -436,22 +450,35 @@ class BEVEgoPathTrainer():
         # Model inference
         test_pred_xs = self.model(test_img_tensor).cpu().detach().numpy()
 
+        # Vis it
+        self.visualize(
+            test_pred_xs,
+            save_path
+        )
+
+    # Visualize as plot
+    def visualize(
+        self,
+        pred_xs,
+        save_path
+    ):
         # Visualize image
+        H, W, _ = self.image.shape
         fig_test = plt.figure(figsize = self.BEV_FIGSIZE)
         plt.axis("off")
-        plt.imshow(frame)
+        plt.imshow(self.image)
 
         # Plot BEV egopath
         plt.plot(
             [
-                x * test_W 
-                for x in test_pred_xs[0] 
-                if (0 <= x * test_W < test_W)
+                x * W
+                for x in pred_xs[0] 
+                if (0 <= x * W < W)
             ],
             [
-                y * test_H 
+                y * H 
                 for y in self.ys 
-                if (0 <= y * test_H < test_H)
+                if (0 <= y * H < H)
             ],
             color = "yellow"
         )
