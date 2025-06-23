@@ -278,6 +278,11 @@ def main():
         elif (epoch >= 18):
             trainer.set_learning_rate(0.0000125)
 
+        # Augmentation Schedule
+        apply_augmentation = True
+        if epoch >= 1:
+            apply_augmentation = False
+
         # Shuffle overall data list at start of epoch
         random.shuffle(data_list)
         msdict["data_list_count"] = 0
@@ -357,7 +362,7 @@ def main():
             trainer.set_data(image, xs, ys, valids)
             
             # Augment image
-            trainer.apply_augmentations(is_train = True)
+            trainer.apply_augmentations(apply_augmentation)
             
             # Converting to tensor and loading
             trainer.load_data()
