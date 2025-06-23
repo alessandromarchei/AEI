@@ -446,10 +446,13 @@ if __name__ == "__main__":
 
             # Register this frame GT to master JSON
             # Each point has tuple format (x, y, flag, valid)
-            data_master[frame_id] = [
-                (point[0], point[1], flag, valid)
-                for point, flag, valid in list(zip(bev_egopath, flag_list, validity_list))
-            ]
+            data_master[frame_id] = {
+                "drivable_path" : [
+                    (point[0], point[1], flag, valid)
+                    for point, flag, valid in list(zip(bev_egopath, flag_list, validity_list))
+                ],
+                "transform_matrix" : mat.tolist()
+            }
 
         except Exception as e:
             log_skipped(frame_id, str(e))
