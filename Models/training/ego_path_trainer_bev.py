@@ -32,7 +32,6 @@ class BEVEgoPathTrainer():
         self.W = None
         self.xs = []
         self.ys = []
-        self.flags = []
         self.valids = []
 
         # Dims
@@ -42,13 +41,11 @@ class BEVEgoPathTrainer():
         # Tensors
         self.image_tensor = None
         self.xs_tensor = []
-        self.flags_tensor = []
         self.valids_tensor = []
 
         # Model and pred
         self.model = None
         self.pred_xs = None
-        self.pred_flags = None
 
         # Losses
         self.loss = 0
@@ -60,7 +57,6 @@ class BEVEgoPathTrainer():
         # Loss scale factors
         self.data_loss_scale_factor = 1.0
         self.smoothing_loss_scale_factor = 1.0
-        self.flag_loss_scale_factor = 1.0
 
         self.BEV_FIGSIZE = (8, 4)
 
@@ -148,14 +144,13 @@ class BEVEgoPathTrainer():
         self.learning_rate = learning_rate
 
     # Assign input variables
-    def set_data(self, image, xs, ys, flags, valids):
+    def set_data(self, image, xs, ys, valids):
         h, w, _ = image.shape
         self.image = image
         self.H = h
         self.W = w
         self.xs = np.array(xs, dtype = "float32")
         self.ys = np.array(ys, dtype = "float32")
-        self.flags = np.array(flags, dtype = "float32")
         self.valids = np.array(valids, dtype = "float32")
 
     # Image agumentations
@@ -181,11 +176,6 @@ class BEVEgoPathTrainer():
         xs_tensor = xs_tensor.unsqueeze(0)
         self.xs_tensor = xs_tensor.to(self.device)
 
-        # Flags
-        flags_tensor = torch.from_numpy(self.flags)
-        flags_tensor = flags_tensor.unsqueeze(0)
-        self.flags_tensor = flags_tensor.to(self.device)
-
         # Valids
         valids_tensor = torch.from_numpy(self.valids)
         valids_tensor = valids_tensor.unsqueeze(0)
@@ -193,25 +183,21 @@ class BEVEgoPathTrainer():
     
     # Run Model
     def run_model(self):
-        self.pred_xs, self.pred_flags = self.model(self.image_tensor)
+        self.pred_xs = self.model(self.image_tensor)
         self.loss = self.calc_loss(
             self.pred_xs, 
-            self.pred_flags,
             self.xs_tensor,
-            self.flags_tensor,
             self.valids_tensor
         )
 
     # Calculate loss
-    def calc_loss(self, pred_xs, pred_flags, xs, flags, valids):
+    def calc_loss(self, pred_xs, xs,valids):
         self.data_loss = self.calc_data_loss(pred_xs, xs, valids)
         self.smoothing_loss = self.calc_smoothing_loss(pred_xs, xs, valids)
-        self.flag_loss = self.calc_flag_loss(pred_flags, flags)
 
         total_loss = (
             self.data_loss * self.data_loss_scale_factor + \
-            self.smoothing_loss * self.smoothing_loss_scale_factor + \
-            self.flag_loss * self.flag_loss_scale_factor
+            self.smoothing_loss * self.smoothing_loss_scale_factor
         )
 
         return total_loss 
@@ -221,11 +207,9 @@ class BEVEgoPathTrainer():
         self,
         data_loss_scale_factor,
         smoothing_loss_scale_factor,
-        flag_loss_scale_factor
     ):
         self.data_loss_scale_factor = data_loss_scale_factor
         self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
-        self.flag_loss_scale_factor = flag_loss_scale_factor
 
     # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
     def set_gradient_loss_type(self, type):
@@ -250,18 +234,6 @@ class BEVEgoPathTrainer():
         loss = torch.abs(pred_gradients - gt_gradients).mean()
 
         return loss
-
-    # Flags loss - binary cross entropy loss
-    def calc_flag_loss(self, pred_flags, gt_flags):
-        pred_flags_tensor = torch.tensor(pred_flags, dtype = torch.float32)
-        gt_flags_tensor = torch.tensor(gt_flags, dtype = torch.float32)
-
-        loss = torch.nn.functional.binary_cross_entropy_with_logits(
-            pred_flags_tensor,
-            gt_flags_tensor
-        )
-
-        return loss
     
     # Loss backward pass
     def loss_backward(self):
@@ -281,10 +253,6 @@ class BEVEgoPathTrainer():
         scaled_smoothing_loss = self.smoothing_loss * self.smoothing_loss_scale_factor
         return scaled_smoothing_loss.item()
     
-    # Get flag loss
-    def get_flag_loss(self):
-        scaled_flag_loss = self.flag_loss * self.flag_loss_scale_factor
-        return scaled_flag_loss.item()
     
     # Logging all losses
     def log_loss(self, log_count):
@@ -292,8 +260,7 @@ class BEVEgoPathTrainer():
             "Train", {
                 "total_loss" : self.get_loss(),
                 "data_loss" : self.get_data_loss(),
-                "smoothing_loss" : self.get_smoothing_loss(),
-                "flag_loss" : self.get_flag_loss()
+                "smoothing_loss" : self.get_smoothing_loss()
             }, 
             (log_count)
         )
@@ -328,27 +295,7 @@ class BEVEgoPathTrainer():
 
         # Get pred/gt tensors and detach em
         pred_xs = self.pred_xs.cpu().detach().numpy()
-        pred_flags = self.pred_flags.cpu().detach().numpy()
-        pred_valids = [0] * len(pred_flags[0])
-        flag_index = len(pred_flags[0]) - 1
-        for i in range(len(pred_flags[0])):
-            if (pred_flags[0][i] == 1):
-                flag_index = i
-        for i in range(flag_index + 1):
-            pred_valids[i] = 1
         gt_xs = self.xs_tensor.cpu().detach().numpy()
-
-        # Trim by valids
-        valid_pred_xs = [
-            pred_xs[0][i] 
-            for i in range(len(pred_xs[0]))
-            if pred_valids[i] == 1
-        ]
-        valid_gt_xs = [
-            gt_xs[0][i] 
-            for i in range(len(gt_xs[0])) 
-            if pred_valids[i] == 1
-        ]
 
         # GROUNDTRUTH
 
@@ -359,7 +306,7 @@ class BEVEgoPathTrainer():
 
         # Plot BEV egopath
         plt.plot(
-            [x * self.W for x in valid_gt_xs],
+            [x * self.W for x in gt_xs],
             [y * self.H for y in self.ys],
             color = "yellow"
         )
@@ -371,28 +318,7 @@ class BEVEgoPathTrainer():
             global_step = (log_count)
         )
 
-        # VALID PREDICTION
-
-        # Visualize image
-        fig_pred = plt.figure(figsize = self.BEV_FIGSIZE)
-        plt.axis("off")
-        plt.imshow(self.image)
-
-        # Plot BEV egopath
-        plt.plot(
-            [x * self.W for x in valid_pred_xs],
-            [y * self.H for y in self.ys],
-            color = "yellow"
-        )
-
-        # Write fig
-        self.writer.add_figure(
-            "Valid Prediction",
-            fig_pred,
-            global_step = (log_count)
-        )
-
-        # RAW PREDICTION
+        #PREDICTION
 
         # Visualize image
         fig_pred = plt.figure(figsize = self.BEV_FIGSIZE)
@@ -408,16 +334,16 @@ class BEVEgoPathTrainer():
 
         # Write fig
         self.writer.add_figure(
-            "Raw Prediction",
+            "Prediction",
             fig_pred,
             global_step = (log_count)
         )
 
     # Run validation with metrics
-    def validate(self, image, gt_xs, gt_ys, gt_flags, valids):
+    def validate(self, image, gt_xs, gt_ys, valids):
 
         # Set data
-        self.set_data(image, gt_xs, gt_ys, gt_flags, valids)
+        self.set_data(image, gt_xs, gt_ys, valids)
 
         # Augment image
         self.apply_augmentations(is_train = False)
@@ -426,7 +352,7 @@ class BEVEgoPathTrainer():
         self.load_data()
 
         # Run model
-        self.pred_xs, self.pred_flags = self.model(self.image_tensor)
+        self.pred_xs = self.model(self.image_tensor)
 
         # Validation loss
         val_loss_tensor = self.calc_data_loss(
