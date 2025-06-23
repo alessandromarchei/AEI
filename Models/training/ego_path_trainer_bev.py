@@ -394,11 +394,17 @@ class BEVEgoPathTrainer():
     def log_validation(self, msdict):
         # Val score for each dataset
         val_score_payload = {}
+        val_data_score_payload = {}
+        val_smooth_score_payload = {}
         for dataset in self.VALID_DATASET_LIST:
             val_score_payload[dataset] = msdict[dataset]["val_score"]
+            val_data_score_payload[dataset] = msdict[dataset]["val_data_score"]
+            val_smooth_score_payload[dataset] = msdict[dataset]["val_smooth_score"]
         self.writer.add_scalars(
             "Val Score - Dataset",
             val_score_payload,
+            val_data_score_payload,
+            val_smooth_score_payload
             (msdict["log_counter"])
         )
 
@@ -406,6 +412,8 @@ class BEVEgoPathTrainer():
         self.writer.add_scalar(
             "Val Score - Overall",
             msdict["overall_val_score"],
+            msdict["overall_val_data_score"],
+            msdict["overall_val_smooth_score"],
             (msdict["log_counter"])
         )
 
