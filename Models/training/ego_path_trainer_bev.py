@@ -305,10 +305,11 @@ class BEVEgoPathTrainer():
         plt.imshow(self.image)
 
         # Plot BEV egopath
+
         plt.plot(
             [
                 x * self.W 
-                for x in  gt_xs 
+                for x in  gt_xs[0] 
                 if (0 <= x * self.W < self.W)
             ],
             [
@@ -371,15 +372,22 @@ class BEVEgoPathTrainer():
         self.pred_xs = self.model(self.image_tensor)
 
         # Validation loss
-        val_loss_tensor = self.calc_data_loss(
+        val_data_loss_tensor = self.calc_data_loss(
             self.pred_xs,
             self.xs_tensor,
             self.valids_tensor
         )
 
-        val_loss = val_loss_tensor.detach().cpu().numpy()
+        val_smoothing_loss_tensor = self.calc_smoothing_loss(
+            self.pred_xs,
+            self.xs_tensor,
+            self.valids_tensor
+        )
 
-        return val_loss
+        val_data_loss = val_data_loss_tensor.detach().cpu().numpy()
+        val_smoothing_loss = val_smoothing_loss_tensor.detach().cpu().numpy()
+
+        return val_data_loss, val_smoothing_loss
     
     # Log val loss to TensorBoard
     def log_validation(self, msdict):
