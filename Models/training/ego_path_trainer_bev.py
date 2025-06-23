@@ -386,8 +386,9 @@ class BEVEgoPathTrainer():
 
         val_data_loss = val_data_loss_tensor.detach().cpu().numpy()
         val_smoothing_loss = val_smoothing_loss_tensor.detach().cpu().numpy()
+        sum_val_loss = val_data_loss + val_smoothing_loss
 
-        return val_data_loss, val_smoothing_loss
+        return sum_val_loss, val_data_loss, val_smoothing_loss
     
     # Log val loss to TensorBoard
     def log_validation(self, msdict):
