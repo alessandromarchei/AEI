@@ -76,8 +76,8 @@ class Augmentations():
         self.transform_noise_roadwork = A.Compose(
             [      
                 A.HueSaturationValue(hue_shift_limit=[-180, 180], sat_shift_limit=[-150,150], \
-                    val_shift_limit=[-40, 40], p=1.0),
-                A.ToGray(num_output_channels=3, method='weighted_average', p=0.5)           
+                    val_shift_limit=[-80, 80], p=1.0),
+                A.ToGray(num_output_channels=3, method='weighted_average', p=0.5)      
             ]
         )
 

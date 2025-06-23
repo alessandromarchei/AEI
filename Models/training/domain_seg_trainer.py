@@ -20,10 +20,8 @@ class DomainSegTrainer():
         # Image and ground truth as Numpy arrays and Pytorch tensors
         self.image = 0
         self.gt = 0
-        self.class_weights = 0
         self.image_tensor = 0
         self.gt_tensor = 0
-        self.class_weights_tensor = 0
 
         # Loss and prediction
         self.loss = 0
@@ -73,7 +71,7 @@ class DomainSegTrainer():
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.0005
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -91,10 +89,9 @@ class DomainSegTrainer():
         )
 
     # Assign input variables
-    def set_data(self, image, gt, class_weights):
+    def set_data(self, image, gt):
         self.image = image
         self.gt = gt
-        self.class_weights = class_weights
 
     # Set learning rate
     def set_learning_rate(self, learning_rate):
@@ -105,28 +102,22 @@ class DomainSegTrainer():
 
         if(is_train):
             # Augmenting Data for training
-            augTrain = Augmentations(is_train=True, data_type='SEGMENTATION')
+            augTrain = Augmentations(is_train=True, data_type='BINARY_SEGMENTATION')
             augTrain.setData(self.image, self.gt)
             self.image, self.gt  = \
-                augTrain.applyTransformSeg(image=self.image, ground_truth=self.gt)
-            self.image = augTrain.applyNoiseRoadWork()
+                augTrain.applyTransformBinarySeg(image=self.image, ground_truth=self.gt)
+            #self.image = augTrain.applyNoiseRoadWork()
         else:
             # Augmenting Data for testing/validation
-            augVal = Augmentations(is_train=False, data_type='SEGMENTATION')
+            augVal = Augmentations(is_train=False, data_type='BINARY_SEGMENTATION')
             augVal.setData(self.image, self.gt)
             self.image, self.gt = \
-                augVal.applyTransformSeg(image=self.image, ground_truth=self.gt)
-    
-    # Get image and ground truth
-    def get_image(self):
-        return self.image, self.gt
+                augVal.applyTransformBinarySeg(image=self.image, ground_truth=self.gt)
     
     # Load Data
     def load_data(self):
         self.load_image_tensor()
         self.load_gt_tensor()
-        self.class_weights_tensor = \
-            torch.tensor(self.class_weights).to(self.device)
 
     # Load Image as Tensor
     def load_image_tensor(self):
@@ -136,25 +127,21 @@ class DomainSegTrainer():
       
     # Load Ground Truth as Tensor
     def load_gt_tensor(self):
-        gt_array = np.array(self.gt)
-        gt_array = gt_array.squeeze(-1)
-        gt_array = np.transpose(gt_array, (1, 2, 0))
-        gt_tensor = self.gt_loader(gt_array)
+        gt_tensor = self.gt_loader(self.gt)
         gt_tensor = gt_tensor.unsqueeze(0)
-        
         self.gt_tensor = gt_tensor.to(self.device)
 
     # Run Model
     def run_model(self):     
-        CELoss = nn.CrossEntropyLoss(weight=self.class_weights_tensor)
         self.prediction = self.model(self.image_tensor)
-        self.loss = CELoss(self.prediction, self.gt_tensor)
+        BCELoss = nn.BCEWithLogitsLoss()
+        self.loss = BCELoss(self.prediction, self.gt_tensor)
 
     # Run Validation and calculate metrics
-    def validate(self, image, gt, class_weights):
+    def validate(self, image, gt):
 
         # Set Data
-        self.set_data(image, gt, class_weights)
+        self.set_data(image, gt)
 
         # Augmenting Image
         self.apply_augmentations(is_train=False)
@@ -167,7 +154,6 @@ class DomainSegTrainer():
         
         return iou_score
     
-
     # Run network on test image and visualize result
     def test(self, test_images, test_images_save_path, log_count):
 
@@ -188,23 +174,18 @@ class DomainSegTrainer():
             test_image_tensor = test_image_tensor.unsqueeze(0)
             test_image_tensor = test_image_tensor.to(self.device)
             test_output = self.model(test_image_tensor)
-            
+
             # Process the output and scale to match the input image size
             test_output = test_output.squeeze(0).cpu().detach()
             test_output = test_output.permute(1, 2, 0)
-            _, test_output = torch.max(test_output, dim=2)
             test_output = test_output.numpy()
-            
-            foreground_labels = np.where(test_output == 0)
-            forground_mask = np.zeros((test_output.shape[0], test_output.shape[1]), dtype='uint8')
-            forground_mask[foreground_labels[0], foreground_labels[1]] = 255
 
             # Resize to match original image dimension
-            forground_mask = cv2.resize(forground_mask, (frame.shape[1], frame.shape[0]))
+            test_output = cv2.resize(test_output, (frame.shape[1], frame.shape[0]))
 
             # Create visualization
             alpha = 0.5
-            test_visualization = cv2.addWeighted(self.make_visualization(forground_mask), \
+            test_visualization = cv2.addWeighted(self.make_visualization(test_output), \
                 alpha, frame, 1 - alpha, 0)
             test_visualization = cv2.cvtColor(test_visualization, cv2.COLOR_BGR2RGB)
 
@@ -253,27 +234,21 @@ class DomainSegTrainer():
     
     # Calculate IoU score for validation
     def calc_IoU_val(self):
-
-        # Get the output
         output_val = self.model(self.image_tensor)
         output_val = output_val.squeeze(0).cpu().detach()
         output_val = output_val.permute(1, 2, 0)
-
-        # Calculate the label
-        _, output_val = torch.max(output_val, dim=2)
         output_val = output_val.numpy()
+        output_val[output_val <= 0] = 0.0
+        output_val[output_val > 0] = 1.0
+        iou_score = self.IoU(output_val, self.gt)
         
-        # Assign the label
-        foreground_labels = np.where(output_val == 0)
-        foreground_mask = np.zeros((output_val.shape[0], output_val.shape[1]), dtype='uint8')
-        foreground_mask[foreground_labels[0], foreground_labels[1]] = 255
-        foreground_mask = np.expand_dims(foreground_mask, axis=-1)
-        
-        # Calculate the IoU score
-        intersection = np.logical_and(foreground_mask, self.gt[0])
-        union = np.logical_or(foreground_mask, self.gt[0])
+        return iou_score
+    
+    # IoU calculation
+    def IoU(self, output, label):
+        intersection = np.logical_and(label, output)
+        union = np.logical_or(label, output)
         iou_score = (np.sum(intersection) + 1) / float(np.sum(union) + 1)
-
         return iou_score
 
     # Save predicted visualization
@@ -282,23 +257,17 @@ class DomainSegTrainer():
         # Get prediction
         prediction_vis = self.prediction.squeeze(0).cpu().detach()
         prediction_vis = prediction_vis.permute(1, 2, 0)
-        _, prediction_vis = torch.max(prediction_vis, dim=2)
-        prediction_vis = prediction_vis.numpy()
-
-        # Get label
-        foreground_labels = np.where(prediction_vis == 0)
-        forground_mask = np.zeros((prediction_vis.shape[0], prediction_vis.shape[1]), dtype='uint8')
-        forground_mask[foreground_labels[0], foreground_labels[1]] = 255
 
         # Get ground truth
-        gt_vis = self.gt[0]
+        gt_vis = self.gt_tensor.squeeze(0).cpu().detach()
+        gt_vis = gt_vis.permute(1,2,0)
         
         # Create visualization
         # Blending factor
         alpha = 0.5
 
         # Predicttion visualization
-        prediction_vis = cv2.addWeighted(self.make_visualization(forground_mask), \
+        prediction_vis = cv2.addWeighted(self.make_visualization(prediction_vis), \
             alpha, self.image, 1 - alpha, 0)
         
         # Ground truth visualization

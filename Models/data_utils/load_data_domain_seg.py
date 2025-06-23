@@ -46,46 +46,16 @@ class LoadDataDomainSeg():
     def getItemCount(self):
         return self.num_train_samples, self.num_val_samples
     
-    # Calculating class weights based on pixel frequency
-    def getData(self, mask):
-        background_pixels = np.where(mask == 0)
-        foreground_pixels = np.where(mask != 0)
-
-        # Image Size
-        row, col = mask.shape
-        num_pixels = row*col
-
-        class_weights = []
-
-        background_class_weight = num_pixels/(len(background_pixels[0]) + 5120)
-        class_weights.append(background_class_weight)
-
-        foreground_class_weight = num_pixels/(len(foreground_pixels[0]) + 5120)
-        class_weights.append(foreground_class_weight)
-
-        background_image = np.zeros((row, col, 1), dtype='uint8')
-        foreground_image = np.zeros((row, col, 1), dtype='uint8')
-
-        background_image[background_pixels[0], background_pixels[1], 0] = 255
-        foreground_image[foreground_pixels[0], foreground_pixels[1], 0] = 255
-
-        ground_truth = []
-        ground_truth.append(foreground_image)
-        ground_truth.append(background_image)
-
-        return ground_truth, class_weights
-    
     # Get training data in numpy format
     def getItemTrain(self, index):
-        train_image = np.array(Image.open(str(self.train_images[index])).convert('RGB'))
-        train_mask = np.array(Image.open(str(self.train_labels[index])))
-        ground_truth, class_weights = self.getData(train_mask)
-        return  train_image, ground_truth, class_weights
+        train_image = Image.open(str(self.train_images[index])).convert('RGB')
+        train_mask = Image.open(str(self.train_labels[index]))
+        train_ground_truth = np.expand_dims(train_mask, axis=-1)
+        return  np.array(train_image), np.array(train_ground_truth)
     
     # Get training data in numpy format
     def getItemVal(self, index):
-        val_image = np.array(Image.open(str(self.val_images[index])).convert('RGB'))
-        val_mask = np.array(Image.open(str(self.val_labels[index])))
-        ground_truth, class_weights = self.getData(val_mask)
-        return  val_image, ground_truth, class_weights
-    
+        val_image = Image.open(str(self.val_images[index])).convert('RGB')
+        val_mask = Image.open(str(self.val_labels[index]))
+        val_ground_truth = np.expand_dims(val_mask, axis=-1)
+        return  np.array(val_image), np.array(val_ground_truth)

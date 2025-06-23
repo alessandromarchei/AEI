@@ -5,7 +5,6 @@ import torch
 import random
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt
-import numpy as np
 import sys
 sys.path.append('..')
 from data_utils.load_data_domain_seg import LoadDataDomainSeg
@@ -56,9 +55,10 @@ def main():
     #    load_from_checkpoint = True
 
     # Pre-trained model checkpoint path
-    pretrained_checkpoint_path ='/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth' #args.pretrained_checkpoint_path
-    checkpoint_path = '0' #args.pretrained_checkpoint_path
+    pretrained_checkpoint_path = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/SceneSeg/iter_140215_epoch_4_step_15999.pth' #args.pretrained_checkpoint_path
+    checkpoint_path = 0 #args.pretrained_checkpoint_path
     
+
     # Trainer Class
     trainer = 0
     if(load_from_checkpoint == False):
@@ -69,8 +69,8 @@ def main():
     trainer.zero_grad()
     
     # Total training epochs
-    num_epochs = 30
-    batch_size = 24
+    num_epochs = 50
+    batch_size = 8
 
     # Epochs
     for epoch in range(0, num_epochs):
@@ -83,27 +83,31 @@ def main():
 
         # Batch size schedule
         if(epoch >= 1 and epoch < 5):
-            batch_size = 16
+            batch_size = 6
         
         if(epoch >= 5 and epoch < 10):
-            batch_size = 8
+            batch_size = 5
         
         if(epoch >= 10 and epoch < 15):
             batch_size = 4
 
         if (epoch >= 15 and epoch < 20):
-            batch_size = 2
+            batch_size = 3
 
         if (epoch >= 20):
-            batch_size = 1
+            batch_size = 2
 
         # Learning rate schedule
-        if(epoch >= 10):
+        if(epoch >= 2 and epoch < 15):
+            trainer.set_learning_rate(0.0001)
+        if(epoch >= 15):
             trainer.set_learning_rate(0.000025)
 
         # Augmentations schedule
-        apply_augmentations = True
-        if(epoch >= 15):
+        apply_augmentations = False
+        if(epoch >= 10 and epoch < 25):
+            apply_augmentations = True
+        if(epoch >= 25):
             apply_augmentations = False
 
         # Loop through data
@@ -118,40 +122,38 @@ def main():
             # dataset iterators
 
             # Get data
-            image, gt, class_weights = roadwork_Dataset.getItemTrain(randomlist_train_data[count])
+            image, gt = roadwork_Dataset.getItemTrain(randomlist_train_data[count])
             
-            if(np.sum(gt[0] > 0)):
+            # Assign Data
+            trainer.set_data(image, gt)
+            
+            # Augmenting Image
+            trainer.apply_augmentations(apply_augmentations)
 
-                # Assign Data
-                trainer.set_data(image, gt, class_weights)
-                
-                # Augmenting Image
-                trainer.apply_augmentations(apply_augmentations)
+            # Converting to tensor and loading
+            trainer.load_data()
 
-                # Converting to tensor and loading
-                trainer.load_data()
+            # Run model and calculate loss
+            trainer.run_model()
+            
+            # Gradient accumulation
+            trainer.loss_backward()
 
-                # Run model and calculate loss
-                trainer.run_model()
-                
-                # Gradient accumulation
-                trainer.loss_backward()
+            # Simulating batch size through gradient accumulation
+            if((count+1) % batch_size == 0):
+                trainer.run_optimizer()
 
-                # Simulating batch size through gradient accumulation
-                if((count+1) % batch_size == 0):
-                    trainer.run_optimizer()
-
-                # Logging loss to Tensor Board every 250 steps
-                if((count+1) % 250 == 0):
-                    trainer.log_loss(log_count)
-                
-                # Logging Image to Tensor Board every 1000 steps
-                if((count+1) % 1000 == 0): 
-                    trainer.save_visualization(log_count)
+            # Logging loss to Tensor Board every 250 steps
+            if((count+1) % 250 == 0):
+                trainer.log_loss(log_count)
+            
+            # Logging Image to Tensor Board every 1000 steps
+            if((count+1) % 1000 == 0):  
+                trainer.save_visualization(log_count)
             
         # Save model and run validation on entire validation 
         # dataset after each epoch
-        
+
         # Save Model
         model_save_path = model_save_root_path + 'iter_' + \
             str(count + total_train_samples*epoch) \
@@ -172,26 +174,22 @@ def main():
 
         # Overall IoU
         running_IoU = 0
-        num_valid_samples = 0
 
         # No gradient calculation
         with torch.no_grad():
 
             # ROADWork
             for val_count in range(0, roadwork_num_val_samples):
+                image_val, gt_val = roadwork_Dataset.getItemVal(val_count)
 
-                image_val, gt_val, class_weights = roadwork_Dataset.getItemVal(val_count)
+                # Run Validation and calculate IoU Score
+                IoU_score = trainer.validate(image_val, gt_val)
 
-                if(np.sum(gt[0] > 0)):
-                    # Run Validation and calculate IoU Score
-                    IoU_score = trainer.validate(image_val, gt_val, class_weights)
-
-                    # Accumulate individual IoU scores for validation samples
-                    running_IoU += IoU_score
-                    num_valid_samples += 1
+                # Accumulate individual IoU scores for validation samples
+                running_IoU += IoU_score
             
             # Calculating average loss of complete validation set
-            mIoU = running_IoU/num_valid_samples
+            mIoU = running_IoU/total_val_samples
             print('mIoU: ', mIoU)
           
             # Logging average validation loss to TensorBoard

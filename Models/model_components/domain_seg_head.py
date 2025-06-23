@@ -16,7 +16,7 @@ class DomainSegHead(nn.Module):
         self.upsample_layer_4 = nn.ConvTranspose2d(128, 128, 2, 2)
         self.decode_layer_8 = nn.Conv2d(128, 128, 3, 1, 1)
         self.decode_layer_9 = nn.Conv2d(128, 64, 3, 1, 1)
-        self.decode_layer_10 = nn.Conv2d(64, 2, 3, 1, 1)
+        self.decode_layer_10 = nn.Conv2d(64, 1, 3, 1, 1)
 
     def forward(self, neck, features):
 
