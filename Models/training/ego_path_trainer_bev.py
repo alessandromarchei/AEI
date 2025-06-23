@@ -306,8 +306,16 @@ class BEVEgoPathTrainer():
 
         # Plot BEV egopath
         plt.plot(
-            [x * self.W for x in gt_xs],
-            [y * self.H for y in self.ys],
+            [
+                x * self.W 
+                for x in  gt_xs 
+                if (0 <= x * self.W < self.W)
+            ],
+            [
+                y * self.H 
+                for y in self.ys 
+                if (0 <= y * self.H < self.H)
+            ],
             color = "yellow"
         )
 
@@ -327,8 +335,16 @@ class BEVEgoPathTrainer():
 
         # Plot BEV egopath
         plt.plot(
-            [x * self.W for x in pred_xs[0]],
-            [y * self.H for y in self.ys],
+            [
+                x * self.W 
+                for x in pred_xs[0] 
+                if (0 <= x * self.W < self.W)
+            ],
+            [
+                y * self.H 
+                for y in self.ys 
+                if (0 <= y * self.H < self.H)
+            ],
             color = "yellow"
         )
 
@@ -401,7 +417,7 @@ class BEVEgoPathTrainer():
         test_img_tensor = self.image_loader(test_img).unsqueeze(0).to(self.device)
 
         # Model inference
-        test_pred_xs, test_pred_flag = self.model(test_img_tensor).cpu().detach().numpy()
+        test_pred_xs = self.model(test_img_tensor).cpu().detach().numpy()
 
         # Visualize image
         fig_test = plt.figure(figsize = self.BEV_FIGSIZE)
@@ -412,7 +428,7 @@ class BEVEgoPathTrainer():
         plt.plot(
             [
                 x * test_W 
-                for x in self.xs 
+                for x in test_pred_xs[0] 
                 if (0 <= x * test_W < test_W)
             ],
             [
