@@ -176,18 +176,15 @@ def main():
 
     DATA_LOSS_SCALE_FACTOR = 1.0
     SMOOTHING_LOSS_SCALE_FACTOR = 50.0
-    FLAG_LOSS_SCALE_FACTOR = 1.0
 
     # Set training loss term scale factors
     trainer.set_loss_scale_factors(
         DATA_LOSS_SCALE_FACTOR,
-        SMOOTHING_LOSS_SCALE_FACTOR,
-        FLAG_LOSS_SCALE_FACTOR
+        SMOOTHING_LOSS_SCALE_FACTOR
     )
     
     print(f"DATA_LOSS_SCALE_FACTOR : {DATA_LOSS_SCALE_FACTOR}")
     print(f"SMOOTHING_LOSS_SCALE_FACTOR : {SMOOTHING_LOSS_SCALE_FACTOR}")
-    print(f"FLAG_LOSS_SCALE_FACTOR : {FLAG_LOSS_SCALE_FACTOR}")
 
     # GRAD_LOSS_TYPE
     # There are two types of gradients loss, and either can be selected.
@@ -344,12 +341,11 @@ def main():
             image = None
             xs = []
             ys = []
-            flags = []
             valids = []
 
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            image, xs, ys, flags, valids = msdict[current_dataset]["loader"].getItem(
+            image, xs, ys, _, valids = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
@@ -358,7 +354,7 @@ def main():
             # Start the training on this data
 
             # Assign data
-            trainer.set_data(image, xs, ys, flags, valids)
+            trainer.set_data(image, xs, ys, valids)
             
             # Augment image
             trainer.apply_augmentations(is_train = True)
@@ -416,6 +412,8 @@ def main():
                 # Validation metrics for each dataset
                 for dataset in VALID_DATASET_LIST:
                     msdict[dataset]["val_running"] = 0
+                    msdict[dataset]["val_data_running"] = 0
+                    msdict[dataset]["val_smooth_running"] = 0
                     msdict[dataset]["num_val_samples"] = 0
 
                 # Temporarily disable gradient computation for backpropagation
@@ -426,18 +424,22 @@ def main():
                     # Compute val loss per dataset
                     for dataset in VALID_DATASET_LIST:
                         for val_count in range(0, msdict[dataset]["N_vals"]):
-                            image, xs, ys, flags, valids = msdict[dataset]["loader"].getItem(
+                            image, xs, ys, _, valids = msdict[dataset]["loader"].getItem(
                                 val_count,
                                 is_train = False
                             )
                             msdict[dataset]["num_val_samples"] = msdict[dataset]["num_val_samples"] + 1
-                            val_metric = trainer.validate(image, xs, ys, flags, valids)
+                            val_metric, val_data, val_smooth = trainer.validate(image, xs, ys,valids)
                             msdict[dataset]["val_running"] = msdict[dataset]["val_running"] + val_metric
+                            msdict[dataset]["val_data_running"] = msdict[dataset]["val_data_running"] + val_data
+                            msdict[dataset]["val_smooth_running"] = msdict[dataset]["val_smooth_running"] + val_smooth
                     
                     # Calculate final validation scores for network on each dataset
                     # as well as overall validation score - A lower score is better
                     for dataset in VALID_DATASET_LIST:
                         msdict[dataset]["val_score"] = msdict[dataset]["val_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_data_score"] = msdict[dataset]["val_data_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_smooth_score"] = msdict[dataset]["val_smooth_running"] / msdict[dataset]["num_val_samples"]
 
                     # Overall validation metric
                     msdict["val_overall_running"] = sum([
@@ -449,11 +451,36 @@ def main():
                         for dataset in VALID_DATASET_LIST
                     ])
                     msdict["overall_val_score"] = msdict["val_overall_running"] / msdict["num_val_overall_samples"]
+
+                    # Overall validation data metric
+                    msdict["val_overall_data_running"] = sum([
+                        msdict[dataset]["val_data_running"]
+                        for dataset in VALID_DATASET_LIST
+                    ])
+                    msdict["num_val_overall_samples"] = sum([
+                        msdict[dataset]["num_val_samples"]
+                        for dataset in VALID_DATASET_LIST
+                    ])
+                    msdict["overall_val_data_score"] = msdict["val_overall_data_running"] / msdict["num_val_overall_samples"]
+
+                    msdict["val_overall_smooth_running"] = sum([
+                        msdict[dataset]["val_smooth_running"]
+                        for dataset in VALID_DATASET_LIST
+                    ])
+                    msdict["num_val_overall_samples"] = sum([
+                        msdict[dataset]["num_val_samples"]
+                        for dataset in VALID_DATASET_LIST
+                    ])
+                    msdict["overall_val_smooth_score"] = msdict["val_smooth_running"] / msdict["num_val_overall_samples"]
                     
                     print("================ Complete - Validation Scores ================")
                     for dataset in VALID_DATASET_LIST:
                         print(f"{dataset} : {msdict[dataset]['val_score']}")
+                        print(f"{dataset} : {msdict[dataset]['val_data_score']}")
+                        print(f"{dataset} : {msdict[dataset]['val_smooth_score']}")
                     print(f"OVERALL : {msdict['overall_val_score']}\n")
+                    print(f"OVERALL : {msdict['overall_val_data_score']}\n")
+                    print(f"OVERALL : {msdict['overall_val_smooth_score']}\n")
 
                     # Logging average metrics
                     trainer.log_validation(msdict)
