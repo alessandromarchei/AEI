@@ -26,7 +26,8 @@ class BEVEgoPathTrainer():
         is_pretrained = False
     ):
         
-        # Image and gts
+        # Images and gts
+        self.orig_vis = None
         self.image = None
         self.H = None
         self.W = None
@@ -146,7 +147,8 @@ class BEVEgoPathTrainer():
         self.learning_rate = learning_rate
 
     # Assign input variables
-    def set_data(self, image, xs, ys, valids, mat):
+    def set_data(self, orig_vis, image, xs, ys, valids, mat):
+        self.orig_vis = orig_vis
         h, w, _ = image.shape
         self.image = image
         self.H = h
@@ -294,81 +296,71 @@ class BEVEgoPathTrainer():
         print("Finished training")
 
     # Save predicted visualization
-    def save_visualization(self, log_count):
+    def save_visualization(self, log_count, orig_vis):
 
         # Get pred/gt tensors and detach em
         pred_xs = self.pred_xs.cpu().detach().numpy()
         gt_xs = self.xs_tensor.cpu().detach().numpy()
 
-        # GROUNDTRUTH
+        # BEV GROUNDTRUTH
 
-        # Visualize image
-        fig_gt = plt.figure(figsize = self.BEV_FIGSIZE)
-        plt.axis("off")
-        plt.imshow(self.image)
-
-        # Plot BEV egopath
-
-        plt.plot(
-            [
-                x * self.W 
-                for x in  gt_xs[0] 
-                if (0 <= x * self.W < self.W)
-            ],
-            [
-                y * self.H 
-                for y in self.ys 
-                if (0 <= y * self.H < self.H)
-            ],
-            color = "yellow"
-        )
+        # Plot fig
+        fig_gt_bev = self.visualizeBEV(gt_xs)
 
         # Write fig
         self.writer.add_figure(
-            "Groundtruth",
-            fig_gt,
+            "BEV - Groundtruth",
+            fig_gt_bev,
             global_step = (log_count)
         )
 
-        # PREDICTION
+        # BEV PREDICTION
 
-        # Visualize image
-        fig_pred = plt.figure(figsize = self.BEV_FIGSIZE)
-        plt.axis("off")
-        plt.imshow(self.image)
-
-        # Plot BEV egopath
-        plt.plot(
-            [
-                x * self.W 
-                for x in pred_xs[0] 
-                if (0 <= x * self.W < self.W)
-            ],
-            [
-                y * self.H 
-                for y in self.ys 
-                if (0 <= y * self.H < self.H)
-            ],
-            color = "yellow"
-        )
+        # Plot fig
+        fig_pred_bev = self.visualizeBEV(pred_xs)
 
         # Write fig
         self.writer.add_figure(
-            "Prediction",
-            fig_pred,
+            "BEV - Prediction",
+            fig_pred_bev,
+            global_step = (log_count)
+        )
+
+        # ORIGINAL GROUNDTRUTH (basically just slap the visualization img)
+
+        # Prep image tensor
+        orig_vis_tensor = transforms.functional.to_tensor(orig_vis)
+
+        # Write image
+        self.writer.add_image(
+            "Original - Groundtruth",
+            orig_vis_tensor,
+            global_step = (log_count)
+        )
+
+        # ORIGINAL PREDICTION (re-transformed from BEV prediction)
+
+        # Plot fig
+        fig_pred_orig = self.visualizeOriginal(pred_xs, self.mat)
+
+        # Write fig
+        self.writer.add_figure(
+            "Original - Prediction",
+            fig_pred_orig,
             global_step = (log_count)
         )
 
     # Run validation with metrics
     def validate(
         self, 
+        orig_vis,
         image, 
         gt_xs, gt_ys, valids, mat, 
         save_path = None
     ):
 
         # Set data
-        self.set_data(image, gt_xs, gt_ys, valids, mat)
+        self.set_data(orig_vis, image, gt_xs, gt_ys, valids, mat)
 
         # Augment image
         self.apply_augmentations(is_train = False)
@@ -510,7 +502,8 @@ class BEVEgoPathTrainer():
         )
 
         # Write fig
-        fig_BEV.savefig(save_path)
+        if (save_path):
+            fig_BEV.savefig(save_path)
         plt.close(fig_BEV)
 
         return fig_BEV
@@ -553,7 +546,8 @@ class BEVEgoPathTrainer():
         )
 
         # Write fig
-        fig_orig.savefig(save_path)
+        if (save_path):
+            fig_orig.savefig(save_path)
         plt.close(fig_orig)
 
         return fig_orig

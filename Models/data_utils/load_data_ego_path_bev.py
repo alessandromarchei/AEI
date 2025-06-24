@@ -66,8 +66,10 @@ class LoadDataBEVEgoPath():
 
         self.train_images = []
         self.train_labels = []
+        self.train_ids = []
         self.val_images = []
         self.val_labels = []
+        self.val_ids = []
 
         self.N_trains = 0
         self.N_vals = 0
@@ -83,11 +85,13 @@ class LoadDataBEVEgoPath():
                         # Slap it to Val
                         self.val_images.append(str(self.images[set_idx]))
                         self.val_labels.append(self.labels[frame_id])
+                        self.val_ids.append(frame_id)
                         self.N_vals += 1 
                     else:
                         # Slap it to Train
                         self.train_images.append(str(self.images[set_idx]))
                         self.train_labels.append(self.labels[frame_id])
+                        self.train_ids.append(frame_id)
                         self.N_trains += 1
                 else:
                     raise ValueError(f"Mismatch data detected in {self.dataset_name}!")
@@ -104,10 +108,12 @@ class LoadDataBEVEgoPath():
             img = Image.open(str(self.train_images[index])).convert("RGB")
             drivable_path = self.train_labels[index]["drivable_path"]
             transform_matrix = self.train_labels[index]["transform_matrix"]
+            frame_id = self.train_ids[index]
         else:
             img = Image.open(str(self.val_images[index])).convert("RGB")
             drivable_path = self.val_labels[index]["drivable_path"]
             transform_matrix = self.val_labels[index]["transform_matrix"]
+            frame_id = self.val_ids[index]
 
         W, H = img.size
 
@@ -120,4 +126,4 @@ class LoadDataBEVEgoPath():
         flags = [lab[2] for lab in drivable_path]
         valids = [lab[3] for lab in drivable_path]
         
-        return img, xs, ys, flags, valids, transform_matrix
+        return frame_id, img, xs, ys, flags, valids, transform_matrix

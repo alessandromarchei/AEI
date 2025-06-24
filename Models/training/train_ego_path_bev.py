@@ -4,6 +4,7 @@ import os
 import torch
 import random
 import pathlib
+from PIL import Image
 from argparse import ArgumentParser
 from typing import Literal, get_args
 import sys
@@ -24,6 +25,7 @@ VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
 BEV_IMG_PATH = "image_bev"
+ORIG_VIS_PATH = "visualization"
 
 
 def main():
@@ -84,8 +86,9 @@ def main():
     msdict = {}
     for dataset in VALID_DATASET_LIST:
         msdict[dataset] = {
-            "path_labels" : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
-            "path_images" : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH)
+            "path_labels"   : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
+            "path_images"   : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH),
+            "path_orig_vis" : os.path.join(ROOT_PATH, dataset, ORIG_VIS_PATH)
         }
 
     # Deal with TEST dataset
@@ -345,16 +348,25 @@ def main():
 
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            image, xs, ys, _, valids, mat = msdict[current_dataset]["loader"].getItem(
+            frame_id, image, xs, ys, _, valids, mat = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
             msdict[current_dataset]["iter"] = current_dataset_iter + 1
 
+            # Also fetch original visualization
+            orig_vis = Image.open(
+                os.path.join(
+                    msdict[dataset]["path_orig_vis"],
+                    f"{frame_id}.jpg"
+                )
+            ).convert("RGB")
+
             # Start the training on this data
 
             # Assign data
-            trainer.set_data(image, xs, ys, valids, mat)
+
+            trainer.set_data(orig_vis, image, xs, ys, valids, mat)
             
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
@@ -378,7 +390,7 @@ def main():
             
             # Logging Visualization to Tensor Board
             if((msdict["sample_counter"] + 1) % LOGSTEP_VIS == 0):  
-                trainer.save_visualization(msdict["log_counter"] + 1)
+                trainer.save_visualization(msdict["log_counter"] + 1, frame_id)
             
             # Save model and run Validation on entire validation dataset
             if ((msdict["sample_counter"] + 1) % LOGSTEP_MODEL == 0):
@@ -413,7 +425,7 @@ def main():
                         for val_count in range(0, msdict[dataset]["N_vals"]):
 
                             # Fetch data
-                            image, xs, ys, _, valids, mat = msdict[dataset]["loader"].getItem(
+                            frame_id, image, xs, ys, _, valids, mat = msdict[dataset]["loader"].getItem(
                                 val_count,
                                 is_train = False
                             )
@@ -439,7 +451,7 @@ def main():
 
                             # Validate
                             val_metric, val_data, val_smooth = trainer.validate(
-                                image, 
+                                orig_vis, image, 
                                 xs, ys, valids, mat,
                                 val_save_path
                             )
