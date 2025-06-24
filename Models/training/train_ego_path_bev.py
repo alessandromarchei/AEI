@@ -75,12 +75,6 @@ def main():
 
     # Model save root path
     MODEL_SAVE_ROOT_PATH = args.model_save_root_path
-    VIS_SAVE_PATH = os.path.join(
-        MODEL_SAVE_ROOT_PATH,
-        "VAL_VIS"
-    )
-    if not (os.path.exists(VIS_SAVE_PATH)):
-        os.makedirs(VIS_SAVE_PATH)
 
     # Init metadata for datasets
     msdict = {}
@@ -390,7 +384,7 @@ def main():
             
             # Logging Visualization to Tensor Board
             if((msdict["sample_counter"] + 1) % LOGSTEP_VIS == 0):  
-                trainer.save_visualization(msdict["log_counter"] + 1, frame_id)
+                trainer.save_visualization(msdict["log_counter"] + 1, orig_vis)
             
             # Save model and run Validation on entire validation dataset
             if ((msdict["sample_counter"] + 1) % LOGSTEP_MODEL == 0):
@@ -433,7 +427,8 @@ def main():
                             
                             # Path handling
                             val_save_dir = os.path.join(
-                                VIS_SAVE_PATH,
+                                MODEL_SAVE_ROOT_PATH,
+                                "VAL_VIS",
                                 dataset,
                                 f"iter_{msdict['log_counter'] + 1}_epoch_{epoch}_step_{msdict['sample_counter'] + 1}"
                             )
@@ -443,7 +438,7 @@ def main():
                             val_save_path = (
                                 os.path.join(
                                     val_save_dir, 
-                                    f"{str(val_count).zfill(2)}.jpg"
+                                    f"{str(val_count).zfill(2)}"
                                 )
                                 if (val_count < N_VALVIS)
                                 else None

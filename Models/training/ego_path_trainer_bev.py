@@ -329,7 +329,7 @@ class BEVEgoPathTrainer():
         # ORIGINAL GROUNDTRUTH (basically just slap the visualization img)
 
         # Prep image tensor
-        orig_vis_tensor = transforms.functional.to_tensor(orig_vis)
+        orig_vis_tensor = transforms.ToTensor()(orig_vis)
 
         # Write image
         self.writer.add_image(
@@ -393,12 +393,12 @@ class BEVEgoPathTrainer():
             pred_xs = self.pred_xs.detach().cpu().numpy()
             self.visualizeBEV(
                 pred_xs,
-                f"BEV_{save_path}"
+                f"{save_path}_BEV.jpg"
             )
             self.visualizeOriginal(
                 pred_xs,
                 mat,
-                f"Orig_{save_path}"
+                f"{save_path}_Orig.jpg"
             )
 
         return sum_val_loss, val_data_loss, val_smoothing_loss
@@ -478,7 +478,7 @@ class BEVEgoPathTrainer():
     def visualizeBEV(
         self,
         pred_xs,
-        save_path
+        save_path = None
     ):
         # Visualize image
         H, W, _ = self.image.shape
@@ -487,16 +487,18 @@ class BEVEgoPathTrainer():
         plt.imshow(self.image)
 
         # Plot BEV egopath
+        # print(f"Pred_Xs = {pred_xs[0]} WITH SHAPE {pred_xs[0].shape}")
+        # print(f"self.ys = {self.ys} WITH SHAPE {self.ys.shape}")
         plt.plot(
             [
                 x * W
                 for x in pred_xs[0] 
-                if (0 <= x * W < W)
+                # if (0 <= x * W <= W)
             ],
             [
                 y * H 
                 for y in self.ys 
-                if (0 <= y * H < H)
+                # if (0 <= y * H <= H)
             ],
             color = "yellow"
         )
@@ -513,7 +515,7 @@ class BEVEgoPathTrainer():
         self,
         pred_xs,
         transform_matrix,
-        save_path
+        save_path = None
     ):
         # Visualize image
         H, W, _ = self.image.shape
@@ -522,18 +524,18 @@ class BEVEgoPathTrainer():
 
         # Inverse transform
         orig_view, orig_egopath = self.invTrans(
-            zip(
+            list(zip(
                 [
                     x * W
                     for x in pred_xs[0] 
-                    if (0 <= x * W < W)
+                    # if (0 <= x * W <= W)
                 ],
                 [
                     y * H 
                     for y in self.ys 
-                    if (0 <= y * H < H)
+                    # if (0 <= y * H <= H)
                 ]
-            ),
+            )),
             transform_matrix
         )
 
