@@ -160,10 +160,10 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 5
-    LOGSTEP_LOSS = 25
-    LOGSTEP_VIS = 100
-    LOGSTEP_MODEL = 200
+    NUM_EPOCHS = 10
+    LOGSTEP_LOSS = 250
+    LOGSTEP_VIS = 1000
+    LOGSTEP_MODEL = 20000
 
     # Val visualization param
     N_VALVIS = 50
