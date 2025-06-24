@@ -2,11 +2,22 @@
 
 // TODO: find adjacent left and right lanes, group LanePts and fittedCurve into a single struct or class
 
-bool gt = true; // true for ground truth, false for BEV points
+bool gt = false; // true for ground truth, false for BEV points
+
+LanePts::LanePts(int id,
+                 std::vector<cv::Point2f> GtPoints,
+                 std::vector<cv::Point2f> BevPoints) : id(id), GtPoints(GtPoints), BevPoints(BevPoints) {}
+
+fittedCurve::fittedCurve(const std::array<double, 3> &coeff) : coeff(coeff)
+{
+    cte = -coeff[2];
+    yaw_error = -atan2(coeff[1], 1.0);
+    curvature = 2 * coeff[0] / std::pow(1 + coeff[1] * coeff[1], 1.5);
+}
 
 void drawLanes(const std::vector<LanePts> &lanes,
                const std::vector<fittedCurve> &egoLanes,
-               const std::vector<fittedCurve> &egoPaths)
+               const fittedCurve &egoPath)
 {
     int width = 800, height = 1000, scale = 20, height_offset = 50;
     cv::Mat image = cv::Mat::zeros(height, width, CV_8UC3);
@@ -60,21 +71,19 @@ void drawLanes(const std::vector<LanePts> &lanes,
         }
     }
 
-    for (auto egoPath : egoPaths)
+    // Draw ego path
+    cv::Point2f prev_pt(0, 0);
+    for (double y = 0.0; y <= 50.0; y += 0.1) // y range in meters
     {
-        cv::Point2f prev_pt(0, 0);
-        for (double y = 0.0; y <= 50.0; y += 0.1) // y range in meters
+        double x = egoPath.coeff[0] * y * y + egoPath.coeff[1] * y + egoPath.coeff[2];
+        int u = static_cast<int>(x * scale + width / 2);
+        int v = static_cast<int>(height - height_offset - y * scale);
+        if (y > 0.0) // skip the first point
         {
-            double x = egoPath.coeff[0] * y * y + egoPath.coeff[1] * y + egoPath.coeff[2];
-            int u = static_cast<int>(x * scale + width / 2);
-            int v = static_cast<int>(height - height_offset - y * scale);
-            if (y > 0.0) // skip the first point
-            {
-                cv::line(image, prev_pt, cv::Point2f(u, v), cv::Scalar(255, 0, 0), 1);
-            }
-            prev_pt.x = u;
-            prev_pt.y = v;
+            cv::line(image, prev_pt, cv::Point2f(u, v), cv::Scalar(255, 0, 0), 2);
         }
+        prev_pt.x = u;
+        prev_pt.y = v;
     }
 
     cv::imshow("BEV Lanes", image);
@@ -249,17 +258,27 @@ int main()
         egoLanes.emplace_back(fittedCurve(coeff));
     }
 
+
+
+    // TODO: find nearest left and right lanes
+    auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[6]);
+
+    std::cout << "egoPath: "
+              << egoPath.cte << " "
+              << egoPath.yaw_error << " "
+              << egoPath.curvature << std::endl;
+
     std::sort(egoLanes.begin(), egoLanes.end(), [](const fittedCurve &a, const fittedCurve &b)
-              { return a.coeff[2] > b.coeff[2]; });
+              { return a.cte > b.cte; });
 
-    std::vector<fittedCurve> egoPaths;
-
-    for (int i = 1; i < egoLanes.size(); ++i) // Skip the first curve
+    for (auto &egoLane : egoLanes)
     {
-        auto egoPath = calculateEgoPath(egoLanes[i - 1], egoLanes[i]);
-        egoPaths.emplace_back(egoPath);
+        std::cout << "egoLane: "
+                  << egoLane.cte << " "
+                  << egoLane.yaw_error << " "
+                  << egoLane.curvature << std::endl;
     }
 
-    drawLanes(egoLanesPts, egoLanes, egoPaths);
+    drawLanes(egoLanesPts, egoLanes, egoPath);
     return 0;
 }

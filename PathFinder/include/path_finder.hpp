@@ -16,18 +16,16 @@ struct LanePts
     std::vector<cv::Point2f> GtPoints;  // meters
     LanePts(int id,
             std::vector<cv::Point2f> GtPoints,
-            std::vector<cv::Point2f> BevPoints) : id(id), GtPoints(GtPoints), BevPoints(BevPoints) {}
+            std::vector<cv::Point2f> BevPoints);
 };
 
 struct fittedCurve
 {
     std::array<double, 3> coeff; // Coefficients for the quadratic polynomial
-    // error terms derived from coefficients
     double cte;       // Cross-track error in meters
     double yaw_error; // Yaw error in radians
     double curvature; // Curvature in meters^-1
-    fittedCurve(const std::array<double, 3> &coeff)
-        : coeff(coeff) {}
+    fittedCurve(const std::array<double, 3> &coeff);
 };
 
 struct roadLane
@@ -40,7 +38,7 @@ struct roadLane
 
 void drawLanes(const std::vector<LanePts> &lanes,
                const std::vector<fittedCurve> &egoLanes,
-               const std::vector<fittedCurve> &egoPaths);
+               const fittedCurve &egoPath);
 std::vector<LanePts> loadLanesFromYaml(const std::string &filename);
 std::array<double, 2> generatePixelNoise(double max_noise);
 std::array<double, 3> fitQuadPoly(const std::vector<cv::Point2f> &points);
