@@ -244,3 +244,10 @@ python3 EgoPath/create_path/CurveLanes/parse_curvelanes_bev.py --dataset_dir ../
     - `bev_egopath` (list): polyfitted drivable path in BEV space.
     - `flag_list` (list): boolean list indicating valid x-values in BEV space.
     - `mat` (np.ndarray): homography matrix used for the transformation.
+
+## IV. Running all at once
+
+```
+python3 EgoPath/create_path/CurveLanes/process_curvelanes.py --dataset_dir ../pov_datasets/ --output_dir ../pov_datasets/CurveLanes_250624
+python3 EgoPath/create_path/CurveLanes/parse_curvelanes_bev.py --dataset_dir ../pov_datasets/CurveLanes_250624
+```
