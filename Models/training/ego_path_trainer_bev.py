@@ -398,9 +398,8 @@ class BEVEgoPathTrainer():
         # Save this visualization
         if (save_path):
             pred_xs = self.pred_xs.detach().cpu().numpy()
-            self.visualize(
+            self.visualizeBEV(
                 pred_xs,
-                mat,
                 save_path
             )
 
@@ -453,9 +452,8 @@ class BEVEgoPathTrainer():
         test_pred_xs = self.model(test_img_tensor).cpu().detach().numpy()
 
         # Vis it
-        self.visualize(
+        self.visualizeBEV(
             test_pred_xs,
-            transform_matrix,
             save_path
         )
 
@@ -480,10 +478,9 @@ class BEVEgoPathTrainer():
         return orig_line
 
     # Visualize as plot
-    def visualize(
+    def visualizeBEV(
         self,
         pred_xs,
-        transform_matrix,
         save_path
     ):
         # Visualize image
