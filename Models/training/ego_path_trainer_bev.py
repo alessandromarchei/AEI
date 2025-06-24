@@ -417,7 +417,7 @@ class BEVEgoPathTrainer():
             "Val Score - Dataset",
             val_score_payload,
             val_data_score_payload,
-            val_smooth_score_payload
+            val_smooth_score_payload,
             (msdict["log_counter"])
         )
 
