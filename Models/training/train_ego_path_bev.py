@@ -4,6 +4,7 @@ import os
 import torch
 import random
 import pathlib
+from PIL import Image
 from argparse import ArgumentParser
 from typing import Literal, get_args
 import sys
@@ -24,6 +25,7 @@ VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
 BEV_IMG_PATH = "image_bev"
+ORIG_VIS_PATH = "visualization"
 
 
 def main():
@@ -78,8 +80,9 @@ def main():
     msdict = {}
     for dataset in VALID_DATASET_LIST:
         msdict[dataset] = {
-            "path_labels" : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
-            "path_images" : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH)
+            "path_labels"   : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
+            "path_images"   : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH),
+            "path_orig_vis" : os.path.join(ROOT_PATH, dataset, ORIG_VIS_PATH)
         }
 
     # Deal with TEST dataset
@@ -157,10 +160,13 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 20
+    NUM_EPOCHS = 10
     LOGSTEP_LOSS = 250
     LOGSTEP_VIS = 1000
     LOGSTEP_MODEL = 20000
+
+    # Val visualization param
+    N_VALVIS = 50
 
     # MODIFIABLE PARAMETERS
     # You can adjust the SCALE FACTORS, GRAD_LOSS_TYPE, DATA_SAMPLING_SCHEME 
@@ -332,19 +338,29 @@ def main():
             xs = []
             ys = []
             valids = []
+            mat = []
 
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            image, xs, ys, _, valids = msdict[current_dataset]["loader"].getItem(
+            frame_id, image, xs, ys, _, valids, mat = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
             msdict[current_dataset]["iter"] = current_dataset_iter + 1
 
+            # Also fetch original visualization
+            orig_vis = Image.open(
+                os.path.join(
+                    msdict[dataset]["path_orig_vis"],
+                    f"{frame_id}.jpg"
+                )
+            ).convert("RGB")
+
             # Start the training on this data
 
             # Assign data
-            trainer.set_data(image, xs, ys, valids)
+
+            trainer.set_data(orig_vis, image, xs, ys, valids, mat)
             
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
@@ -368,7 +384,7 @@ def main():
             
             # Logging Visualization to Tensor Board
             if((msdict["sample_counter"] + 1) % LOGSTEP_VIS == 0):  
-                trainer.save_visualization(msdict["log_counter"] + 1)
+                trainer.save_visualization(msdict["log_counter"] + 1, orig_vis)
             
             # Save model and run Validation on entire validation dataset
             if ((msdict["sample_counter"] + 1) % LOGSTEP_MODEL == 0):
@@ -386,19 +402,6 @@ def main():
                 # Set model to eval mode
                 trainer.set_eval_mode()
 
-                # Running test
-                # if ("TEST" in msdict):
-                #     print("================ Running Testing ================")
-                #     for i in range(0, len()):
-                        
-                #         test_image_save_path = os.path.join(
-                #             msdict["TEST"]["path_test_save"],
-                #             f"iter_{msdict['log_counter'] + 1}_epoch_{epoch}_step_{msdict['sample_counter'] + 1}_{i}.png"
-                #         )
-
-                #         test_image_path = str(msdict["TEST"]["list_images"][i])
-                #         trainer.test(test_image_path, test_image_save_path)
-
                 # Validation metrics for each dataset
                 for dataset in VALID_DATASET_LIST:
                     msdict[dataset]["val_running"] = 0
@@ -414,12 +417,49 @@ def main():
                     # Compute val loss per dataset
                     for dataset in VALID_DATASET_LIST:
                         for val_count in range(0, msdict[dataset]["N_vals"]):
-                            image, xs, ys, _, valids = msdict[dataset]["loader"].getItem(
+
+                            # Fetch data
+                            frame_id, image, xs, ys, _, valids, mat = msdict[dataset]["loader"].getItem(
                                 val_count,
                                 is_train = False
                             )
                             msdict[dataset]["num_val_samples"] = msdict[dataset]["num_val_samples"] + 1
-                            val_metric, val_data, val_smooth = trainer.validate(image, xs, ys,valids)
+                            
+                            # Path handling
+                            val_save_dir = os.path.join(
+                                MODEL_SAVE_ROOT_PATH,
+                                "VAL_VIS",
+                                dataset,
+                                f"iter_{msdict['log_counter'] + 1}_epoch_{epoch}_step_{msdict['sample_counter'] + 1}"
+                            )
+                            if not (os.path.exists(val_save_dir)):
+                                os.makedirs(val_save_dir)
+
+                            val_save_path = (
+                                os.path.join(
+                                    val_save_dir, 
+                                    f"{str(val_count).zfill(2)}"
+                                )
+                                if (val_count < N_VALVIS)
+                                else None
+                            )
+
+                            # Fetch it again, the orig vis
+                            orig_vis = Image.open(
+                                os.path.join(
+                                    msdict[dataset]["path_orig_vis"],
+                                    f"{frame_id}.jpg"
+                                )
+                            ).convert("RGB")
+
+                            # Validate
+                            val_metric, val_data, val_smooth = trainer.validate(
+                                orig_vis, image, 
+                                xs, ys, valids, mat,
+                                val_save_path
+                            )
+                            
+                            # Log
                             msdict[dataset]["val_running"] = msdict[dataset]["val_running"] + val_metric
                             msdict[dataset]["val_data_running"] = msdict[dataset]["val_data_running"] + val_data
                             msdict[dataset]["val_smooth_running"] = msdict[dataset]["val_smooth_running"] + val_smooth
@@ -461,16 +501,17 @@ def main():
                         msdict[dataset]["num_val_samples"]
                         for dataset in VALID_DATASET_LIST
                     ])
-                    msdict["overall_val_smooth_score"] = msdict["val_smooth_running"] / msdict["num_val_overall_samples"]
+                    msdict["overall_val_smooth_score"] = msdict[dataset]["val_smooth_running"] / msdict["num_val_overall_samples"]
                     
                     print("================ Complete - Validation Scores ================")
                     for dataset in VALID_DATASET_LIST:
-                        print(f"{dataset} : {msdict[dataset]['val_score']}")
-                        print(f"{dataset} : {msdict[dataset]['val_data_score']}")
-                        print(f"{dataset} : {msdict[dataset]['val_smooth_score']}")
-                    print(f"OVERALL : {msdict['overall_val_score']}\n")
-                    print(f"OVERALL : {msdict['overall_val_data_score']}\n")
-                    print(f"OVERALL : {msdict['overall_val_smooth_score']}\n")
+                        print(f"\n{dataset} - VAL SCORE : {msdict[dataset]['val_score']}")
+                        print(f"{dataset} - VAL DATA SCORE : {msdict[dataset]['val_data_score']}")
+                        print(f"{dataset} - VAL SMOOTH SCORE : {msdict[dataset]['val_smooth_score']}")
+                    print("\nOVERALL :")
+                    print(f"VAL SCORE : {msdict['overall_val_score']}")
+                    print(f"VAL DATA SCORE : {msdict['overall_val_data_score']}")
+                    print(f"VAL SMOOTH SCORE : {msdict['overall_val_smooth_score']}\n")
 
                     # Logging average metrics
                     trainer.log_validation(msdict)

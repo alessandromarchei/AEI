@@ -26,13 +26,15 @@ class BEVEgoPathTrainer():
         is_pretrained = False
     ):
         
-        # Image and gts
+        # Images and gts
+        self.orig_vis = None
         self.image = None
         self.H = None
         self.W = None
         self.xs = []
         self.ys = []
         self.valids = []
+        self.mat = []
 
         # Dims
         self.height = 640
@@ -58,7 +60,8 @@ class BEVEgoPathTrainer():
         self.data_loss_scale_factor = 1.0
         self.smoothing_loss_scale_factor = 1.0
 
-        self.BEV_FIGSIZE = (8, 4)
+        self.BEV_FIGSIZE = (4, 8)
+        self.ORIG_FIGSIZE = (8, 4)
 
         # Currently limiting to available datasets only. Will unlock eventually
         self.VALID_DATASET_LITERALS = Literal[
@@ -144,7 +147,8 @@ class BEVEgoPathTrainer():
         self.learning_rate = learning_rate
 
     # Assign input variables
-    def set_data(self, image, xs, ys, valids):
+    def set_data(self, orig_vis, image, xs, ys, valids, mat):
+        self.orig_vis = orig_vis
         h, w, _ = image.shape
         self.image = image
         self.H = h
@@ -152,6 +156,7 @@ class BEVEgoPathTrainer():
         self.xs = np.array(xs, dtype = "float32")
         self.ys = np.array(ys, dtype = "float32")
         self.valids = np.array(valids, dtype = "float32")
+        self.mat = np.array(mat, dtype = "float32")
 
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -291,76 +296,59 @@ class BEVEgoPathTrainer():
         print("Finished training")
 
     # Save predicted visualization
-    def save_visualization(self, log_count):
+    def save_visualization(self, log_count, orig_vis):
 
         # Get pred/gt tensors and detach em
         pred_xs = self.pred_xs.cpu().detach().numpy()
         gt_xs = self.xs_tensor.cpu().detach().numpy()
 
-        # GROUNDTRUTH
+        # BEV GROUNDTRUTH
 
-        # Visualize image
-        fig_gt = plt.figure(figsize = self.BEV_FIGSIZE)
-        plt.axis("off")
-        plt.imshow(self.image)
-
-        # Plot BEV egopath
-
-        plt.plot(
-            [
-                x * self.W 
-                for x in  gt_xs[0] 
-                if (0 <= x * self.W < self.W)
-            ],
-            [
-                y * self.H 
-                for y in self.ys 
-                if (0 <= y * self.H < self.H)
-            ],
-            color = "yellow"
-        )
+        # Plot fig
+        fig_gt_bev = self.visualizeBEV(gt_xs)
 
         # Write fig
         self.writer.add_figure(
-            "Groundtruth",
-            fig_gt,
+            "BEV - Groundtruth",
+            fig_gt_bev,
             global_step = (log_count)
         )
 
-        #PREDICTION
+        # BEV PREDICTION
 
-        # Visualize image
-        fig_pred = plt.figure(figsize = self.BEV_FIGSIZE)
-        plt.axis("off")
-        plt.imshow(self.image)
-
-        # Plot BEV egopath
-        plt.plot(
-            [
-                x * self.W 
-                for x in pred_xs[0] 
-                if (0 <= x * self.W < self.W)
-            ],
-            [
-                y * self.H 
-                for y in self.ys 
-                if (0 <= y * self.H < self.H)
-            ],
-            color = "yellow"
-        )
+        # Plot fig
+        fig_pred_bev = self.visualizeBEV(pred_xs)
 
         # Write fig
         self.writer.add_figure(
-            "Prediction",
-            fig_pred,
+            "BEV - Prediction",
+            fig_pred_bev,
+            global_step = (log_count)
+        )
+
+        # ORIGINAL GROUNDTRUTH (basically just slap the visualization img)
+
+        # Prep image tensor
+        fig_orig = self.visualizeOriginal(pred_xs, self.mat)
+
+        # Write image
+        self.writer.add_figure(
+            "Original - Groundtruth vs Prediction",
+            fig_orig,
             global_step = (log_count)
         )
 
     # Run validation with metrics
-    def validate(self, image, gt_xs, gt_ys, valids):
+    def validate(
+        self, 
+        orig_vis,
+        image, 
+        gt_xs, gt_ys, valids, mat, 
+        save_path = None
+    ):
 
         # Set data
-        self.set_data(image, gt_xs, gt_ys, valids)
+        self.set_data(orig_vis, image, gt_xs, gt_ys, valids, mat)
 
         # Augment image
         self.apply_augmentations(is_train = False)
@@ -388,6 +376,19 @@ class BEVEgoPathTrainer():
         val_smoothing_loss = val_smoothing_loss_tensor.detach().cpu().numpy()
         sum_val_loss = val_data_loss + val_smoothing_loss
 
+        # Save this visualization, both BEV and original
+        if (save_path):
+            pred_xs = self.pred_xs.detach().cpu().numpy()
+            self.visualizeBEV(
+                pred_xs,
+                f"{save_path}_BEV.jpg"
+            )
+            self.visualizeOriginal(
+                pred_xs,
+                mat,
+                f"{save_path}_Orig.jpg"
+            )
+
         return sum_val_loss, val_data_loss, val_smoothing_loss
     
     # Log val loss to TensorBoard
@@ -400,20 +401,25 @@ class BEVEgoPathTrainer():
             val_score_payload[dataset] = msdict[dataset]["val_score"]
             val_data_score_payload[dataset] = msdict[dataset]["val_data_score"]
             val_smooth_score_payload[dataset] = msdict[dataset]["val_smooth_score"]
-        self.writer.add_scalars(
-            "Val Score - Dataset",
-            val_score_payload,
-            val_data_score_payload,
-            val_smooth_score_payload
-            (msdict["log_counter"])
-        )
+            
+            self.writer.add_scalars(
+                f"Val Score - {dataset}", 
+                {
+                    "val_score" : val_score_payload[dataset],
+                    "val_data" : val_data_score_payload[dataset],
+                    "val_smooth" : val_smooth_score_payload[dataset]
+                },
+                (msdict["log_counter"])
+            )
 
         # Overall val score
-        self.writer.add_scalar(
+        self.writer.add_scalars(
             "Val Score - Overall",
-            msdict["overall_val_score"],
-            msdict["overall_val_data_score"],
-            msdict["overall_val_smooth_score"],
+            {
+                "overall_val_score" : msdict["overall_val_score"],
+                "overall_val_data_score" : msdict["overall_val_data_score"],
+                "overall_val_smooth_score" : msdict["overall_val_smooth_score"]
+            },
             (msdict["log_counter"])
         )
 
@@ -427,7 +433,6 @@ class BEVEgoPathTrainer():
         # Acquire test image
         frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        test_H, test_W, _ = frame.shape
         test_img = Image.fromarray(frame).resize((320, 640))
 
         # Load as tensor
@@ -436,26 +441,110 @@ class BEVEgoPathTrainer():
         # Model inference
         test_pred_xs = self.model(test_img_tensor).cpu().detach().numpy()
 
+        # Vis it
+        self.visualizeBEV(
+            test_pred_xs,
+            save_path
+        )
+
+    # Inverse transform: BEV -> original perspective
+    def invTrans(
+        self,
+        line,
+        transform_matrix
+    ):
+        inv_mat = np.linalg.inv(transform_matrix)
+        orig_view = cv2.warpPerspective(
+            self.image, inv_mat,
+            (self.H, self.W)        # 320 x 640 ==> 640 x 320
+        )
+        np_line = np.array(
+            line, 
+            dtype = np.float32
+        ).reshape(-1, 1, 2)
+        orig_line = cv2.perspectiveTransform(np_line, inv_mat)
+        orig_line = [tuple(point[0]) for point in orig_line]
+
+        return orig_view, orig_line
+
+    # Visualize BEV perspective
+    def visualizeBEV(
+        self,
+        pred_xs,
+        save_path = None
+    ):
         # Visualize image
-        fig_test = plt.figure(figsize = self.BEV_FIGSIZE)
+        H, W, _ = self.image.shape
+        fig_BEV = plt.figure(figsize = self.BEV_FIGSIZE)
         plt.axis("off")
-        plt.imshow(frame)
+        plt.imshow(self.image)
 
         # Plot BEV egopath
+        BEV_egopath = [
+            (p[0] * W, p[1] * H) 
+            for p in list(zip(pred_xs[0], self.ys))
+            if 0 <= p[0] * W <= W
+            and 0 <= p[1] * H <= H
+        ]
         plt.plot(
-            [
-                x * test_W 
-                for x in test_pred_xs[0] 
-                if (0 <= x * test_W < test_W)
-            ],
-            [
-                y * test_H 
-                for y in self.ys 
-                if (0 <= y * test_H < test_H)
-            ],
+            [p[0] for p in BEV_egopath],
+            [p[1] for p in BEV_egopath],
             color = "yellow"
         )
 
         # Write fig
-        fig_test.savefig(save_path)
-        plt.close(fig_test)
+        if (save_path):
+            fig_BEV.savefig(save_path)
+        plt.close(fig_BEV)
+
+        return fig_BEV
+
+    # Visualize original perspective
+    def visualizeOriginal(
+        self,
+        pred_xs,
+        transform_matrix,
+        save_path = None
+    ):
+        # Visualize image
+        H, W, _ = self.image.shape
+        fig_orig = plt.figure(figsize = self.ORIG_FIGSIZE)
+        plt.axis("off")
+
+        # Inverse transform
+        orig_view, orig_egopath = self.invTrans(
+            list(zip(
+                [
+                    x * W
+                    for x in pred_xs[0] 
+                    # if (0 <= x * W <= W)
+                ],
+                [
+                    y * H 
+                    for y in self.ys 
+                    # if (0 <= y * H <= H)
+                ]
+            )),
+            transform_matrix
+        )
+
+        # Plot original perspective and its egopath
+        plt.imshow(self.orig_vis)
+        orig_W, orig_H = self.orig_vis.size
+        trimmed_orig_egopath = [
+            p for p in orig_egopath
+            if 0 <= p[0] <= orig_W
+            and 0 <= p[1] <= orig_H
+        ]
+        plt.plot(
+            [p[0] for p in trimmed_orig_egopath],
+            [p[1] for p in trimmed_orig_egopath],
+            color = "cyan"
+        )
+
+        # Write fig
+        if (save_path):
+            fig_orig.savefig(save_path)
+        plt.close(fig_orig)
+
+        return fig_orig
