@@ -396,12 +396,17 @@ class BEVEgoPathTrainer():
         val_smoothing_loss = val_smoothing_loss_tensor.detach().cpu().numpy()
         sum_val_loss = val_data_loss + val_smoothing_loss
 
-        # Save this visualization
+        # Save this visualization, both BEV and original
         if (save_path):
             pred_xs = self.pred_xs.detach().cpu().numpy()
             self.visualizeBEV(
                 pred_xs,
-                save_path
+                f"BEV_{save_path}"
+            )
+            self.visualizeOriginal(
+                pred_xs,
+                mat,
+                f"Orig_{save_path}"
             )
 
         return sum_val_loss, val_data_loss, val_smoothing_loss
@@ -437,7 +442,6 @@ class BEVEgoPathTrainer():
     def test(
         self,
         image_test,
-        transform_matrix,
         save_path
     ):
         
