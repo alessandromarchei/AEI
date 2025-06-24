@@ -493,7 +493,7 @@ def main():
                         msdict[dataset]["num_val_samples"]
                         for dataset in VALID_DATASET_LIST
                     ])
-                    msdict["overall_val_smooth_score"] = msdict["val_smooth_running"] / msdict["num_val_overall_samples"]
+                    msdict["overall_val_smooth_score"] = msdict[dataset]["val_smooth_running"] / msdict["num_val_overall_samples"]
                     
                     print("================ Complete - Validation Scores ================")
                     for dataset in VALID_DATASET_LIST:
