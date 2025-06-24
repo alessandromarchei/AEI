@@ -161,9 +161,9 @@ def main():
     
     # Training loop parameters
     NUM_EPOCHS = 10
-    LOGSTEP_LOSS = 2
-    LOGSTEP_VIS = 10
-    LOGSTEP_MODEL = 200
+    LOGSTEP_LOSS = 250
+    LOGSTEP_VIS = 1000
+    LOGSTEP_MODEL = 20000
 
     # Val visualization param
     N_VALVIS = 50
