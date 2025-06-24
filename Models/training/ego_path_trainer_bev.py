@@ -329,24 +329,12 @@ class BEVEgoPathTrainer():
         # ORIGINAL GROUNDTRUTH (basically just slap the visualization img)
 
         # Prep image tensor
-        orig_vis_tensor = transforms.ToTensor()(orig_vis)
+        fig_orig = self.visualizeOriginal(pred_xs, self.mat)
 
         # Write image
-        self.writer.add_image(
-            "Original - Groundtruth",
-            orig_vis_tensor,
-            global_step = (log_count)
-        )
-
-        # ORIGINAL PREDICTION (re-transformed from BEV prediction)
-
-        # Plot fig
-        fig_pred_orig = self.visualizeOriginal(pred_xs, self.mat)
-
-        # Write fig
         self.writer.add_figure(
-            "Original - Prediction",
-            fig_pred_orig,
+            "Original - Groundtruth vs Prediction",
+            fig_orig,
             global_step = (log_count)
         )
 
@@ -487,19 +475,15 @@ class BEVEgoPathTrainer():
         plt.imshow(self.image)
 
         # Plot BEV egopath
-        # print(f"Pred_Xs = {pred_xs[0]} WITH SHAPE {pred_xs[0].shape}")
-        # print(f"self.ys = {self.ys} WITH SHAPE {self.ys.shape}")
+        BEV_egopath = [
+            (p[0] * W, p[1] * H) 
+            for p in list(zip(pred_xs[0], self.ys))
+            if 0 <= p[0] * W <= W
+            and 0 <= p[1] * H <= H
+        ]
         plt.plot(
-            [
-                x * W
-                for x in pred_xs[0] 
-                # if (0 <= x * W <= W)
-            ],
-            [
-                y * H 
-                for y in self.ys 
-                # if (0 <= y * H <= H)
-            ],
+            [p[0] for p in BEV_egopath],
+            [p[1] for p in BEV_egopath],
             color = "yellow"
         )
 
@@ -540,11 +524,17 @@ class BEVEgoPathTrainer():
         )
 
         # Plot original perspective and its egopath
-        plt.imshow(orig_view)
+        plt.imshow(self.orig_vis)
+        orig_W, orig_H = self.orig_vis.size
+        trimmed_orig_egopath = [
+            p for p in orig_egopath
+            if 0 <= p[0] <= orig_W
+            and 0 <= p[1] <= orig_H
+        ]
         plt.plot(
-            [p[0] for p in orig_egopath],
-            [p[1] for p in orig_egopath],
-            color = "yellow"
+            [p[0] for p in trimmed_orig_egopath],
+            [p[1] for p in trimmed_orig_egopath],
+            color = "cyan"
         )
 
         # Write fig
