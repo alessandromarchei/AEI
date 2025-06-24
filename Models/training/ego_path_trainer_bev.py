@@ -401,20 +401,25 @@ class BEVEgoPathTrainer():
             val_score_payload[dataset] = msdict[dataset]["val_score"]
             val_data_score_payload[dataset] = msdict[dataset]["val_data_score"]
             val_smooth_score_payload[dataset] = msdict[dataset]["val_smooth_score"]
-        self.writer.add_scalars(
-            "Val Score - Dataset",
-            val_score_payload,
-            val_data_score_payload,
-            val_smooth_score_payload,
-            (msdict["log_counter"])
-        )
+            
+            self.writer.add_scalars(
+                f"Val Score - {dataset}", 
+                {
+                    "val_score" : val_score_payload[dataset],
+                    "val_data" : val_data_score_payload[dataset],
+                    "val_smooth" : val_smooth_score_payload[dataset]
+                },
+                (msdict["log_counter"])
+            )
 
         # Overall val score
-        self.writer.add_scalar(
+        self.writer.add_scalars(
             "Val Score - Overall",
-            msdict["overall_val_score"],
-            msdict["overall_val_data_score"],
-            msdict["overall_val_smooth_score"],
+            {
+                "overall_val_score" : msdict["overall_val_score"],
+                "overall_val_data_score" : msdict["overall_val_data_score"],
+                "overall_val_smooth_score" : msdict["overall_val_smooth_score"]
+            },
             (msdict["log_counter"])
         )
 

@@ -444,6 +444,14 @@ def main():
                                 else None
                             )
 
+                            # Fetch it again, the orig vis
+                            orig_vis = Image.open(
+                                os.path.join(
+                                    msdict[dataset]["path_orig_vis"],
+                                    f"{frame_id}.jpg"
+                                )
+                            ).convert("RGB")
+
                             # Validate
                             val_metric, val_data, val_smooth = trainer.validate(
                                 orig_vis, image, 
@@ -497,12 +505,13 @@ def main():
                     
                     print("================ Complete - Validation Scores ================")
                     for dataset in VALID_DATASET_LIST:
-                        print(f"{dataset} : {msdict[dataset]['val_score']}")
-                        print(f"{dataset} : {msdict[dataset]['val_data_score']}")
-                        print(f"{dataset} : {msdict[dataset]['val_smooth_score']}")
-                    print(f"OVERALL : {msdict['overall_val_score']}\n")
-                    print(f"OVERALL : {msdict['overall_val_data_score']}\n")
-                    print(f"OVERALL : {msdict['overall_val_smooth_score']}\n")
+                        print(f"\n{dataset} - VAL SCORE : {msdict[dataset]['val_score']}")
+                        print(f"{dataset} - VAL DATA SCORE : {msdict[dataset]['val_data_score']}")
+                        print(f"{dataset} - VAL SMOOTH SCORE : {msdict[dataset]['val_smooth_score']}")
+                    print("\nOVERALL :")
+                    print(f"VAL SCORE : {msdict['overall_val_score']}")
+                    print(f"VAL DATA SCORE : {msdict['overall_val_data_score']}")
+                    print(f"VAL SMOOTH SCORE : {msdict['overall_val_smooth_score']}\n")
 
                     # Logging average metrics
                     trainer.log_validation(msdict)
