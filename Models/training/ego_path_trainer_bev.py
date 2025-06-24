@@ -59,7 +59,8 @@ class BEVEgoPathTrainer():
         self.data_loss_scale_factor = 1.0
         self.smoothing_loss_scale_factor = 1.0
 
-        self.BEV_FIGSIZE = (8, 4)
+        self.BEV_FIGSIZE = (4, 8)
+        self.ORIG_FIGSIZE = (8, 4)
 
         # Currently limiting to available datasets only. Will unlock eventually
         self.VALID_DATASET_LITERALS = Literal[
@@ -329,7 +330,7 @@ class BEVEgoPathTrainer():
             global_step = (log_count)
         )
 
-        #PREDICTION
+        # PREDICTION
 
         # Visualize image
         fig_pred = plt.figure(figsize = self.BEV_FIGSIZE)
@@ -464,7 +465,7 @@ class BEVEgoPathTrainer():
         transform_matrix
     ):
         inv_mat = np.linalg.inv(transform_matrix)
-        original_view = cv2.warpPerspective(
+        orig_view = cv2.warpPerspective(
             self.image, inv_mat,
             (self.H, self.W)        # 320 x 640 ==> 640 x 320
         )
@@ -472,12 +473,12 @@ class BEVEgoPathTrainer():
             line, 
             dtype = np.float32
         ).reshape(-1, 1, 2)
-        orig_line = cv2.perspectiveTransform(np.line, inv_mat)
+        orig_line = cv2.perspectiveTransform(np_line, inv_mat)
         orig_line = [tuple(point[0]) for point in orig_line]
 
-        return orig_line
+        return orig_view, orig_line
 
-    # Visualize as plot
+    # Visualize BEV perspective
     def visualizeBEV(
         self,
         pred_xs,
@@ -485,7 +486,7 @@ class BEVEgoPathTrainer():
     ):
         # Visualize image
         H, W, _ = self.image.shape
-        fig_test = plt.figure(figsize = self.BEV_FIGSIZE)
+        fig_BEV = plt.figure(figsize = self.BEV_FIGSIZE)
         plt.axis("off")
         plt.imshow(self.image)
 
@@ -505,5 +506,50 @@ class BEVEgoPathTrainer():
         )
 
         # Write fig
-        fig_test.savefig(save_path)
-        plt.close(fig_test)
+        fig_BEV.savefig(save_path)
+        plt.close(fig_BEV)
+
+        return fig_BEV
+
+    # Visualize original perspective
+    def visualizeOriginal(
+        self,
+        pred_xs,
+        transform_matrix,
+        save_path
+    ):
+        # Visualize image
+        H, W, _ = self.image.shape
+        fig_orig = plt.figure(figsize = self.ORIG_FIGSIZE)
+        plt.axis("off")
+
+        # Inverse transform
+        orig_view, orig_egopath = self.invTrans(
+            zip(
+                [
+                    x * W
+                    for x in pred_xs[0] 
+                    if (0 <= x * W < W)
+                ],
+                [
+                    y * H 
+                    for y in self.ys 
+                    if (0 <= y * H < H)
+                ]
+            ),
+            transform_matrix
+        )
+
+        # Plot original perspective and its egopath
+        plt.imshow(orig_view)
+        plt.plot(
+            [p[0] for p in orig_egopath],
+            [p[1] for p in orig_egopath],
+            color = "yellow"
+        )
+
+        # Write fig
+        fig_orig.savefig(save_path)
+        plt.close(fig_orig)
+
+        return fig_orig
