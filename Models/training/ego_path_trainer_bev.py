@@ -459,6 +459,26 @@ class BEVEgoPathTrainer():
             save_path
         )
 
+    # Inverse transform: BEV -> original perspective
+    def invTrans(
+        self,
+        line,
+        transform_matrix
+    ):
+        inv_mat = np.linalg.inv(transform_matrix)
+        original_view = cv2.warpPerspective(
+            self.image, inv_mat,
+            (self.H, self.W)        # 320 x 640 ==> 640 x 320
+        )
+        np_line = np.array(
+            line, 
+            dtype = np.float32
+        ).reshape(-1, 1, 2)
+        orig_line = cv2.perspectiveTransform(np.line, inv_mat)
+        orig_line = [tuple(point[0]) for point in orig_line]
+
+        return orig_line
+
     # Visualize as plot
     def visualize(
         self,
