@@ -400,6 +400,7 @@ class BEVEgoPathTrainer():
             pred_xs = self.pred_xs.detach().cpu().numpy()
             self.visualize(
                 pred_xs,
+                mat,
                 save_path
             )
 
@@ -436,6 +437,7 @@ class BEVEgoPathTrainer():
     def test(
         self,
         image_test,
+        transform_matrix,
         save_path
     ):
         
@@ -453,6 +455,7 @@ class BEVEgoPathTrainer():
         # Vis it
         self.visualize(
             test_pred_xs,
+            transform_matrix,
             save_path
         )
 
@@ -460,6 +463,7 @@ class BEVEgoPathTrainer():
     def visualize(
         self,
         pred_xs,
+        transform_matrix,
         save_path
     ):
         # Visualize image
