@@ -1,7 +1,5 @@
 #include "path_finder.hpp"
 
-// TODO: find adjacent left and right lanes, group LanePts and fittedCurve into a single struct or class
-
 bool gt = false; // true for ground truth, false for BEV points
 
 LanePts::LanePts(int id,
@@ -258,18 +256,15 @@ int main()
         egoLanes.emplace_back(fittedCurve(coeff));
     }
 
+    std::sort(egoLanes.begin(), egoLanes.end(), [](const fittedCurve &a, const fittedCurve &b)
+              { return abs(a.cte) < abs(b.cte); });
 
-
-    // TODO: find nearest left and right lanes
-    auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[6]);
+    auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[1]);
 
     std::cout << "egoPath: "
               << egoPath.cte << " "
               << egoPath.yaw_error << " "
               << egoPath.curvature << std::endl;
-
-    std::sort(egoLanes.begin(), egoLanes.end(), [](const fittedCurve &a, const fittedCurve &b)
-              { return a.cte > b.cte; });
 
     for (auto &egoLane : egoLanes)
     {
