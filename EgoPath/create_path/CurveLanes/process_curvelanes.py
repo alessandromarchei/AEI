@@ -5,19 +5,34 @@ import json
 import os
 import shutil
 import math
-from PIL import Image, ImageDraw
 import warnings
-from datetime import datetime
 import numpy as np
-from pprint import pprint
+from PIL import Image, ImageDraw
+
+
+# ============================= Format functions ============================= #
+
+
+def round_line_floats(line, ndigits = 6):
+    line = list(line)
+    for i in range(len(line)):
+        line[i] = [
+            round(line[i][0], ndigits),
+            round(line[i][1], ndigits)
+        ]
+    line = tuple(line)
+    return line
+
 
 # Custom warning format cuz the default one is wayyyyyy too verbose
-def custom_warning_format(message, category, filename, lineno, line=None):
+def custom_warning_format(message, category, filename, lineno, line = None):
     return f"WARNING : {message}\n"
 
 warnings.formatwarning = custom_warning_format
 
+
 # ============================== Helper functions ============================== #
+
 
 def normalizeCoords(line, width, height):
     """
@@ -96,16 +111,18 @@ def getEgoIndexes(anchors, new_img_width):
     for i in range(len(anchors)):
         if (anchors[i][0] >= new_img_width / 2):
             if (i == 0):
-                return "NO LINES on the LEFT side of frame. Something's sussy out there!"
-            left_ego_idx, right_ego_idx = i - 1, i
-            return (left_ego_idx, right_ego_idx)
-
-    return "NO LINES on the RIGHT side of frame. Something's sussy out there!"
+                print("NO LINES on the LEFT side of frame. Registering FIRST 2 lines on the right side as egolines.")
+                return (i, i + 1)
+            
+            return (i - 1, i)
+    
+    print("NO LINES on the RIGHT side of frame. Registering LAST 2 lines on the left side as egolines.")
+    return (-2, -1)
 
 
 def getDrivablePath(
         left_ego, right_ego, 
-        new_img_height, new_img_width, 
+        new_img_height,
         y_coords_interp = False
 ):
     """
@@ -198,26 +215,12 @@ def getDrivablePath(
 
                 drivable_path.append((x_top, y_top))
 
-    # Now check drivable path's params for automatic auditting
-
-    drivable_path_angle_deg = math.degrees(math.atan(float(
-        abs(drivable_path[-1][1] - drivable_path[0][1]) / \
-        abs(drivable_path[-1][0] - drivable_path[0][0])
-    )))
-
-    if not (new_img_width * LEFT_ANCHOR_BOUNDARY <= drivable_path[0][0] <= new_img_width * (1 - RIGHT_ANCHOR_BOUNDARY)):
-        return f"Drivable path has anchor point out of heuristic boundary [{LEFT_ANCHOR_BOUNDARY} , {1 - RIGHT_ANCHOR_BOUNDARY}], ignoring this frame!"
-    elif not (drivable_path[-1][1] < new_img_height * (1 - HEIGHT_BOUNDARY)):
-        return f"Drivable path has length not exceeding heuristic length of {HEIGHT_BOUNDARY * 100}% frame height, ignoring this frame!"
-    elif not (drivable_path_angle_deg >= ANGLE_BOUNDARY):
-        return f"Drivable path has angle not exceeding heuristic angle of {ANGLE_BOUNDARY} degrees, ignoring this frame!"
-
     return drivable_path
 
 
 def annotateGT(
         raw_img, anno_entry,
-        raw_dir, visualization_dir, mask_dir,
+        raw_dir, visualization_dir,
         init_img_width, init_img_height,
         normalized = True,
         resize = None,
@@ -227,7 +230,6 @@ def annotateGT(
     Annotates and saves an image with:
         - Raw image, in "output_dir/image".
         - Annotated image with all lanes, in "output_dir/visualization".
-        - Binary segmentation mask of drivable path, in "output_dir/segmentation".
     """
 
     # Define save name
@@ -297,17 +299,12 @@ def annotateGT(
         drivable_renormed = anno_entry["drivable_path"]
     draw.line(drivable_renormed, fill = lane_colors["drive_path_yellow"], width = lane_w)
 
-    # Save visualization img, same format with raw, just different dir
-    raw_img.save(os.path.join(visualization_dir, save_name))
-
-    # Working on binary mask
-    mask = Image.new("L", (new_img_width, new_img_height), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
-    mask.save(os.path.join(mask_dir, save_name))
+    # Save visualization img, same format with raw, just different dir, and jpg since it's vis 
+    raw_img.save(os.path.join(visualization_dir, save_name.replace("png", "jpg")))
 
 
 def parseAnnotations(
+        frame_id,
         anno_path, 
         init_img_width,
         init_img_height,
@@ -321,12 +318,15 @@ def parseAnnotations(
     with open(anno_path, "r") as f:
         read_data = json.load(f)["Lines"]
         if (len(read_data) < 2):    # Some files are empty, or having less than 2 lines
-            warnings.warn(f"Parsing {anno_path} : insufficient line amount: {len(read_data)}")
+            warnings.warn(f"Parsing {anno_path} : insufficient line amount: {len(read_data)} in raw data. Skipping this frame.")
             return None
         else:
-            # Parse data from those JSON lines
+            # Parse data from those JSON lines, also sort by y
             lines = [
-                [(float(point["x"]), float(point["y"])) for point in line]
+                sorted([(float(point["x"]), float(point["y"])) for point in line],
+                    key = lambda x: x[1], 
+                    reverse = True
+                )
                 for line in read_data
             ]
 
@@ -367,7 +367,7 @@ def parseAnnotations(
             # Remove empty lanes
             lines = [line for line in lines if (line and len(line) >= 2)]   # Pick lines with >= 2 points
             if (len(lines) < 2):    # Ignore frames with less than 2 lines
-                warnings.warn(f"Parsing {anno_path}: insufficient line amount after cropping: {len(lines)}")
+                warnings.warn(f"Parsing {anno_path}: insufficient line amount after cropping: {len(lines)}. Skipping this frame.")
                 return None
             
             # Determine 2 ego lines via line anchors
@@ -402,7 +402,7 @@ def parseAnnotations(
             # Determine drivable path from 2 egos, and switch on interp cuz this is CurveLanes
             drivable_path = getDrivablePath(
                 left_ego, right_ego,
-                new_img_height, new_img_width,
+                new_img_height,
                 y_coords_interp = True
             )
 
@@ -416,11 +416,9 @@ def parseAnnotations(
                         for line in lines_sortedBy_anchor
                     ],
                     "ego_indexes" : ego_indexes,
-                    "drivable_path" : normalizeCoords(
-                        drivable_path, 
-                        new_img_width, 
-                        new_img_height
-                    ),
+                    "drivable_path" : normalizeCoords(drivable_path, new_img_width, new_img_height),
+                    "egoleft_lane" : normalizeCoords(left_ego, new_img_width, new_img_height),
+                    "egoright_lane" : normalizeCoords(right_ego, new_img_width, new_img_height),
                     "img_width" : new_img_width,
                     "img_height" : new_img_height,
                 }
@@ -466,12 +464,6 @@ if __name__ == "__main__":
     # For interping lines with soooooooo few points, 2~3 or so
     LINE_INTERP_THRESHOLD = 5
 
-    # ====== Heuristic boundaries of drivable path for automatic auditing ====== #
-
-    LEFT_ANCHOR_BOUNDARY = RIGHT_ANCHOR_BOUNDARY = 0.2
-    HEIGHT_BOUNDARY = 0.15
-    ANGLE_BOUNDARY = 30
-
     # ============================== Parsing args ============================== #
 
     parser = argparse.ArgumentParser(
@@ -494,7 +486,6 @@ if __name__ == "__main__":
         type = int,
         help = "Sampling step for each split/class",
         required = False,
-        default = 5
     )
     # For debugging only
     parser.add_argument(
@@ -511,14 +502,14 @@ if __name__ == "__main__":
 
     # Parse sampling step
     if (args.sampling_step):
-        pprint(f"Sampling step set to {args.sampling_step}.")
         sampling_step = args.sampling_step
     else:
         sampling_step = 1
+    print(f"Sampling step set to {sampling_step}.")
 
     # Parse early stopping
     if (args.early_stopping):
-        pprint(f"Early stopping set, each split/class stops after {args.early_stopping} files.")
+        print(f"Early stopping set, each split/class stops after {args.early_stopping} files.")
         early_stopping = args.early_stopping
     else:
         early_stopping = None
@@ -527,11 +518,14 @@ if __name__ == "__main__":
     """
     --output_dir
         |----image
-        |----segmentation
         |----visualization
         |----drivable_path.json
     """
-    list_subdirs = ["image", "segmentation", "visualization"]
+    list_subdirs = [
+        "image", 
+        # "segmentation",   # Removed on 2025/06/05 
+        "visualization"
+    ]
     if (os.path.exists(output_dir)):
         warnings.warn(f"Output directory {output_dir} already exists. Purged")
         shutil.rmtree(output_dir)
@@ -578,6 +572,7 @@ if __name__ == "__main__":
                 anno_path = img_path.replace(".jpg", ".lines.json").replace(IMG_DIR, LABEL_DIR)
 
                 this_data = parseAnnotations(
+                    frame_id = os.path.abspath(img_path),
                     anno_path = anno_path,
                     init_img_width = img_width,
                     init_img_height = img_height,
@@ -591,7 +586,6 @@ if __name__ == "__main__":
                         anno_entry = this_data,
                         raw_dir = os.path.join(output_dir, "image"),
                         visualization_dir = os.path.join(output_dir, "visualization"),
-                        mask_dir = os.path.join(output_dir, "segmentation"),
                         init_img_height = img_height,
                         init_img_width = img_width,
                         resize = resize,
@@ -601,7 +595,9 @@ if __name__ == "__main__":
                     # Save as 6-digit incremental index
                     img_index = str(str(img_id_counter).zfill(6))
                     data_master[img_index] = {}
-                    data_master[img_index]["drivable_path"] = this_data["drivable_path"]
+                    data_master[img_index]["drivable_path"] = round_line_floats(this_data["drivable_path"])
+                    data_master[img_index]["egoleft_lane"] = round_line_floats(this_data["egoleft_lane"])
+                    data_master[img_index]["egoright_lane"] = round_line_floats(this_data["egoright_lane"])
                     data_master[img_index]["img_height"] = this_data["img_height"]
                     data_master[img_index]["img_width"] = this_data["img_width"]
 

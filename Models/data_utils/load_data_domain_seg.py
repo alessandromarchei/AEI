@@ -1,16 +1,15 @@
 #! /usr/bin/env python3
 import pathlib
 import numpy as np
-from typing import Literal
 from PIL import Image
 from .check_data import CheckData
 
-class LoadDataSceneSeg():
+class LoadDataDomainSeg():
     def __init__(self, labels_filepath, images_filepath):
 
         # Sort data and get list of input images and ground truth labels
         self.labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*.png")])
-        self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.png")])
+        self.images = sorted([f for f in pathlib.Path(images_filepath).glob("*.jpg")])
 
         # Number of input images and ground truth labels
         self.num_images = len(self.images)
@@ -34,7 +33,7 @@ class LoadDataSceneSeg():
             # Assigning ground truth data to train/val split
             for count in range (0, self.num_images):
         
-                if((count+1) % 10 == 0):
+                if((count+1) % 50 == 0):
                     self.val_images.append(str(self.images[count]))
                     self.val_labels.append(str(self.labels[count]))
                     self.num_val_samples += 1 
@@ -50,19 +49,13 @@ class LoadDataSceneSeg():
     # Get training data in numpy format
     def getItemTrain(self, index):
         train_image = Image.open(str(self.train_images[index])).convert('RGB')
-
         train_mask = Image.open(str(self.train_labels[index]))
-        fn = lambda x : 255 if x > 0 else 0
-        train_ground_truth = train_mask.convert('L').point(fn, mode='1')
-
+        train_ground_truth = np.expand_dims(train_mask, axis=-1)
         return  np.array(train_image), np.array(train_ground_truth)
     
     # Get training data in numpy format
     def getItemVal(self, index):
         val_image = Image.open(str(self.val_images[index])).convert('RGB')
-
         val_mask = Image.open(str(self.val_labels[index]))
-        fn = lambda x : 255 if x > 0 else 0
-        val_ground_truth = val_mask.convert('L').point(fn, mode='1')
-
+        val_ground_truth = np.expand_dims(val_mask, axis=-1)
         return  np.array(val_image), np.array(val_ground_truth)
