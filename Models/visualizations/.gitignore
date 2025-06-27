@@ -1,7 +1,0 @@
-SceneSeg/*.avi
-SceneSeg/*.mp4
-SceneSeg/*.pt
-SceneSeg/*.pth
-*.mp4
-*.avi
-*.onnx
