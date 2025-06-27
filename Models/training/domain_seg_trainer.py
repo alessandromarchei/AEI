@@ -31,9 +31,6 @@ class DomainSegTrainer():
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print(f'Using {self.device} for inference')
         
-        # Checking devices (GPU vs CPU)
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        print(f'Using {self.device} for inference')
 
         if(is_pretrained):
 
@@ -67,12 +64,14 @@ class DomainSegTrainer():
             else:
                 raise ValueError('Please ensure SceneSeg network weights are provided for upstream elements')
 
+        # Model to device
+        self.model = self.model.to(self.device)
 
         # TensorBoard
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.0005
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -83,20 +82,20 @@ class DomainSegTrainer():
             ]
         )
 
-    # Logging Training Loss
-    def log_loss(self, log_count):
-        print('Logging Training Loss', log_count, self.get_loss())
-        self.writer.add_scalar("Loss/train",self.get_loss(), (log_count))
+        self.gt_loader = transforms.Compose(
+            [
+                transforms.ToTensor()
+            ]
+        )
 
-    # Logging Validation mIoU Score
-    def log_IoU(self, mIoU, log_count):
-        print('Logging Validation')
-        self.writer.add_scalar("Val/IoU", mIoU, (log_count))
-        
     # Assign input variables
     def set_data(self, image, gt):
         self.image = image
         self.gt = gt
+
+    # Set learning rate
+    def set_learning_rate(self, learning_rate):
+        self.learning_rate = learning_rate
 
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -104,32 +103,95 @@ class DomainSegTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='BINARY_SEGMENTATION')
-            augTrain.setDataSeg(self.image, self.gt)
-            self.image, self.augmented  = \
-                augTrain.applyTransformSeg(image=self.image, ground_truth=self.gt)
+            augTrain.setData(self.image, self.gt)
+            self.image, self.gt  = \
+                augTrain.applyTransformBinarySeg(image=self.image, ground_truth=self.gt)
+            #self.image = augTrain.applyNoiseRoadWork()
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='BINARY_SEGMENTATION')
-            augVal.setDataSeg(self.image, self.gt)
-            self.image, self.augmented = \
-                augVal.applyTransformSeg(image=self.image, ground_truth=self.gt)
+            augVal.setData(self.image, self.gt)
+            self.image, self.gt = \
+                augVal.applyTransformBinarySeg(image=self.image, ground_truth=self.gt)
     
     # Load Data
     def load_data(self):
         self.load_image_tensor()
+        self.load_gt_tensor()
 
-        gt_tensor = torch.from_numpy(self.gt)
-        gt_tensor = gt_tensor.permute(2, 0, 1)
+    # Load Image as Tensor
+    def load_image_tensor(self):
+        image_tensor = self.image_loader(self.image)
+        image_tensor = image_tensor.unsqueeze(0)
+        self.image_tensor = image_tensor.to(self.device)
+      
+    # Load Ground Truth as Tensor
+    def load_gt_tensor(self):
+        gt_tensor = self.gt_loader(self.gt)
         gt_tensor = gt_tensor.unsqueeze(0)
-        gt_tensor = gt_tensor.type(torch.FloatTensor)
         self.gt_tensor = gt_tensor.to(self.device)
-
 
     # Run Model
     def run_model(self):     
         self.prediction = self.model(self.image_tensor)
         BCELoss = nn.BCEWithLogitsLoss()
         self.loss = BCELoss(self.prediction, self.gt_tensor)
+
+    # Run Validation and calculate metrics
+    def validate(self, image, gt):
+
+        # Set Data
+        self.set_data(image, gt)
+
+        # Augmenting Image
+        self.apply_augmentations(is_train=False)
+
+        # Converting to tensor and loading
+        self.load_data()
+
+        # Calculate IoU score
+        iou_score = self.calc_IoU_val()
+        
+        return iou_score
+    
+    # Run network on test image and visualize result
+    def test(self, test_images, test_images_save_path, log_count):
+
+        test_images_list = sorted([f for f in pathlib.Path(test_images).glob("*")])
+
+        for i in range(0, len(test_images_list)):
+
+            # Read test images
+            frame = cv2.imread(str(test_images_list[i]), cv2.IMREAD_COLOR)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image_pil = Image.fromarray(frame)
+
+            # Resize to correct dimensions for network
+            image_pil = image_pil.resize((640, 320))
+
+            # Load test images and run inference
+            test_image_tensor = self.image_loader(image_pil)
+            test_image_tensor = test_image_tensor.unsqueeze(0)
+            test_image_tensor = test_image_tensor.to(self.device)
+            test_output = self.model(test_image_tensor)
+
+            # Process the output and scale to match the input image size
+            test_output = test_output.squeeze(0).cpu().detach()
+            test_output = test_output.permute(1, 2, 0)
+            test_output = test_output.numpy()
+
+            # Resize to match original image dimension
+            test_output = cv2.resize(test_output, (frame.shape[1], frame.shape[0]))
+
+            # Create visualization
+            alpha = 0.5
+            test_visualization = cv2.addWeighted(self.make_visualization(test_output), \
+                alpha, frame, 1 - alpha, 0)
+            test_visualization = cv2.cvtColor(test_visualization, cv2.COLOR_BGR2RGB)
+
+            # Save visualization
+            image_save_path = test_images_save_path + str(log_count) + '_'+ str(i) + '.jpg'
+            cv2.imwrite(image_save_path, test_visualization)
 
     # Loss Backward Pass
     def loss_backward(self): 
@@ -138,7 +200,7 @@ class DomainSegTrainer():
     # Get loss value
     def get_loss(self):
         return self.loss.item()
-
+    
     # Run Optimizer
     def run_optimizer(self):
         self.optimizer.step()
@@ -151,6 +213,43 @@ class DomainSegTrainer():
     # Set evaluation mode
     def set_eval_mode(self):
         self.model = self.model.eval()
+
+    # Zero Gradient
+    def zero_grad(self):
+        self.optimizer.zero_grad()
+
+    # Save Model
+    def save_model(self, model_save_path):
+        print('Saving model')
+        torch.save(self.model.state_dict(), model_save_path)
+
+    # Logging Training Loss
+    def log_loss(self, log_count):
+        self.writer.add_scalar("Loss/train",self.get_loss(), (log_count))
+
+    # Logging Validation mIoU Score
+    def log_IoU(self, mIoU, log_count):
+        print('Logging Validation')
+        self.writer.add_scalar("Val/IoU", mIoU, (log_count))
+    
+    # Calculate IoU score for validation
+    def calc_IoU_val(self):
+        output_val = self.model(self.image_tensor)
+        output_val = output_val.squeeze(0).cpu().detach()
+        output_val = output_val.permute(1, 2, 0)
+        output_val = output_val.numpy()
+        output_val[output_val <= 0] = 0.0
+        output_val[output_val > 0] = 1.0
+        iou_score = self.IoU(output_val, self.gt)
+        
+        return iou_score
+    
+    # IoU calculation
+    def IoU(self, output, label):
+        intersection = np.logical_and(label, output)
+        union = np.logical_or(label, output)
+        iou_score = (np.sum(intersection) + 1) / float(np.sum(union) + 1)
+        return iou_score
 
     # Save predicted visualization
     def save_visualization(self, log_count):
@@ -174,6 +273,15 @@ class DomainSegTrainer():
         # Ground truth visualization
         gt_vis = cv2.addWeighted(self.make_visualization(gt_vis), \
             alpha, self.image, 1 - alpha, 0)
+        
+        # Visualize the Image
+        fig_img = plt.figure(figsize=(8, 4))
+        plt.axis('off')
+        plt.imshow(self.image)
+
+        # Write the figure
+        self.writer.add_figure('Image', \
+            fig_img, global_step=(log_count))
 
         # Visualize the Prediction
         fig_pred = plt.figure(figsize=(8, 4))
@@ -193,103 +301,12 @@ class DomainSegTrainer():
         self.writer.add_figure('Ground Truth', \
             fig_gt, global_step=(log_count))
         
-    # Run network on test image and visualize result
-    def test(self, test_images, test_images_save_path, log_count):
-
-        test_images_list = sorted([f for f in pathlib.Path(test_images).glob("*")])
-
-        for i in range(0, len(test_images_list)):
-
-            # Read test images
-            frame = cv2.imread(str(test_images[i]), cv2.IMREAD_COLOR)
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            image_pil = Image.fromarray(frame)
-            image_pil = image_pil.resize((640, 320))
-
-            # Load test images and run inference
-            test_image_tensor = self.image_loader(image_pil)
-            test_image_tensor = test_image_tensor.unsqueeze(0)
-            test_image_tensor = test_image_tensor.to(self.device)
-            test_output = self.model(test_image_tensor)
-
-            # Process the output and scale to match the input image size
-            test_output = test_output.squeeze(0).cpu().detach()
-            test_output = test_output.permute(1, 2, 0)
-            test_output = test_output.numpy()
-            test_output = cv2.resize(test_output, (frame.shape[1], frame.shape[0]))
-
-            # Create visualization
-            alpha = 0.5
-            test_visualization = cv2.addWeighted(self.make_visualization(test_output), \
-            alpha, self.image, 1 - alpha, 0)
-
-            # Save visualization
-            image_save_path = test_images_save_path + str(log_count) + '_'+ str(i) + '.jpg'
-            cv2.imwrite(image_save_path, test_visualization)
-
-
-    # Load Image as Tensor
-    def load_image_tensor(self):
-        image_tensor = self.image_loader(self.image)
-        image_tensor = image_tensor.unsqueeze(0)
-        self.image_tensor = image_tensor.to(self.device)
-      
-    # Load Ground Truth as Tensor
-    def load_gt_tensor(self):
-        gt_tensor = self.gt_loader(self.gt)
-        gt_tensor = gt_tensor.unsqueeze(0)
-        self.gt_tensor = gt_tensor.to(self.device)
-     
-    # Zero Gradient
-    def zero_grad(self):
-        self.optimizer.zero_grad()
-
-    # Save Model
-    def save_model(self, model_save_path):
-        print('Saving model')
-        torch.save(self.model.state_dict(), model_save_path)
-    
-    # Calculate IoU score for validation
-    def calc_IoU_val(self):
-        output_val = self.model(self.image_tensor)
-        output_val = output_val.squeeze(0).cpu().detach()
-        output_val = output_val.permute(1, 2, 0)
-        output_val = output_val.numpy()
-        output_val[output_val <= 0] = 0.0
-        output_val[output_val > 0] = 1.0
-        iou_score = self.IoU(output_val, self.gt)
-        
-        return iou_score
-    
-    # IoU calculation
-    def IoU(self, output, label):
-        intersection = np.logical_and(label, output)
-        union = np.logical_or(label, output)
-        iou_score = (np.sum(intersection) + 1) / float(np.sum(union) + 1)
-        return iou_score
-    
-    # Run Validation and calculate metrics
-    def validate(self, image, gt):
-
-        # Set Data
-        self.set_data(image, gt)
-
-        # Augmenting Image
-        self.apply_augmentations(is_train=False)
-
-        # Converting to tensor and loading
-        self.load_data(is_train=False)
-
-        # Calculate IoU score
-        iou_score = self.calc_IoU_val()
-        
-        return iou_score
 
     # Visualize predicted result
     def make_visualization(self, result):
 
         # Getting size of prediction
-        shape = self.result.shape
+        shape = result.shape
         row = shape[0]
         col = shape[1]
 
@@ -297,17 +314,17 @@ class DomainSegTrainer():
         vis_predict_object = np.zeros((row, col, 3), dtype = "uint8")
         
         # Assigning background colour
-        vis_predict_object[:,:,0] = 255
+        vis_predict_object[:,:,0] = 61
         vis_predict_object[:,:,1] = 93
-        vis_predict_object[:,:,2] = 61
+        vis_predict_object[:,:,2] = 255
 
         # Getting foreground object labels
         foreground_lables = np.where(result > 0)
 
         # Assigning foreground objects colour
-        vis_predict_object[foreground_lables[0], foreground_lables[1], 0] = 0
+        vis_predict_object[foreground_lables[0], foreground_lables[1], 0] = 255
         vis_predict_object[foreground_lables[0], foreground_lables[1], 1] = 234
-        vis_predict_object[foreground_lables[0], foreground_lables[1], 2] = 255          
+        vis_predict_object[foreground_lables[0], foreground_lables[1], 2] = 0         
         
         return vis_predict_object
     

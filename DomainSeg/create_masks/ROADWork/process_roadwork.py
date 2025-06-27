@@ -1,130 +1,139 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-import os
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-
+#%%
+#! /usr/bin/env python3
+import pathlib
 import numpy as np
-import random
-from tensorflow.keras.utils import load_img, img_to_array, array_to_img
-from tensorflow.keras.preprocessing import image
+import os
 from argparse import ArgumentParser
 from PIL import Image
 
-
-def modify_address(x, val_or_train):
-        x1 = x.split("sem_seg_labels/gtFine/"+val_or_train+"/")
-        x2 = x1[1].split("_Ids")
-        y = x1[0] + 'images/' + x2[0] + '.jpg'
-        return y
-
-
-def shuffle_directories(train_input_dir, filt_type, seed, shuffle, chunkstart, chunkend, val_or_train, is_it_label_address):
-    train_input_img_paths = [os.path.join(train_input_dir, fname) 
-         for fname in os.listdir(train_input_dir) 
-             if fname.endswith(filt_type)]
-
-    if (is_it_label_address==False):
-        train_input_img_paths = [modify_address(x, val_or_train) for x in train_input_img_paths]
-    else:
-        pass
-        
-    if shuffle == True:
-        random.Random(seed).shuffle(train_input_img_paths)
-    else:
-        pass
-    return train_input_img_paths[chunkstart : chunkend]
-
+# Simply function which makes a directory if it doesn't exist
+def checkDir(path):
+    isExist = os.path.exists(path)
+    if not isExist:
+        # Create a new directory because it does not exist
+        os.makedirs(path)
     
-def convert_color_to_mask_class (x, img_breadth, img_length, label_list ): 
-    y = np.zeros((img_breadth, img_length, 1))
-    for label in label_list:
-        y[:,:,0] = np.where(  ((x[:,:,0]==label[0])   & (x[:,:,1]==label[1])   & (x[:,:,2]==label[2]))  , 1 , y[:,:,0])
-    return y
 
-def path_to_target (path, img_breadth, img_length, label):
-    mask = img_to_array(load_img(path, target_size=(img_breadth, img_length)  ))
-    mask = convert_color_to_mask_class (mask, img_breadth, img_length, label)
-    return mask
+# Create coarse semantic segmentation mask
+# of combined classes
+def createMask(colorMap, image):
 
+    # Getting colormap
+    vals = np.array(colorMap)
+
+    # Checking size of colormap
+    shape = vals.shape
+    row = shape[0]
+    col = shape[1]
+
+    # Initializing segmentation and visualization mask
+    segMask = np.zeros((row, col), dtype='uint8')
+    visMask = np.array(image)
+    
+    # Getting foreground object labels
+    cone = np.where(vals == 13)
+    drum = np.where(vals == 14)
+    vertical_panel = np.where(vals == 15)
+    tubular_marker = np.where(vals == 16)
+
+    # Assign to binary mask
+    segMask[cone[0], cone[1]] = 255
+    segMask[drum[0], drum[1]] = 255
+    segMask[vertical_panel[0], vertical_panel[1]] = 255
+    segMask[tubular_marker[0], tubular_marker[1]] = 255   
+
+    # Assign to visualization mask
+    full_labels = np.where(segMask == 255)
+    visMask[full_labels[0], full_labels[1], 0] = 255
+    visMask[full_labels[0], full_labels[1], 1] = 200
+    visMask[full_labels[0], full_labels[1], 2] = 0
+
+    return segMask, visMask
 
 def main():
-    
+
+    # Argument parsing
     parser = ArgumentParser()
-    parser.add_argument("-tr", "--trainlabels", dest="train_labels_filepath", help="path to folder with train ground truth labels")
-    parser.add_argument("-va", "--valilabels", dest="val_labels_filepath", help="path to folder with validation ground truth labels")
-    parser.add_argument("-lbs", "--labels-save", dest="labels_save_path", help="path to folder where processed labels will be saved")
-    parser.add_argument("-ims", "--images-save", dest="images_save_path", help="path to folder where corresponding images will be saved")
+    parser.add_argument("-d", "--data_root_path", dest="data_root_path", help="path to folder with ground truth data")
+    parser.add_argument("-s", "--save_root_path", dest="save_root_path", help="path to where processed data should be saved")
     args = parser.parse_args()
-
-    address_train_label = shuffle_directories(args.train_labels_filepath, '_Ids.png', 0, False, 0, None, 'train', True)  
-    address_train_image = shuffle_directories(args.train_labels_filepath, '_Ids.png', 0, False, 0, None, 'train', False)
-    address_val_label = shuffle_directories(args.val_labels_filepath, '_Ids.png', 0, False, 0, None, 'val', True)   
-    address_val_image = shuffle_directories(args.val_labels_filepath, '_Ids.png', 0, False, 0, None, 'val', False)
-
-    number_of_train = len(address_train_label)
-    number_of_val = len(address_val_label)
     
-    # get default shape of label
-    label_o = Image.open(str(address_train_label[0]))
-    img_length = label_o.size[0]
-    img_breadth = label_o.size[1]
+    # Paths to read input images and ground truth label masks from training data
+    labels_filepath = args.data_root_path + 'gtFine/'
+    images_filepath = args.data_root_path + 'images/'
 
-    label_list = []
-    for i in range(6, 9, 1):
-        label_list.append( (float(i), float(i), float(i)) )
-    for i in range(10, 20, 1):
-        label_list.append( (float(i), float(i), float(i)) )
+    # Paths to save training data with new coarse segmentation masks
+    labels_save_path = args.save_root_path + 'label/'
+    images_save_path = args.save_root_path + 'image/'
+    visualization_save_path = args.save_root_path + 'visualization/'
 
-    ## create folder to save image and label
-    folder_path = args.images_save_path
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-        print(f"Folder '{folder_path}' created successfully.")
-    else:
-        print(f"Folder '{folder_path}' already exists.")
+    # Check output save directories - if they don't exist, create them
+    checkDir(labels_save_path)
+    checkDir(images_save_path)
+    checkDir(visualization_save_path)
 
-    folder_path = args.labels_save_path
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-        print(f"Folder '{folder_path}' created successfully.")
-    else:
-        print(f"Folder '{folder_path}' already exists.")
-
-
-    # process training image
-    for index in range(0, number_of_train):
-        # Open images and pre-existing masks
-        image = Image.open(str(address_train_image[index]))
-        label = address_train_label[index]
-        
-        # Create new Coarse Segmentation mask
-        coarseSegColorMap = path_to_target(label, img_breadth, img_length, label_list )
-        
-        # Save images
-        image.save(args.images_save_path +'/' + str(index) + ".jpg")
-        array_to_img(coarseSegColorMap).save(args.labels_save_path + '/' + str(index) + ".png")
-        print(f'Processing training image {index} of {number_of_train-1}')
-        
-    print('----- Processing training complete -----') 
+    # Reading dataset labels and images and sorting returned list in alphabetical order
+    images = sorted([f for f in pathlib.Path(images_filepath).glob("*")])
+    labels = sorted([f for f in pathlib.Path(labels_filepath).glob("*labelIds.png")])
     
-    # process val image
-    for index in range(0, number_of_val):
-        # Open images and pre-existing masks
-        image = Image.open(str(address_val_image[index]))
-        label = address_val_label[index]
-        
-        # Create new Coarse Segmentation mask
-        coarseSegColorMap = path_to_target(label, img_breadth, img_length, label_list )
-        index = index + number_of_train
-        # Save images
-        image.save(args.images_save_path + '/' + str(index) + ".jpg")
-        array_to_img(coarseSegColorMap).save(args.labels_save_path + '/' + str(index) + ".png")
-        print(f'Processing validation image {index - number_of_train} of {number_of_val-1}')
-        
-    print('----- Processing validation complete -----') 
+    # Printing number of images and ground truth labels found
+    print('Found ', len(images), ' images')
+    print('Found ', len(labels), ' ground truth labels')
 
+    # Process images
+    for i in range(0, len(images)):
+        
+        # Print progress
+        print('Processing ', i+1, ' of ' , len(images))
 
+        # Read image and get ID
+        image_file = str(images[i])
+        image_file_id = image_file.replace(images_filepath, '')
+        image_file_id = image_file_id[0:-4]
+
+        # Get corresponding label ID from image ID
+        label_file = labels_filepath + image_file_id + '_labelIds.png'
+
+        try:
+            # If we have a valid label, open it
+            label = Image.open(label_file)
+
+            # Open the Image and get its width and height
+            image = Image.open(image_file)
+            width, height = image.size
+
+            # Crop to achieve a 2:1 width to height aspect ratio if the image is too tall
+            if(height > width/2):
+
+                image = image.crop((0, height/2 - width/4, width-1, height/2 + width/4))
+                label = label.crop((0, height/2 - width/4, width-1, height/2 + width/4))
+            
+            # Create the label and visualiztion
+            label_mask, vis_mask = createMask(label, image)
+
+            # Apply alpha transparency factor of 0.5
+            label_mask_composite = np.uint8(label_mask*0.5)
+
+            # Save the image
+            image.save(images_save_path + str(i).zfill(4) + ".jpg")
+
+            # Save the ground truth segmentation mask
+            mask = Image.fromarray(label_mask)
+            mask.save(labels_save_path + str(i).zfill(4) + ".png", "PNG")
+
+            # Create the visualization through image compositing
+            vis = Image.fromarray(vis_mask)
+            label_mask_composite = Image.fromarray(label_mask_composite)
+            visualization = Image.composite(image, vis, label_mask_composite)
+
+            # Save the visualization for data auditing
+            visualization.save(visualization_save_path + str(i).zfill(4) + ".png", "PNG")
+
+        except FileNotFoundError:
+            print('Label not found')
+
+    print('Finished processing')
 
 if __name__ == '__main__':
     main()
+#%%
