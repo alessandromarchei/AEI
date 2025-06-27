@@ -126,7 +126,7 @@ class BEVEgoPathTrainer():
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.00005
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -196,7 +196,7 @@ class BEVEgoPathTrainer():
         )
 
     # Calculate loss
-    def calc_loss(self, pred_xs, xs,valids):
+    def calc_loss(self, pred_xs, xs, valids):
         self.data_loss = self.calc_data_loss(pred_xs, xs, valids)
         self.smoothing_loss = self.calc_smoothing_loss(pred_xs, xs, valids)
 
@@ -227,7 +227,9 @@ class BEVEgoPathTrainer():
         
     # Data loss - MAE between x-point GTs and preds
     def calc_data_loss(self, pred_xs, gt_xs, valids):
-        return torch.abs(pred_xs * valids - gt_xs * valids).mean()
+        num_valids = torch.sum(valids)
+        loss = torch.sum(torch.abs(pred_xs * valids - gt_xs * valids)) / num_valids
+        return loss
 
     # Smoothing loss - MAE between gradient angle (tangent angle) of point pairs between GTs and preds
     def calc_smoothing_loss(self, pred_xs, gt_xs, valids):
@@ -236,7 +238,8 @@ class BEVEgoPathTrainer():
         pred_gradients = pred_xs_valids[0][1 : ] - pred_xs_valids[0][ : -1]
         gt_gradients = gt_xs_valids[0][1 : ] - gt_xs_valids[0][ : -1]
 
-        loss = torch.abs(pred_gradients - gt_gradients).mean()
+        num_valids = torch.sum(valids)
+        loss = torch.sum(torch.abs(pred_gradients - gt_gradients)) / num_valids
 
         return loss
     
@@ -480,15 +483,18 @@ class BEVEgoPathTrainer():
         plt.imshow(self.image)
 
         # Plot BEV egopath
-        BEV_egopath = [
-            (p[0] * W, p[1] * H) 
-            for p in list(zip(pred_xs[0], self.ys))
-            if 0 <= p[0] * W <= W
-            and 0 <= p[1] * H <= H
+        BEV_egopath = list(zip(pred_xs[0], self.ys))
+        renormed_BEV_egopath = [
+            (
+                BEV_egopath[i][0] * W, 
+                BEV_egopath[i][1] * H
+            ) 
+            for i in range(len(BEV_egopath))
+            if (self.valids[i] > 0.0)
         ]
         plt.plot(
-            [p[0] for p in BEV_egopath],
-            [p[1] for p in BEV_egopath],
+            [p[0] for p in renormed_BEV_egopath],
+            [p[1] for p in renormed_BEV_egopath],
             color = "yellow"
         )
 
@@ -512,17 +518,17 @@ class BEVEgoPathTrainer():
         plt.axis("off")
 
         # Inverse transform
-        orig_view, orig_egopath = self.invTrans(
+        _, orig_egopath = self.invTrans(
             list(zip(
                 [
-                    x * W
-                    for x in pred_xs[0] 
-                    # if (0 <= x * W <= W)
+                    pred_xs[0][i] * W
+                    for i in range(len(pred_xs[0]))
+                    if (self.valids[i] > 0.0)
                 ],
                 [
-                    y * H 
-                    for y in self.ys 
-                    # if (0 <= y * H <= H)
+                    self.ys[i] * H
+                    for i in range(len(self.ys))
+                    if (self.valids[i] > 0.0)
                 ]
             )),
             transform_matrix
