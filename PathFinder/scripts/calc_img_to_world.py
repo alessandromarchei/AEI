@@ -2,9 +2,10 @@ import cv2
 import json
 # import matplotlib.pyplot as plt
 import numpy as np
-# import os
 # import seaborn as sns
 import yaml
+import glob
+import os
 
 # Format floats with 4 decimal places
 def float_representer(dumper, value):
@@ -78,13 +79,27 @@ def write_to_yaml(lanes2d, lanes3d, camera_intri, yaml_path):
     with open(yaml_path, 'w') as f:
         yaml.dump({"lanes2d": lanes2d, "lanes3d": lanes3d, "camera_intri": camera_intri}, f, default_flow_style=False)
 
+# if __name__ == '__main__':
+#     run = "000004"
+#     id = "1616007252900"
+#     json_path = f"../ONCE_3DLanes/train/{run}/cam01/{id}.json"
+#     img_path = f"../ONCE_3DLanes/data/{run}/cam01/{id}.jpg"
+#     lanes_2d, lanes_3d, camera_intri = read_img_lane_from_json(json_path=json_path)
+#     print(lanes_2d, lanes_3d, camera_intri)
+#     write_to_yaml(lanes_2d, lanes_3d, camera_intri, yaml_path="../test/test.yaml")
+#     # draw_lanes2d_on_img_line(lanes_2d=lanes_2d, img_path=img_path, save_path=f"/home/je/{id}.jpg")
+#     draw_lanes2d_on_img_points(lanes_2d=lanes_2d, img_path=img_path, save_path=f"/home/je/{id}.jpg")
+
 if __name__ == '__main__':
     run = "000004"
-    id = "1616007252900"
-    json_path = f"../ONCE_3DLanes/train/{run}/cam01/{id}.json"
-    img_path = f"../ONCE_3DLanes/data/{run}/cam01/{id}.jpg"
-    lanes_2d, lanes_3d, camera_intri = read_img_lane_from_json(json_path=json_path)
-    print(lanes_2d, lanes_3d, camera_intri)
-    write_to_yaml(lanes_2d, lanes_3d, camera_intri, yaml_path="../test/test.yaml")
-    # draw_lanes2d_on_img_line(lanes_2d=lanes_2d, img_path=img_path, save_path=f"/home/je/{id}.jpg")
-    draw_lanes2d_on_img_points(lanes_2d=lanes_2d, img_path=img_path, save_path=f"/home/je/{id}.jpg")
+    json_dir = f"../ONCE_3DLanes/train/{run}/cam01/"
+    json_files = glob.glob(os.path.join(json_dir, "*.json"))
+
+    for json_path in json_files:
+        id = os.path.splitext(os.path.basename(json_path))[0]
+        img_path = f"../ONCE_3DLanes/data/{run}/cam01/{id}.jpg"
+
+        lanes_2d, lanes_3d, camera_intri = read_img_lane_from_json(json_path=json_path)
+        print(lanes_2d, lanes_3d, camera_intri)
+        write_to_yaml(lanes_2d, lanes_3d, camera_intri, yaml_path=f"../test/{run}/{id}.yaml")
+        draw_lanes2d_on_img_points(lanes_2d=lanes_2d, img_path=img_path, save_path=f"/home/je/img/{run}/{id}.jpg")
