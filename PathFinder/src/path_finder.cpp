@@ -1,6 +1,6 @@
 #include "path_finder.hpp"
 
-bool gt = false; // true for ground truth, false for BEV points
+bool gt = true; // true for ground truth, false for BEV points
 
 LanePts::LanePts(int id,
                  std::vector<cv::Point2f> GtPoints,
@@ -92,7 +92,7 @@ void drawLanes(const std::vector<LanePts> &lanes,
 
 std::vector<LanePts> loadLanesFromYaml(const std::string &filename)
 {
-    cv::Mat H = loadHFromYaml("image_to_world_transform.yaml");
+    cv::Mat H = loadHFromYaml("test/image_to_world_transform.yaml");
 
     std::vector<LanePts> lanes;
     YAML::Node root = YAML::LoadFile(filename);
@@ -188,6 +188,17 @@ std::array<double, 3> fitQuadPoly(const std::vector<cv::Point2f> &points)
     const int degree = 2;
     const size_t N = points.size();
 
+    if (points.size() == 2)
+    {
+        double y1 = points[0].y, x1 = points[0].x;
+        double y2 = points[1].y, x2 = points[1].x;
+
+        double b = (x2 - x1) / (y2 - y1);
+        double c = x1 - b * y1;
+
+        return {0.0, b, c};
+    }
+
     Eigen::MatrixXd A(N, degree + 1);
     Eigen::VectorXd b(N);
 
@@ -240,40 +251,121 @@ fittedCurve calculateEgoPath(const fittedCurve &leftLane, const fittedCurve &rig
                         (leftLane.coeff[2] + rightLane.coeff[2]) / 2.0});
 }
 
+void Estimator::initialize(const std::vector<double> &init_state, const std::vector<double> &init_var)
+{
+    dim = init_state.size();
+    state = init_state;
+    variance = init_var;
+}
+
+void Estimator::predict(std::vector<double> process_var)
+{
+    if (process_var.size() != dim)
+    {
+        throw std::runtime_error("Process variance size does not match state dimension.");
+    }
+    for (size_t i = 0; i < dim; ++i)
+    {
+        variance[i] += process_var[i];
+    }
+}
+
+void Estimator::update(const std::vector<double> &measurement, const std::vector<double> &measurement_var)
+{
+    if (measurement.size() != dim || measurement_var.size() != dim)
+    {
+        throw std::runtime_error("Measurement or measurement variance size does not match state dimension.");
+    }
+
+    for (size_t i = 0; i < dim; ++i)
+    {
+        double prior_mean = state[i];
+        double prior_var = variance[i];
+        double meas = measurement[i];
+        double meas_var = measurement_var[i];
+
+        // Kalman gain
+        double K = prior_var / (prior_var + meas_var);
+
+        // Posterior estimate
+        state[i] = prior_mean + K * (meas - prior_mean);
+
+        // Posterior variance
+        variance[i] = (1.0 - K) * prior_var;
+    }
+}
+
+const std::vector<double> &Estimator::getState() const { return state; }
+
+const std::vector<double> &Estimator::getVariance() const { return variance; }
+
 int main()
 {
-    estimateH();
-    auto egoLanesPts = loadLanesFromYaml("test.yaml");
-
-    std::vector<fittedCurve> egoLanes;
-    for (auto lanePts : egoLanesPts)
+    namespace fs = std::filesystem;
+    std::vector<std::string> yaml_files;
+    for (const auto &entry : fs::directory_iterator("test/000004"))
     {
-        std::array<double, 3> coeff;
-        if (gt)
-            coeff = fitQuadPoly(lanePts.GtPoints);
-        else
-            coeff = fitQuadPoly(lanePts.BevPoints);
-        egoLanes.emplace_back(fittedCurve(coeff));
+        if (entry.is_regular_file() && entry.path().extension() == ".yaml")
+        {
+            yaml_files.push_back(entry.path().string());
+        }
     }
 
-    std::sort(egoLanes.begin(), egoLanes.end(), [](const fittedCurve &a, const fittedCurve &b)
-              { return abs(a.cte) < abs(b.cte); });
-
-    auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[1]);
-
-    std::cout << "egoPath: "
-              << egoPath.cte << " "
-              << egoPath.yaw_error << " "
-              << egoPath.curvature << std::endl;
-
-    for (auto &egoLane : egoLanes)
+    for (const auto &yaml_path : yaml_files)
     {
-        std::cout << "egoLane: "
-                  << egoLane.cte << " "
-                  << egoLane.yaw_error << " "
-                  << egoLane.curvature << std::endl;
+        auto egoLanesPts = loadLanesFromYaml(yaml_path);
+        std::vector<fittedCurve> egoLanes;
+        for (auto lanePts : egoLanesPts)
+        {
+            std::array<double, 3> coeff;
+            if (gt)
+                coeff = fitQuadPoly(lanePts.GtPoints);
+            else
+                coeff = fitQuadPoly(lanePts.BevPoints);
+            egoLanes.emplace_back(fittedCurve(coeff));
+        }
+
+        std::sort(egoLanes.begin(), egoLanes.end(), [](const fittedCurve &a, const fittedCurve &b)
+                  { return abs(a.cte) < abs(b.cte); });
+
+        if (egoLanes.size() < 2)
+        {
+            std::cerr << "Not enough lanes, skipping frame" << std::endl;
+            continue;
+        }
+        auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[1]);
+
+        std::cout << "egoPath: "
+                  << egoPath.cte << " "
+                  << egoPath.yaw_error << " "
+                  << egoPath.curvature << std::endl;
+
+        for (auto &egoLane : egoLanes)
+        {
+            std::cout << "egoLane: "
+                      << egoLane.cte << " "
+                      << egoLane.yaw_error << " "
+                      << egoLane.curvature << std::endl;
+        }
+
+        drawLanes(egoLanesPts, egoLanes, egoPath);
     }
 
-    drawLanes(egoLanesPts, egoLanes, egoPath);
+    // ----------------------
+    // auto bayesFilter = Estimator();
+    // std::vector<double> init_state = {0.5};
+    // std::vector<double> init_var = {0.1};
+    // bayesFilter.initialize(init_state, init_var);
+    // std::vector<double> process_var = {0.05};
+    // bayesFilter.predict(process_var);
+    // std::vector<double> measurement = {0.6};
+    // std::vector<double> measurement_var = {0.1};
+    // bayesFilter.update(measurement, measurement_var);
+    // const auto &state = bayesFilter.getState();
+    // const auto &variance = bayesFilter.getVariance();
+    // std::cout << "Bayes Filter State: "<< state[0] << std::endl;
+    // std::cout << "Bayes Filter Variance: " << variance[0] << std::endl;
+    // ----------------------
+
     return 0;
 }
