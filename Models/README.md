@@ -12,6 +12,8 @@
 
 ## DomainSeg
 ### [Link to Download Pytorch Model Weights *.pth](https://drive.google.com/file/d/1sYa2ltivJZEWMsTFZXAOaHK--Ovnadu2/view?usp=drive_link)
+### [Link to Download Traced Pytorch Model *.pt](https://drive.google.com/file/d/12fLHpx3IZDglRJaDZT9kMhsV-f6ZTyks/view?usp=drive_link)
+### [Link to Download ONNX FP32 Weights *.onnx](https://drive.google.com/file/d/1zCworKw4aQ9_hDBkHfj1-sXitAAebl5Y/view?usp=drive_link)
 
 ## Description
 
