@@ -5,6 +5,7 @@ import torch
 from torchvision import transforms
 import sys
 sys.path.append('..')
+from model_components.scene_seg_network import SceneSegNetwork
 from model_components.domain_seg_network import DomainSegNetwork
 
 
@@ -24,7 +25,8 @@ class DomainSegNetworkInfer():
         print(f'Using {self.device} for inference')
             
         # Instantiate model, load to device and set to evaluation mode
-        self.model = DomainSegNetwork()
+        sceneSegNetwork = SceneSegNetwork()
+        self.model = DomainSegNetwork(sceneSegNetwork)
 
         if(len(checkpoint_path) > 0):
             self.model.load_state_dict(torch.load \
