@@ -8,7 +8,7 @@ sys.path.append('..')
 from model_components.domain_seg_network import DomainSegNetwork
 
 
-class SceneSegNetworkInfer():
+class DomainSegNetworkInfer():
     def __init__(self, checkpoint_path = ''):
 
         # Image loader
