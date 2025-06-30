@@ -299,6 +299,24 @@ const std::vector<double> &Estimator::getState() const { return state; }
 
 const std::vector<double> &Estimator::getVariance() const { return variance; }
 
+const std::vector<std::pair<int,int>> lanePairs = {
+    {0,4},
+    {1,4},
+    {1,2},
+    {0,5},
+    {2,3},
+    {2,9},
+    {0,2},
+    {0,2},
+    {0,3},
+    {2,3},
+    {0,6},
+    {2,4},
+    {1,4},
+    {2,3},
+    {0,2}
+};
+
 int main()
 {
     namespace fs = std::filesystem;
@@ -311,11 +329,19 @@ int main()
         }
     }
 
+    int i=0;
     for (const auto &yaml_path : yaml_files)
     {
         auto egoLanesPts = loadLanesFromYaml(yaml_path);
+        if (egoLanesPts.size() < 2)
+        {
+            std::cerr << "Not enough lanes to calculate ego path." << std::endl;
+            continue;
+        }
+        std::cout << "Loaded " << egoLanesPts.size() << " lanes from " << yaml_path << std::endl;
+        auto egoLanesPtsLR = {egoLanesPts[lanePairs[i].first], egoLanesPts[lanePairs[i].second]};
         std::vector<fittedCurve> egoLanes;
-        for (auto lanePts : egoLanesPts)
+        for (auto lanePts : egoLanesPtsLR)
         {
             std::array<double, 3> coeff;
             if (gt)
@@ -325,15 +351,13 @@ int main()
             egoLanes.emplace_back(fittedCurve(coeff));
         }
 
-        std::sort(egoLanes.begin(), egoLanes.end(), [](const fittedCurve &a, const fittedCurve &b)
-                  { return abs(a.cte) < abs(b.cte); });
-
         if (egoLanes.size() < 2)
         {
-            std::cerr << "Not enough lanes, skipping frame" << std::endl;
+            std::cerr << "Not enough lanes to calculate ego path." << std::endl;
             continue;
         }
         auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[1]);
+        i++;
 
         std::cout << "egoPath: "
                   << egoPath.cte << " "
@@ -348,7 +372,7 @@ int main()
                       << egoLane.curvature << std::endl;
         }
 
-        drawLanes(egoLanesPts, egoLanes, egoPath);
+        drawLanes(egoLanesPtsLR, egoLanes, egoPath);
     }
 
     // ----------------------
