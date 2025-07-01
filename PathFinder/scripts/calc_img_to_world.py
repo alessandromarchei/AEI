@@ -76,6 +76,7 @@ def write_to_yaml(lanes2d, lanes3d, camera_intri, yaml_path):
     """
     Function to write the 2D lane points in Image Pixel to a YAML file.
     """
+    print(yaml_path)
     with open(yaml_path, 'w') as f:
         yaml.dump({"lanes2d": lanes2d, "lanes3d": lanes3d, "camera_intri": camera_intri}, f, default_flow_style=False)
 
@@ -91,15 +92,18 @@ def write_to_yaml(lanes2d, lanes3d, camera_intri, yaml_path):
 #     draw_lanes2d_on_img_points(lanes_2d=lanes_2d, img_path=img_path, save_path=f"/home/je/{id}.jpg")
 
 if __name__ == '__main__':
-    run = "000004"
+    run = "000001"
     json_dir = f"../ONCE_3DLanes/train/{run}/cam01/"
     json_files = glob.glob(os.path.join(json_dir, "*.json"))
+    start_id = 1616005402200
+    end_id = 1616005420200
 
     for json_path in json_files:
         id = os.path.splitext(os.path.basename(json_path))[0]
-        img_path = f"../ONCE_3DLanes/data/{run}/cam01/{id}.jpg"
-
-        lanes_2d, lanes_3d, camera_intri = read_img_lane_from_json(json_path=json_path)
-        print(lanes_2d, lanes_3d, camera_intri)
-        write_to_yaml(lanes_2d, lanes_3d, camera_intri, yaml_path=f"../test/{run}/{id}.yaml")
-        draw_lanes2d_on_img_points(lanes_2d=lanes_2d, img_path=img_path, save_path=f"/home/je/img/{run}/{id}.jpg")
+        if start_id <= int(id) <= end_id:
+            img_path = f"../ONCE_3DLanes/data/{run}/cam01/{id}.jpg"
+            print(img_path)
+            lanes_2d, lanes_3d, camera_intri = read_img_lane_from_json(json_path=json_path)
+            # print(lanes_2d, lanes_3d, camera_intri)
+            write_to_yaml(lanes_2d, lanes_3d, camera_intri, yaml_path=f"../test/{run}/{id}.yaml")
+            draw_lanes2d_on_img_points(lanes_2d=lanes_2d, img_path=img_path, save_path=f"/home/je/img/{run}/{id}.jpg")
