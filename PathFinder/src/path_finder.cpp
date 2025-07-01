@@ -1,6 +1,6 @@
 #include "path_finder.hpp"
 
-bool gt = true; // true for ground truth, false for BEV points
+bool gt = false; // true for ground truth, false for BEV points
 
 LanePts::LanePts(int id,
                  std::vector<cv::Point2f> GtPoints,
@@ -100,11 +100,11 @@ std::vector<LanePts> loadLanesFromYaml(const std::string &filename)
     for (const auto &lane3d : root["lanes3d"])
     {
         const auto &lane2d = root["lanes2d"][i++];
-        std::cout << "LanePts " << i << ":\n";
+        // std::cout << "LanePts " << i << ":\n";
         std::vector<cv::Point2f> lane_pixels;
         for (const auto &pt2d : lane2d)
         {
-            std::cout << "  [" << pt2d[0].as<double>() << ", " << pt2d[1].as<double>() << "]\n";
+            // std::cout << "  [" << pt2d[0].as<double>() << ", " << pt2d[1].as<double>() << "]\n";
             auto noise = generatePixelNoise(5.0);
             double u = pt2d[0].as<double>() + noise[0];
             double v = pt2d[1].as<double>() + noise[1];
@@ -116,9 +116,9 @@ std::vector<LanePts> loadLanesFromYaml(const std::string &filename)
         std::vector<cv::Point2f> gt_pts;
         for (const auto &pt3d : lane3d)
         {
-            std::cout << "  [" << pt3d[0].as<double>() << ", "
-                      << pt3d[1].as<double>() << ", "
-                      << pt3d[2].as<double>() << "]\n";
+            // std::cout << "  [" << pt3d[0].as<double>() << ", "
+            //           << pt3d[1].as<double>() << ", "
+            //           << pt3d[2].as<double>() << "]\n";
             gt_pts.emplace_back(cv::Point2f(pt3d[0].as<double>(), pt3d[2].as<double>()));
         }
         lanes.emplace_back(i, gt_pts, bev_pixels);
@@ -154,8 +154,8 @@ cv::Mat loadHFromYaml(const std::string &filename)
         H.at<double>(i / 3, i % 3) = mat[i].as<double>();
     }
 
-    std::cout << "Loaded H:\n"
-              << H << std::endl;
+    // std::cout << "Loaded H:\n"
+    //           << H << std::endl;
     return H;
 }
 
@@ -239,8 +239,8 @@ void estimateH()
         {-1.217f, 39.064f},
         {1.657f, 38.649f}};
     cv::Mat H = cv::findHomography(imagePixels, BevPixels);
-    std::cout << "Estimated Homography Matrix H:\n"
-              << H << std::endl;
+    // std::cout << "Estimated Homography Matrix H:\n"
+    //           << H << std::endl;
     // cv::FileStorage fs("image_to_world_transform.yaml", cv::FileStorage::WRITE);
 }
 
@@ -256,6 +256,10 @@ void Estimator::initialize(const std::vector<double> &init_state, const std::vec
     dim = init_state.size();
     state = init_state;
     variance = init_var;
+    // std::cout << "Filter initialized with: " <<
+    //             "dim: "<< dim <<
+    //             "state: "<< state[0] <<
+    //             "variance" <<std::endl;
 }
 
 void Estimator::predict(std::vector<double> process_var)
@@ -274,6 +278,7 @@ void Estimator::update(const std::vector<double> &measurement, const std::vector
 {
     if (measurement.size() != dim || measurement_var.size() != dim)
     {
+        std::cerr << "Measurement size: " << measurement.size() << ", Measurement variance size: " << measurement_var.size() << ", State dimension: " << dim << std::endl;
         throw std::runtime_error("Measurement or measurement variance size does not match state dimension.");
     }
 
@@ -299,96 +304,162 @@ const std::vector<double> &Estimator::getState() const { return state; }
 
 const std::vector<double> &Estimator::getVariance() const { return variance; }
 
-const std::vector<std::pair<int,int>> lanePairs = {
-    {0,4},
-    {1,4},
-    {1,2},
-    {0,5},
-    {2,3},
-    {2,9},
-    {0,2},
-    {0,2},
-    {0,3},
-    {2,3},
-    {0,6},
-    {2,4},
-    {1,4},
-    {2,3},
-    {0,2}
-};
+const std::vector<std::pair<int, int>> lanePairs = {
+    {2, 1},
+    {2, 0},
+    {0, 2},
+    {0, 1},
+    {2, 0},
+    {2, 0},
+    {1, 2},
+    {0, 3}};
 
 int main()
 {
     namespace fs = std::filesystem;
-    std::vector<std::string> yaml_files;
-    for (const auto &entry : fs::directory_iterator("test/000004"))
+    std::vector<std::pair<std::string, std::string>> file_pairs;
+    for (const auto &entry : fs::directory_iterator("test/000001"))
     {
         if (entry.is_regular_file() && entry.path().extension() == ".yaml")
         {
-            yaml_files.push_back(entry.path().string());
+            std::string stem = entry.path().stem().string();
+            std::string yaml_path = entry.path().string();
+            std::string img_path = "test/000001/cam01/" + stem + ".jpg";
+
+            std::cout << "Found YAML file: " << stem << std::endl;
+            file_pairs.emplace_back(yaml_path, img_path);
         }
     }
 
-    int i=0;
-    for (const auto &yaml_path : yaml_files)
+    // Sort numerically by ID (stem of filename)
+    std::sort(file_pairs.begin(), file_pairs.end(),
+              [](const auto &a, const auto &b)
+              {
+                  return std::stoll(fs::path(a.first).stem().string()) <
+                         std::stoll(fs::path(b.first).stem().string());
+              });
+
+    // // Now use sorted img_files
+    // for (const auto &pair : file_pairs)
+    // {
+    //     const std::string &img_path = pair.second;
+
+    //     cv::Mat img = cv::imread(img_path, cv::IMREAD_COLOR);
+    //     if (img.empty())
+    //     {
+    //         std::cerr << "Failed to load image: " << img_path << std::endl;
+    //         continue;
+    //     }
+
+    //     cv::imshow("Camera View", img);
+    //     cv::waitKey(1000); // 1 frame per second
+    // }
+
+    std::vector<fittedCurve> egoPaths, egoPathsGT;
+
+    int i = 0;
+    std::cout << "Found " << file_pairs.size() << " YAML files." << std::endl;
+    // TODO: show image camera view
+    for (const auto &file_pair : file_pairs)
     {
-        auto egoLanesPts = loadLanesFromYaml(yaml_path);
+        auto egoLanesPts = loadLanesFromYaml(file_pair.first);
         if (egoLanesPts.size() < 2)
         {
-            std::cerr << "Not enough lanes to calculate ego path." << std::endl;
+            std::cerr << "Not enough lanes to calculate ego path. Loop id: " << i << std::endl;
             continue;
         }
-        std::cout << "Loaded " << egoLanesPts.size() << " lanes from " << yaml_path << std::endl;
+        // std::cout << "Loaded " << egoLanesPts.size() << " lanes from " << yaml_path << std::endl;
         auto egoLanesPtsLR = {egoLanesPts[lanePairs[i].first], egoLanesPts[lanePairs[i].second]};
-        std::vector<fittedCurve> egoLanes;
+        std::vector<fittedCurve> egoLanes, egoLanesGT;
+
         for (auto lanePts : egoLanesPtsLR)
         {
-            std::array<double, 3> coeff;
-            if (gt)
-                coeff = fitQuadPoly(lanePts.GtPoints);
-            else
-                coeff = fitQuadPoly(lanePts.BevPoints);
+            std::array<double, 3> coeff_gt = fitQuadPoly(lanePts.GtPoints);
+            std::array<double, 3> coeff = fitQuadPoly(lanePts.BevPoints);
+            egoLanesGT.emplace_back(fittedCurve(coeff_gt));
             egoLanes.emplace_back(fittedCurve(coeff));
         }
 
-        if (egoLanes.size() < 2)
-        {
-            std::cerr << "Not enough lanes to calculate ego path." << std::endl;
-            continue;
-        }
         auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[1]);
+        auto egoPathGT = calculateEgoPath(egoLanesGT[0], egoLanesGT[1]);
         i++;
 
-        std::cout << "egoPath: "
-                  << egoPath.cte << " "
-                  << egoPath.yaw_error << " "
-                  << egoPath.curvature << std::endl;
+        egoPaths.push_back(egoPath);
+        egoPathsGT.push_back(egoPathGT);
+
+        // std::cout << "egoPath: "
+        //           << egoPath.cte << " "
+        //           << egoPath.yaw_error << " "
+        //           << egoPath.curvature << std::endl;
 
         for (auto &egoLane : egoLanes)
         {
-            std::cout << "egoLane: "
-                      << egoLane.cte << " "
-                      << egoLane.yaw_error << " "
-                      << egoLane.curvature << std::endl;
+            // std::cout << "egoLane: "
+            //           << egoLane.cte << " "
+            //           << egoLane.yaw_error << " "
+            //           << egoLane.curvature << std::endl;
         }
 
-        drawLanes(egoLanesPtsLR, egoLanes, egoPath);
+        drawLanes(egoLanesPts, egoLanes, egoPath);
     }
 
     // ----------------------
-    // auto bayesFilter = Estimator();
-    // std::vector<double> init_state = {0.5};
-    // std::vector<double> init_var = {0.1};
-    // bayesFilter.initialize(init_state, init_var);
-    // std::vector<double> process_var = {0.05};
-    // bayesFilter.predict(process_var);
-    // std::vector<double> measurement = {0.6};
-    // std::vector<double> measurement_var = {0.1};
-    // bayesFilter.update(measurement, measurement_var);
-    // const auto &state = bayesFilter.getState();
-    // const auto &variance = bayesFilter.getVariance();
-    // std::cout << "Bayes Filter State: "<< state[0] << std::endl;
-    // std::cout << "Bayes Filter Variance: " << variance[0] << std::endl;
+    auto bayesFilter = Estimator();
+    const double proc_SD = 0.5;
+    const double meas_SD = 0.1;
+
+    std::cout << "process standard dev: " << proc_SD << std::endl;
+    std::cout << "measurement standard dev: " << meas_SD << std::endl;
+
+    const std::vector<double> process_var = {proc_SD * proc_SD, proc_SD * proc_SD, proc_SD * proc_SD};
+    const std::vector<double> measurement_var = {meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD}; // Measurement variance for cte, yaw_error, curvature
+
+    for (int i = 0; i < egoPaths.size(); i++)
+    {
+        std::vector<double> measurement = {
+            egoPaths[i].cte,
+            egoPaths[i].yaw_error,
+            egoPaths[i].curvature};
+
+        if (i == 0)
+            bayesFilter.initialize(measurement, measurement_var);
+        else
+            bayesFilter.update(measurement, measurement_var);
+
+        const auto &state = bayesFilter.getState();
+        const auto &variance = bayesFilter.getVariance();
+
+        std::cout << std::fixed << std::setprecision(6); // uniform precision
+        std::cout << "Frame " << i << ":\n";
+        std::cout << std::setw(18) << "Ground Truth:" << "\t"
+                  << std::setw(12) << egoPathsGT[i].cte << "\t"
+                  << std::setw(12) << egoPathsGT[i].yaw_error << "\t"
+                  << std::setw(12) << egoPathsGT[i].curvature << "\n";
+
+        std::cout << std::setw(18) << "Measurement:" << "\t"
+                  << std::setw(12) << measurement[0] << "\t"
+                  << std::setw(12) << measurement[1] << "\t"
+                  << std::setw(12) << measurement[2] << "\n";
+
+        std::cout << std::setw(18) << "Filter Estimate:" << "\t"
+                  << std::setw(12) << state[0] << "\t"
+                  << std::setw(12) << state[1] << "\t"
+                  << std::setw(12) << state[2] << "\n";
+
+        std::cout << std::setw(18) << "Filter Variance:" << "\t"
+                  << std::setw(12) << variance[0] << "\t"
+                  << std::setw(12) << variance[1] << "\t"
+                  << std::setw(12) << variance[2] << "\n";
+
+        std::cout << std::setw(18) << "Error:" << "\t"
+                  << std::setw(12) << egoPathsGT[i].cte - state[0] << "\t"
+                  << std::setw(12) << egoPathsGT[i].yaw_error - state[1] << "\t"
+                  << std::setw(12) << egoPathsGT[i].curvature - state[2]  << "\n";
+
+
+        std::cout << "--------------------------------------------------------\n";
+        bayesFilter.predict(process_var);
+    }
     // ----------------------
 
     return 0;
