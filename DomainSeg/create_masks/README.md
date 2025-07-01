@@ -1,32 +1,9 @@
-## DomainSeg
-Roadwork scenes and construction objects present a challenging edge-case scenario for self-driving cars. Roadwork objects can be placed dynamically and their position can be changed at a moments notice by construction workers. On many occassions, roadwork objects can be used to artifically narrow the driving corridor and guide vehicles to merge lanes. These scenarios are very demanding for self-driving cars, creating a need for a robust and reliable roadwork scene segmentation technology. DomainSeg addresses this key technology gap, delivering robust safety perception across urban driving scenarios, highways and even unstrcutured roads. It is able to adapt to challenging weather conditions such as snow and low-light, and is robust to edge cases such as detection of traffic cones that have been knocked over by other cars. DomainSeg is part of the [AutoSeg Foundation Model](../AutoSeg/README.md) which forms the core of the vision-pipeline of the [Autoware Privately Owned Vehicle Autonomous Highway Pilot System](..).
+Contains scripts to process open datasets and create semantic masks in a unified labelling scheme according to the DomainSeg neural task specification. To process each open dataset, the file structure and heirarchy of published open datasets was simplified manually such that each open dataset had a two top level folders, a first folder with all images and a second folder with ground truth labels.
 
-![SceneSeg GIF](../Media/SceneSeg_GIF.gif) ![SceneSeg GIF Rain](../Media/SceneSeg_GIF_Rain.gif)
+Open semantic segmentation datasets contain various labelling methodologies and semantic classes. The scripts in create_masks parse data and create semantic colormaps in a single unified semantic format.
 
-During training, DomainSeg estimates a binary segmentation mask with a probability of each pixel belonging to a single 'super-class' of **roadwork objects**
+#### The open datasets processed for DomainSeg include:
+- [ROADWork](https://www.cs.cmu.edu/~roadwork/)
+- [Mapillary Vistas 2.0](https://blog.mapillary.com/update/2021/01/18/vistas-2-dataset.html)
 
-## Watch the explainer video
-Please click the video link to play - [***Video link***](https://drive.google.com/file/d/1riGlT3Ct-O1Y2C0DqxemwWS233dJrY7F/view?usp=sharing)
-
-## Demo, Training, Inference, Visualization
-Please see the [*Models*](https://github.com/autowarefoundation/autoware.privately-owned-vehicles/tree/main/Models) folder to access the pre-trained network weights for DomainSeg as well as scripts for network training, inference and visualization of network predictions.
-
-## Performance Results
-DomainSeg was trained using the ROADWork dataset by Carnegie Mellon University, yielding 7.25K training samples and 150 validation samples.
-
-Mean Intersection Over Union (mIoU) scores for DomainSeg on validation samples are below
-
-### Validation Set Performance - mIoU Scores
-| |Validation | 
-|--------|----|
-| mIoU | **46.6** | 
-
-
-### Inference Speed
-Inference speed tests were performed on a laptop equipped with an RTX3060 Mobile Gaming GPU, and an AMD Ryzen 7 5800H CPU. The SceneSeg network comprises a total of 223.43 Billion Floating Point Operations.
-
-#### FP32 Precision
-At FP32 precision, SceneSeg achieved 18.1 Frames Per Second inference speed
-
-#### FP16 Precision
-At FP16 precision, SceneSeg achieved 26.7 Frames Per Second inference speed
+A unified semantic class was created for both datasets which included all movable roadwork objects including traffic cones, traffic barrels, traffic drums and tubular markers. Although both ROADWork and Mapillary Vistas 2.0 were parsed for training the DomainSeg network, it was found that Mapillary Vistas 2.0 scenes were not representative of construction zones and given the small size of samples where roadwork objects were present (1.6K) - it was decided to not rely on Mapillary Vistas 2.0 during network training
