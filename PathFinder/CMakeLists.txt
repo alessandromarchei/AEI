@@ -26,4 +26,4 @@ add_executable(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} yaml-cpp)
 
 # Copy test directory to build directory
-file(COPY test DESTINATION ${CMAKE_BINARY_DIR})
+# file(COPY test DESTINATION ${CMAKE_BINARY_DIR})

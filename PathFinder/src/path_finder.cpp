@@ -85,14 +85,14 @@ void drawLanes(const std::vector<LanePts> &lanes,
     }
 
     cv::imshow("BEV Lanes", image);
-    cv::imwrite("bev_lanes.png", image);
+    // cv::imwrite("../test/bev_lanes.png", image);
     cv::waitKey(0);
     cv::destroyAllWindows();
 }
 
 std::vector<LanePts> loadLanesFromYaml(const std::string &filename)
 {
-    cv::Mat H = loadHFromYaml("test/image_to_world_transform.yaml");
+    cv::Mat H = loadHFromYaml("../test/image_to_world_transform.yaml");
 
     std::vector<LanePts> lanes;
     YAML::Node root = YAML::LoadFile(filename);
@@ -318,13 +318,13 @@ int main()
 {
     namespace fs = std::filesystem;
     std::vector<std::pair<std::string, std::string>> file_pairs;
-    for (const auto &entry : fs::directory_iterator("test/000001"))
+    for (const auto &entry : fs::directory_iterator("../test/000001"))
     {
         if (entry.is_regular_file() && entry.path().extension() == ".yaml")
         {
             std::string stem = entry.path().stem().string();
             std::string yaml_path = entry.path().string();
-            std::string img_path = "test/000001/cam01/" + stem + ".jpg";
+            std::string img_path = "../test/000001/img/" + stem + ".jpg";
 
             std::cout << "Found YAML file: " << stem << std::endl;
             file_pairs.emplace_back(yaml_path, img_path);
@@ -339,21 +339,21 @@ int main()
                          std::stoll(fs::path(b.first).stem().string());
               });
 
-    // // Now use sorted img_files
-    // for (const auto &pair : file_pairs)
-    // {
-    //     const std::string &img_path = pair.second;
+    // Now use sorted img_files
+    for (const auto &pair : file_pairs)
+    {
+        const std::string &img_path = pair.second;
 
-    //     cv::Mat img = cv::imread(img_path, cv::IMREAD_COLOR);
-    //     if (img.empty())
-    //     {
-    //         std::cerr << "Failed to load image: " << img_path << std::endl;
-    //         continue;
-    //     }
+        cv::Mat img = cv::imread(img_path, cv::IMREAD_COLOR);
+        if (img.empty())
+        {
+            std::cerr << "Failed to load image: " << img_path << std::endl;
+            continue;
+        }
 
-    //     cv::imshow("Camera View", img);
-    //     cv::waitKey(1000); // 1 frame per second
-    // }
+        cv::imshow("Camera View", img);
+        cv::waitKey(1000); // 1 frame per second
+    }
 
     std::vector<fittedCurve> egoPaths, egoPathsGT;
 
