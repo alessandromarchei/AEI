@@ -106,4 +106,4 @@ if __name__ == '__main__':
             lanes_2d, lanes_3d, camera_intri = read_img_lane_from_json(json_path=json_path)
             # print(lanes_2d, lanes_3d, camera_intri)
             write_to_yaml(lanes_2d, lanes_3d, camera_intri, yaml_path=f"../test/{run}/{id}.yaml")
-            draw_lanes2d_on_img_points(lanes_2d=lanes_2d, img_path=img_path, save_path=f"/home/je/img/{run}/{id}.jpg")
+            draw_lanes2d_on_img_points(lanes_2d=lanes_2d, img_path=img_path, save_path=f"../test/{run}/img/{id}.jpg")
