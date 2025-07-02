@@ -1,5 +1,6 @@
 #include "path_finder.hpp"
 
+// TODO: track corridor width
 bool gt = false; // true for ground truth, false for BEV points
 
 LanePts::LanePts(int id,
@@ -11,6 +12,44 @@ fittedCurve::fittedCurve(const std::array<double, 3> &coeff) : coeff(coeff)
     cte = -coeff[2];
     yaw_error = -atan2(coeff[1], 1.0);
     curvature = 2 * coeff[0] / std::pow(1 + coeff[1] * coeff[1], 1.5);
+}
+
+drivingCorridor::drivingCorridor(
+    const std::optional<fittedCurve> &left,
+    const std::optional<fittedCurve> &right,
+    const std::optional<fittedCurve> &path)
+    : egoLaneL(left), egoLaneR(right), egoPath(path)
+{
+    if (egoLaneL && egoLaneR)
+    {
+        if (!egoPath)
+        {
+            egoPath = fittedCurve({(egoLaneL->coeff[0] + egoLaneR->coeff[0]) / 2.0,
+                                   (egoLaneL->coeff[1] + egoLaneR->coeff[1]) / 2.0,
+                                   (egoLaneL->coeff[2] + egoLaneR->coeff[2]) / 2.0});
+        }
+        width = egoLaneL->cte - egoLaneR->cte;
+        std::cout << "corridor width is " << width << std::endl;
+    }
+
+    // if (egoPath)
+    // {
+    //     cte = egoPath->cte;
+    //     yaw_error = egoPath->yaw_error;
+    //     curvature = egoPath->curvature;
+    // }
+    // else if (egoLaneL)
+    // {
+    //     cte = egoLaneL->cte - width / 2.0; // shift to center (left offset)
+    //     yaw_error = egoLaneL->yaw_error;
+    //     curvature = egoLaneL->curvature;
+    // }
+    // else if (egoLaneR)
+    // {
+    //     cte = egoLaneR->cte + width / 2.0; // shift to center (right offset)
+    //     yaw_error = egoLaneR->yaw_error;
+    //     curvature = egoLaneR->curvature;
+    // }
 }
 
 void drawLanes(const std::vector<LanePts> &lanes,
@@ -53,7 +92,6 @@ void drawLanes(const std::vector<LanePts> &lanes,
     color = 0;
     for (auto egoLane : egoLanes)
     {
-        color += 20;
         cv::Point2f prev_pt(0, 0);
         for (double y = 0.0; y <= 50.0; y += 0.1) // y range in meters
         {
@@ -67,6 +105,7 @@ void drawLanes(const std::vector<LanePts> &lanes,
             prev_pt.x = u;
             prev_pt.y = v;
         }
+        color += 100;
     }
 
     // Draw ego path
@@ -250,15 +289,15 @@ fittedCurve calculateEgoPath(const fittedCurve &leftLane, const fittedCurve &rig
                         (leftLane.coeff[2] + rightLane.coeff[2]) / 2.0});
 }
 
-const std::vector<std::pair<int, int>> lanePairs = {// manually label LR egoLanes
+const std::vector<std::pair<int, int>> lanePairs = { // manually label LR egoLanes
     {2, 1},
     {2, 0},
+    {2, 0},
+    {1, 0},
     {0, 2},
-    {0, 1},
     {2, 0},
-    {2, 0},
-    {1, 2},
-    {0, 3}};
+    {2, 1},
+    {3, 0}};
 
 int main()
 {
@@ -286,6 +325,7 @@ int main()
               });
 
     std::vector<fittedCurve> egoPaths, egoPathsGT;
+    std::vector<drivingCorridor> drivCorr, drivCorrGT;
 
     int i = 0;
     std::cout << "Found " << file_pairs.size() << " YAML files." << std::endl;
@@ -297,8 +337,9 @@ int main()
             std::cerr << "Not enough lanes to calculate ego path. Loop id: " << i << std::endl;
             continue;
         }
-        // std::cout << "Loaded " << egoLanesPts.size() << " lanes from " << yaml_path << std::endl;
         auto egoLanesPtsLR = {egoLanesPts[lanePairs[i].first], egoLanesPts[lanePairs[i].second]};
+        i++;
+
         std::vector<fittedCurve> egoLanes, egoLanesGT;
 
         for (auto lanePts : egoLanesPtsLR)
@@ -309,12 +350,8 @@ int main()
             egoLanes.emplace_back(fittedCurve(coeff));
         }
 
-        auto egoPath = calculateEgoPath(egoLanes[0], egoLanes[1]);
-        auto egoPathGT = calculateEgoPath(egoLanesGT[0], egoLanesGT[1]);
-        i++;
-
-        egoPaths.push_back(egoPath);
-        egoPathsGT.push_back(egoPathGT);
+        drivCorr.emplace_back(egoLanes[0], egoLanes[1], std::nullopt);
+        drivCorrGT.emplace_back(egoLanesGT[0], egoLanesGT[1], std::nullopt);
 
         cv::Mat img = cv::imread(file_pair.second, cv::IMREAD_COLOR);
         if (img.empty())
@@ -324,7 +361,7 @@ int main()
         }
         cv::imshow("Camera View", img);
 
-        drawLanes(egoLanesPts, egoLanes, egoPath);
+        drawLanes(egoLanesPts, egoLanes, drivCorr.back().egoPath.value());
     }
 
     // ----------------------
@@ -335,15 +372,38 @@ int main()
     std::cout << "process standard dev: " << proc_SD << std::endl;
     std::cout << "measurement standard dev: " << meas_SD << std::endl;
 
-    const std::vector<double> process_var = {proc_SD * proc_SD, proc_SD * proc_SD, proc_SD * proc_SD};
-    const std::vector<double> measurement_var = {meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD}; // Measurement variance for cte, yaw_error, curvature
+    // cte, yaw_error, curvature, driving corridor width
+    const std::vector<double> process_var = {proc_SD * proc_SD, proc_SD * proc_SD, proc_SD * proc_SD, // egoPath
+                                             proc_SD * proc_SD, proc_SD * proc_SD, proc_SD * proc_SD, // egoLaneL
+                                             proc_SD * proc_SD, proc_SD * proc_SD, proc_SD * proc_SD, // egoLaneR
+                                             proc_SD * proc_SD};                                      // width
+    const std::vector<double> measurement_var = {meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD,
+                                                 meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD,
+                                                 meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD,
+                                                 meas_SD * meas_SD};
 
-    for (int i = 0; i < egoPaths.size(); i++)
+    for (int i = 0; i < drivCorr.size(); i++)
     {
+        const auto &egoPath = drivCorr[i].egoPath;
+        const auto &egoLaneL = drivCorr[i].egoLaneL;
+        const auto &egoLaneR = drivCorr[i].egoLaneR;
+
+        const auto &egoPathGT = drivCorrGT[i].egoPath;
+
         std::vector<double> measurement = {
-            egoPaths[i].cte,
-            egoPaths[i].yaw_error,
-            egoPaths[i].curvature};
+            egoPath->cte,
+            egoPath->yaw_error,
+            egoPath->curvature,
+
+            egoLaneL->cte - drivCorr[i].width / 2.0,
+            egoLaneL->yaw_error,
+            egoLaneL->curvature,
+
+            egoLaneR->cte + drivCorr[i].width / 2.0,
+            egoLaneR->yaw_error,
+            egoLaneR->curvature,
+
+            drivCorr[i].width};
 
         if (i == 0)
             bayesFilter.initialize(measurement, measurement_var);
@@ -353,35 +413,81 @@ int main()
         const auto &state = bayesFilter.getState();
         const auto &variance = bayesFilter.getVariance();
 
-        std::cout << std::fixed << std::setprecision(6); // uniform precision
-        std::cout << "Frame " << i << ":\n";
-        std::cout << std::setw(18) << "Ground Truth:" << "\t"
-                  << std::setw(12) << egoPathsGT[i].cte << "\t"
-                  << std::setw(12) << egoPathsGT[i].yaw_error << "\t"
-                  << std::setw(12) << egoPathsGT[i].curvature << "\n";
+        std::cout << std::fixed << std::setprecision(6);
+        int w = 12; // column width
 
-        std::cout << std::setw(18) << "Measurement:" << "\t"
-                  << std::setw(12) << measurement[0] << "\t"
-                  << std::setw(12) << measurement[1] << "\t"
-                  << std::setw(12) << measurement[2] << "\n";
+        // Print header
+        std::cout << "Frame " << i << "\n";
+        std::cout << std::setw(w) << "Label"
+                  << std::setw(w) << "CTE"
+                  << std::setw(w) << "YawErr"
+                  << std::setw(w) << "Curv"
+                  << std::setw(w) << "L_CTE"
+                  << std::setw(w) << "L_Yaw"
+                  << std::setw(w) << "L_Curv"
+                  << std::setw(w) << "R_CTE"
+                  << std::setw(w) << "R_Yaw"
+                  << std::setw(w) << "R_Curv"
+                  << std::setw(w) << "Width"
+                  << "\n";
 
-        std::cout << std::setw(18) << "Filter Estimate:" << "\t"
-                  << std::setw(12) << state[0] << "\t"
-                  << std::setw(12) << state[1] << "\t"
-                  << std::setw(12) << state[2] << "\n";
+        // Ground Truth
+        std::cout << std::setw(w) << "GT:"
+                  << std::setw(w) << egoPathGT->cte
+                  << std::setw(w) << egoPathGT->yaw_error
+                  << std::setw(w) << egoPathGT->curvature
+                  << std::setw(w) << drivCorrGT[i].egoLaneL->cte - drivCorrGT[i].width / 2.0
+                  << std::setw(w) << drivCorrGT[i].egoLaneL->yaw_error
+                  << std::setw(w) << drivCorrGT[i].egoLaneL->curvature
+                  << std::setw(w) << drivCorrGT[i].egoLaneR->cte + drivCorrGT[i].width / 2.0
+                  << std::setw(w) << drivCorrGT[i].egoLaneR->yaw_error
+                  << std::setw(w) << drivCorrGT[i].egoLaneR->curvature
+                  << std::setw(w) << drivCorrGT[i].width
+                  << "\n";
 
-        std::cout << std::setw(18) << "Filter Variance:" << "\t"
-                  << std::setw(12) << variance[0] << "\t"
-                  << std::setw(12) << variance[1] << "\t"
-                  << std::setw(12) << variance[2] << "\n";
+        // Measurement
+        std::cout << std::setw(w) << "Meas:"
+                  << std::setw(w) << measurement[0]
+                  << std::setw(w) << measurement[1]
+                  << std::setw(w) << measurement[2]
+                  << std::setw(w) << measurement[3]
+                  << std::setw(w) << measurement[4]
+                  << std::setw(w) << measurement[5]
+                  << std::setw(w) << measurement[6]
+                  << std::setw(w) << measurement[7]
+                  << std::setw(w) << measurement[8]
+                  << std::setw(w) << measurement[9]
+                  << "\n";
 
-        std::cout << std::setw(18) << "Error:" << "\t"
-                  << std::setw(12) << egoPathsGT[i].cte - state[0] << "\t"
-                  << std::setw(12) << egoPathsGT[i].yaw_error - state[1] << "\t"
-                  << std::setw(12) << egoPathsGT[i].curvature - state[2]  << "\n";
+        // Filter Estimate
+        std::cout << std::setw(w) << "Filter:"
+                  << std::setw(w) << state[0]
+                  << std::setw(w) << state[1]
+                  << std::setw(w) << state[2]
+                  << std::setw(w) << state[3]
+                  << std::setw(w) << state[4]
+                  << std::setw(w) << state[5]
+                  << std::setw(w) << state[6]
+                  << std::setw(w) << state[7]
+                  << std::setw(w) << state[8]
+                  << std::setw(w) << state[9]
+                  << "\n";
 
+        std::cout << std::setw(w) << "Error:"
+                  << std::setw(w) << (egoPathGT->cte - state[0])
+                  << std::setw(w) << (egoPathGT->yaw_error - state[1])
+                  << std::setw(w) << (egoPathGT->curvature - state[2])
+                  << std::setw(w) << (drivCorrGT[i].egoLaneL->cte - drivCorrGT[i].width / 2.0 - state[3])
+                  << std::setw(w) << (drivCorrGT[i].egoLaneL->yaw_error - state[4])
+                  << std::setw(w) << (drivCorrGT[i].egoLaneL->curvature - state[5])
+                  << std::setw(w) << (drivCorrGT[i].egoLaneR->cte + drivCorrGT[i].width / 2.0 - state[6])
+                  << std::setw(w) << (drivCorrGT[i].egoLaneR->yaw_error - state[7])
+                  << std::setw(w) << (drivCorrGT[i].egoLaneR->curvature - state[8])
+                  << std::setw(w) << (drivCorrGT[i].width - state[9])
+                  << "\n";
 
-        std::cout << "--------------------------------------------------------\n";
+        std::cout << "------------------------------------------------------------------------------------\n";
+
         bayesFilter.predict(process_var);
     }
 

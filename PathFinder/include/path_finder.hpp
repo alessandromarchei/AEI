@@ -29,6 +29,20 @@ struct fittedCurve
     fittedCurve(const std::array<double, 3> &coeff);
 };
 
+struct drivingCorridor{
+    std::optional<fittedCurve> egoLaneL;
+    std::optional<fittedCurve> egoLaneR;
+    std::optional<fittedCurve> egoPath;
+    double cte;                  // Cross-track error in meters
+    double yaw_error;            // Yaw error in radians
+    double curvature;            // Curvature in meters^-1
+    double width;
+    drivingCorridor(
+        const std::optional<fittedCurve>& left,
+        const std::optional<fittedCurve>& right,
+        const std::optional<fittedCurve>& path);
+};
+
 void drawLanes(const std::vector<LanePts> &lanes,
                const std::vector<fittedCurve> &egoLanes,
                const fittedCurve &egoPath);
