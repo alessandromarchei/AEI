@@ -126,7 +126,6 @@ std::vector<LanePts> loadLanesFromYaml(const std::string &filename)
     return lanes;
 }
 
-// Function to generate uv noise in pixel units
 std::array<double, 2> generatePixelNoise(double max_noise = 10.0)
 {
     static std::random_device rd;
@@ -251,7 +250,7 @@ fittedCurve calculateEgoPath(const fittedCurve &leftLane, const fittedCurve &rig
                         (leftLane.coeff[2] + rightLane.coeff[2]) / 2.0});
 }
 
-const std::vector<std::pair<int, int>> lanePairs = {
+const std::vector<std::pair<int, int>> lanePairs = {// manually label LR egoLanes
     {2, 1},
     {2, 0},
     {0, 2},
@@ -286,27 +285,10 @@ int main()
                          std::stoll(fs::path(b.first).stem().string());
               });
 
-    // Now use sorted img_files
-    for (const auto &pair : file_pairs)
-    {
-        const std::string &img_path = pair.second;
-
-        cv::Mat img = cv::imread(img_path, cv::IMREAD_COLOR);
-        if (img.empty())
-        {
-            std::cerr << "Failed to load image: " << img_path << std::endl;
-            continue;
-        }
-
-        cv::imshow("Camera View", img);
-        cv::waitKey(1000); // 1 frame per second
-    }
-
     std::vector<fittedCurve> egoPaths, egoPathsGT;
 
     int i = 0;
     std::cout << "Found " << file_pairs.size() << " YAML files." << std::endl;
-    // TODO: show image camera view
     for (const auto &file_pair : file_pairs)
     {
         auto egoLanesPts = loadLanesFromYaml(file_pair.first);
@@ -334,18 +316,13 @@ int main()
         egoPaths.push_back(egoPath);
         egoPathsGT.push_back(egoPathGT);
 
-        // std::cout << "egoPath: "
-        //           << egoPath.cte << " "
-        //           << egoPath.yaw_error << " "
-        //           << egoPath.curvature << std::endl;
-
-        for (auto &egoLane : egoLanes)
+        cv::Mat img = cv::imread(file_pair.second, cv::IMREAD_COLOR);
+        if (img.empty())
         {
-            // std::cout << "egoLane: "
-            //           << egoLane.cte << " "
-            //           << egoLane.yaw_error << " "
-            //           << egoLane.curvature << std::endl;
+            std::cerr << "Failed to load image: " << file_pair.second << std::endl;
+            continue;
         }
+        cv::imshow("Camera View", img);
 
         drawLanes(egoLanesPts, egoLanes, egoPath);
     }
@@ -407,7 +384,6 @@ int main()
         std::cout << "--------------------------------------------------------\n";
         bayesFilter.predict(process_var);
     }
-    // ----------------------
 
     return 0;
 }
