@@ -7,41 +7,36 @@ void Estimator::initialize(const std::vector<double> &init_state, const std::vec
     variance = init_var;
 }
 
-void Estimator::predict(std::vector<double> process_var)
+void Estimator::predict(const std::vector<double> &delta, const std::vector<double> &process_var)
 {
-    if (process_var.size() != dim)
+    if (delta.size() != state.size() || process_var.size() != state.size())
+        throw std::runtime_error("Size mismatch in predict step");
+
+    for (size_t i = 0; i < state.size(); ++i)
     {
-        throw std::runtime_error("Process variance size does not match state dimension.");
-    }
-    for (size_t i = 0; i < dim; ++i)
-    {
-        variance[i] += process_var[i];
+        state[i] += delta[i];          // Mean update: m0p = m0 + delta
+        variance[i] += process_var[i]; // Variance update: v0p = v0 + Q
     }
 }
 
-void Estimator::update(const std::vector<double> &measurement, const std::vector<double> &measurement_var)
+void Estimator::update(const std::vector<double> &measurement,
+                       const std::vector<double> &measurement_var)
 {
-    if (measurement.size() != dim || measurement_var.size() != dim)
+    for (size_t i = 0; i < state.size(); ++i)
     {
-        std::cerr << "Measurement size: " << measurement.size() << ", Measurement variance size: " << measurement_var.size() << ", State dimension: " << dim << std::endl;
-        throw std::runtime_error("Measurement or measurement variance size does not match state dimension.");
-    }
+        double v0p = variance[i];       // predicted variance
+        double v1 = measurement_var[i]; // measurement variance
+        double m0p = state[i];          // predicted mean
+        double m1 = measurement[i];     // measurement
 
-    for (size_t i = 0; i < dim; ++i)
-    {
-        double prior_mean = state[i];
-        double prior_var = variance[i];
-        double meas = measurement[i];
-        double meas_var = measurement_var[i];
+        // New variance: V2 = (V0p * V1) / (V0p + V1)
+        double v2 = (v0p * v1) / (v0p + v1);
+        // New mean: M2 = (M0p * V1 + M1 * V0p) / (V0p + V1)
+        double m2 = (m0p * v1 + m1 * v0p) / (v0p + v1);
 
-        // Kalman gain
-        double K = prior_var / (prior_var + meas_var);
-
-        // Posterior estimate
-        state[i] = prior_mean + K * (meas - prior_mean);
-
-        // Posterior variance
-        variance[i] = (1.0 - K) * prior_var;
+        // Store updated values
+        state[i] = m2;
+        variance[i] = v2;
     }
 }
 

@@ -367,9 +367,13 @@ int main()
     // ----------------------
     auto bayesFilter = Estimator();
     const double proc_SD = 0.5;
-    const double meas_SD = 0.1;
-
+    const double meas_SD = 0.5;
+    const double epsilon = 0.05;
+    std::random_device rd;
+    std::default_random_engine generator(rd());
+    std::uniform_real_distribution<double> dist(-epsilon, epsilon);
     std::cout << "process standard dev: " << proc_SD << std::endl;
+    std::cout << "process mean random shift range: +-" << epsilon << std::endl;
     std::cout << "measurement standard dev: " << meas_SD << std::endl;
 
     // cte, yaw_error, curvature, driving corridor width
@@ -381,6 +385,12 @@ int main()
                                                  meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD,
                                                  meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD,
                                                  meas_SD * meas_SD};
+
+    std::vector<double> delta(process_var.size());
+    for (size_t i = 0; i < delta.size(); ++i)
+    {
+        delta[i] = dist(generator);
+    }
 
     for (int i = 0; i < drivCorr.size(); i++)
     {
@@ -488,7 +498,7 @@ int main()
 
         std::cout << "------------------------------------------------------------------------------------\n";
 
-        bayesFilter.predict(process_var);
+        bayesFilter.predict(delta, process_var);
     }
 
     return 0;
