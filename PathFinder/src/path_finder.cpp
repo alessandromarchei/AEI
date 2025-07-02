@@ -1,6 +1,7 @@
 #include "path_finder.hpp"
 
-// TODO: track corridor width
+// TODO: Gausian product of LR egoLanes yaw and curv
+// TODO: fuse multiple estimate of the same metric using product of Gaussians
 bool gt = false; // true for ground truth, false for BEV points
 
 LanePts::LanePts(int id,
@@ -31,25 +32,6 @@ drivingCorridor::drivingCorridor(
         width = egoLaneL->cte - egoLaneR->cte;
         std::cout << "corridor width is " << width << std::endl;
     }
-
-    // if (egoPath)
-    // {
-    //     cte = egoPath->cte;
-    //     yaw_error = egoPath->yaw_error;
-    //     curvature = egoPath->curvature;
-    // }
-    // else if (egoLaneL)
-    // {
-    //     cte = egoLaneL->cte - width / 2.0; // shift to center (left offset)
-    //     yaw_error = egoLaneL->yaw_error;
-    //     curvature = egoLaneL->curvature;
-    // }
-    // else if (egoLaneR)
-    // {
-    //     cte = egoLaneR->cte + width / 2.0; // shift to center (right offset)
-    //     yaw_error = egoLaneR->yaw_error;
-    //     curvature = egoLaneR->curvature;
-    // }
 }
 
 void drawLanes(const std::vector<LanePts> &lanes,
@@ -299,6 +281,35 @@ const std::vector<std::pair<int, int>> lanePairs = { // manually label LR egoLan
     {2, 1},
     {3, 0}};
 
+std::pair<double, double> fuseGaussians(const std::vector<double> &means,
+                                        const std::vector<double> &variances)
+{
+    if (means.size() != variances.size() || means.empty())
+    {
+        throw std::invalid_argument("Input vectors must be non-empty and the same size.");
+    }
+
+    double inv_var_sum = 0.0;
+    double weighted_mean_sum = 0.0;
+
+    for (size_t i = 0; i < means.size(); ++i)
+    {
+        if (variances[i] <= 0.0)
+        {
+            throw std::invalid_argument("Variance must be positive.");
+        }
+
+        double inv_var = 1.0 / variances[i];
+        inv_var_sum += inv_var;
+        weighted_mean_sum += means[i] * inv_var;
+    }
+
+    double fused_variance = 1.0 / inv_var_sum;
+    double fused_mean = fused_variance * weighted_mean_sum;
+
+    return {fused_mean, fused_variance};
+}
+
 int main()
 {
     namespace fs = std::filesystem;
@@ -423,80 +434,70 @@ int main()
         const auto &state = bayesFilter.getState();
         const auto &variance = bayesFilter.getVariance();
 
-        std::cout << std::fixed << std::setprecision(6);
-        int w = 12; // column width
+        std::cout << std::fixed << std::setprecision(4);
+        int w = 8; // column width
 
-        // Print header
+        // Header
         std::cout << "Frame " << i << "\n";
-        std::cout << std::setw(w) << "Label"
-                  << std::setw(w) << "CTE"
-                  << std::setw(w) << "YawErr"
-                  << std::setw(w) << "Curv"
-                  << std::setw(w) << "L_CTE"
-                  << std::setw(w) << "L_Yaw"
-                  << std::setw(w) << "L_Curv"
-                  << std::setw(w) << "R_CTE"
-                  << std::setw(w) << "R_Yaw"
-                  << std::setw(w) << "R_Curv"
-                  << std::setw(w) << "Width"
-                  << "\n";
+        std::cout << "\033[32m"
+                  << std::setw(w) << "Label"
+                  << std::setw(w) << "CTE" << std::setw(w) << "var"
+                  << std::setw(w) << "YawErr" << std::setw(w) << "var"
+                  << std::setw(w) << "Curv" << std::setw(w) << "var"
+                  << std::setw(w) << "L_CTE" << std::setw(w) << "var"
+                  << std::setw(w) << "L_Yaw" << std::setw(w) << "var"
+                  << std::setw(w) << "L_Curv" << std::setw(w) << "var"
+                  << std::setw(w) << "R_CTE" << std::setw(w) << "var"
+                  << std::setw(w) << "R_Yaw" << std::setw(w) << "var"
+                  << std::setw(w) << "R_Curv" << std::setw(w) << "var"
+                  << std::setw(w) << "Width" << std::setw(w) << "var"
+                  << std::endl;
 
-        // Ground Truth
-        std::cout << std::setw(w) << "GT:"
-                  << std::setw(w) << egoPathGT->cte
-                  << std::setw(w) << egoPathGT->yaw_error
-                  << std::setw(w) << egoPathGT->curvature
-                  << std::setw(w) << drivCorrGT[i].egoLaneL->cte - drivCorrGT[i].width / 2.0
-                  << std::setw(w) << drivCorrGT[i].egoLaneL->yaw_error
-                  << std::setw(w) << drivCorrGT[i].egoLaneL->curvature
-                  << std::setw(w) << drivCorrGT[i].egoLaneR->cte + drivCorrGT[i].width / 2.0
-                  << std::setw(w) << drivCorrGT[i].egoLaneR->yaw_error
-                  << std::setw(w) << drivCorrGT[i].egoLaneR->curvature
-                  << std::setw(w) << drivCorrGT[i].width
-                  << "\n";
+        // Ground Truth (no variance for GT)
+        std::cout << "\033[0m"
+                  << std::setw(w) << "GT:";
+        std::vector<double> gt_values = {
+            egoPathGT->cte, egoPathGT->yaw_error, egoPathGT->curvature,
+            drivCorrGT[i].egoLaneL->cte - drivCorrGT[i].width / 2.0,
+            drivCorrGT[i].egoLaneL->yaw_error, drivCorrGT[i].egoLaneL->curvature,
+            drivCorrGT[i].egoLaneR->cte + drivCorrGT[i].width / 2.0,
+            drivCorrGT[i].egoLaneR->yaw_error, drivCorrGT[i].egoLaneR->curvature,
+            drivCorrGT[i].width};
+        for (double v : gt_values)
+        {
+            std::cout << std::setw(w) << v << std::setw(w) << ""; // empty σ²
+        }
+        std::cout << "\n";
 
         // Measurement
-        std::cout << std::setw(w) << "Meas:"
-                  << std::setw(w) << measurement[0]
-                  << std::setw(w) << measurement[1]
-                  << std::setw(w) << measurement[2]
-                  << std::setw(w) << measurement[3]
-                  << std::setw(w) << measurement[4]
-                  << std::setw(w) << measurement[5]
-                  << std::setw(w) << measurement[6]
-                  << std::setw(w) << measurement[7]
-                  << std::setw(w) << measurement[8]
-                  << std::setw(w) << measurement[9]
-                  << "\n";
+        std::cout << std::setw(w) << "Meas:";
+        for (int j = 0; j < 10; ++j)
+        {
+            std::cout << std::setw(w) << measurement[j]
+                      << std::setw(w) << measurement_var[j];
+        }
+        std::cout << "\n";
 
-        // Filter Estimate
-        std::cout << std::setw(w) << "Filter:"
-                  << std::setw(w) << state[0]
-                  << std::setw(w) << state[1]
-                  << std::setw(w) << state[2]
-                  << std::setw(w) << state[3]
-                  << std::setw(w) << state[4]
-                  << std::setw(w) << state[5]
-                  << std::setw(w) << state[6]
-                  << std::setw(w) << state[7]
-                  << std::setw(w) << state[8]
-                  << std::setw(w) << state[9]
-                  << "\n";
+        // Filter
+        std::cout << std::setw(w) << "Filter:";
+        for (int j = 0; j < 10; ++j)
+        {
+            std::cout << std::setw(w) << state[j]
+                      << std::setw(w) << variance[j];
+        }
+        std::cout << "\n";
 
-        std::cout << std::setw(w) << "Error:"
-                  << std::setw(w) << (egoPathGT->cte - state[0])
-                  << std::setw(w) << (egoPathGT->yaw_error - state[1])
-                  << std::setw(w) << (egoPathGT->curvature - state[2])
-                  << std::setw(w) << (drivCorrGT[i].egoLaneL->cte - drivCorrGT[i].width / 2.0 - state[3])
-                  << std::setw(w) << (drivCorrGT[i].egoLaneL->yaw_error - state[4])
-                  << std::setw(w) << (drivCorrGT[i].egoLaneL->curvature - state[5])
-                  << std::setw(w) << (drivCorrGT[i].egoLaneR->cte + drivCorrGT[i].width / 2.0 - state[6])
-                  << std::setw(w) << (drivCorrGT[i].egoLaneR->yaw_error - state[7])
-                  << std::setw(w) << (drivCorrGT[i].egoLaneR->curvature - state[8])
-                  << std::setw(w) << (drivCorrGT[i].width - state[9])
-                  << "\n";
+        // Error (no variance printed for error row)
+        std::cout << "\033[31m" << std::setw(w) << "Error:";
+        for (int j = 0; j < 10; ++j)
+        {
+            std::cout << std::setw(w) << (gt_values[j] - state[j])
+                      << std::setw(w) << "";
+        }
+        std::cout << "\033[0m\n";
 
-        std::cout << "------------------------------------------------------------------------------------\n";
+        // Separator
+        std::cout << "-----------------------------------------------------------------------------------------------------------\n";
 
         bayesFilter.predict(delta, process_var);
     }
