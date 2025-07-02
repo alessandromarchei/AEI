@@ -1,5 +1,4 @@
-#ifndef PATH_FINDER_HPP
-#define PATH_FINDER_HPP
+#pragma once
 
 #include <opencv2/opencv.hpp>
 #include <iostream>
@@ -9,6 +8,7 @@
 #include <yaml-cpp/yaml.h>
 #include <Eigen/Dense>
 #include <filesystem>
+#include "estimator.hpp"
 
 struct LanePts
 {
@@ -39,19 +39,3 @@ cv::Mat loadHFromYaml(const std::string &filename);
 void cameraView(const std::vector<std::vector<cv::Point2f>> &lanes2d);
 fittedCurve calculateEgoPath(const fittedCurve &leftLane, const fittedCurve &rightLane);
 void estimateH();
-
-class Estimator
-{
-private:
-    size_t dim;                   // dimensionality
-    std::vector<double> state;    // mean estimate for each variable
-    std::vector<double> variance; // variance for each variable (diagonal covariance)
-public:
-    void initialize(const std::vector<double> &init_state, const std::vector<double> &init_var);
-    void predict(std::vector<double> process_var); // Add process noise to variance
-    void update(const std::vector<double> &measurement, const std::vector<double> &measurement_var);
-    const std::vector<double> &getState() const;
-    const std::vector<double> &getVariance() const;
-};
-
-#endif // PATH_FINDER_HPP

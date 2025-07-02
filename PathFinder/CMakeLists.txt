@@ -21,9 +21,7 @@ include_directories(
 # Add source files
 add_executable(${PROJECT_NAME}
     src/path_finder.cpp
+    src/estimator.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} yaml-cpp)
-
-# Copy test directory to build directory
-# file(COPY test DESTINATION ${CMAKE_BINARY_DIR})
