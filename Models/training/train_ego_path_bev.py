@@ -7,6 +7,7 @@ import pathlib
 from PIL import Image
 from argparse import ArgumentParser
 from typing import Literal, get_args
+from matplotlib import pyplot as plt
 import sys
 sys.path.append('../..')
 from Models.data_utils.load_data_ego_path_bev import LoadDataBEVEgoPath
@@ -160,10 +161,10 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 5
     LOGSTEP_LOSS = 250
     LOGSTEP_VIS = 1000
-    LOGSTEP_MODEL = 20000
+    LOGSTEP_MODEL = 10000
 
     # Val visualization param
     N_VALVIS = 50
@@ -181,7 +182,7 @@ def main():
     # loss towards the overall loss
 
     DATA_LOSS_SCALE_FACTOR = 1.0
-    SMOOTHING_LOSS_SCALE_FACTOR = 50.0
+    SMOOTHING_LOSS_SCALE_FACTOR = 10.0
 
     # Set training loss term scale factors
     trainer.set_loss_scale_factors(
@@ -263,11 +264,12 @@ def main():
         
         # Learning Rate Schedule
         if ((epoch >= 1) and (epoch < 2)):
-            trainer.set_learning_rate(0.00005)
-        elif ((epoch >= 2) and (epoch < 3)):
             trainer.set_learning_rate(0.000025)
-        elif (epoch >= 4):
+        elif (epoch >= 2):
             trainer.set_learning_rate(0.0000125)
+        # ((epoch >= 2) and (epoch < 3)):
+        # elif (epoch >= 4):
+        #     trainer.set_learning_rate(0.00000625)
 
         # Augmentation Schedule
         apply_augmentation = True

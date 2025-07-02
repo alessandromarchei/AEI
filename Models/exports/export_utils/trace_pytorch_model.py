@@ -5,6 +5,7 @@ import sys
 sys.path.append('../..')
 from model_components.scene_seg_network import SceneSegNetwork
 from model_components.scene_3d_network import Scene3DNetwork
+from model_components.domain_seg_network import DomainSegNetwork
 from model_components.ego_path_network import EgoPathNetwork
 
 
@@ -50,6 +51,10 @@ def main():
         print('Processing EgoPath Network')
         sceneSegNetwork = SceneSegNetwork()
         model = EgoPathNetwork(sceneSegNetwork)
+    elif (model_name == 'DomainSeg'):
+        print('Processing DomainSeg Network')
+        sceneSegNetwork = SceneSegNetwork()
+        model = DomainSegNetwork(sceneSegNetwork)
     else:
         raise Exception("Model name not specified correctly, please check")
     

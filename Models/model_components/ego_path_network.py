@@ -22,5 +22,5 @@ class EgoPathNetwork(nn.Module):
         features = self.PreTrainedBackbone(image)
         deep_features = features[4]
         context = self.PathContext(deep_features)
-        prediction = self.EgoPathHead(context)
-        return prediction
+        ego_path, left_lane, right_lane = self.EgoPathHead(context)
+        return ego_path, left_lane, right_lane
