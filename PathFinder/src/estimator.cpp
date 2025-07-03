@@ -1,45 +1,67 @@
 #include "estimator.hpp"
 
-void Estimator::initialize(const std::vector<double> &init_state, const std::vector<double> &init_var)
+void Estimator::initialize(const std::array<Gaussian, STATE_DIM> &init_state)
 {
-    dim = init_state.size();
     state = init_state;
-    variance = init_var;
 }
 
-void Estimator::predict(const std::vector<double> &delta, const std::vector<double> &process_var)
+void Estimator::predict(const std::array<Gaussian, STATE_DIM> &process)
 {
-    if (delta.size() != state.size() || process_var.size() != state.size())
-        throw std::runtime_error("Size mismatch in predict step");
-
-    for (size_t i = 0; i < state.size(); ++i)
+    for (size_t i = 0; i < STATE_DIM; ++i)
     {
-        state[i] += delta[i];          // Mean update: m0p = m0 + delta
-        variance[i] += process_var[i]; // Variance update: v0p = v0 + Q
+        state[i].mean += process[i].mean;         // Apply delta (e.g., motion model)
+        state[i].variance += process[i].variance; // Add process noise
     }
 }
 
-void Estimator::update(const std::vector<double> &measurement,
-                       const std::vector<double> &measurement_var)
+void Estimator::update(const std::array<Gaussian, STATE_DIM> &measurement)
 {
-    for (size_t i = 0; i < state.size(); ++i)
+    // Update step (product of Gaussians)
+    for (size_t i = 0; i < STATE_DIM; ++i)
     {
-        double v0p = variance[i];       // predicted variance
-        double v1 = measurement_var[i]; // measurement variance
-        double m0p = state[i];          // predicted mean
-        double m1 = measurement[i];     // measurement
+        double v0 = state[i].variance;
+        double v1 = measurement[i].variance;
+        double m0 = state[i].mean;
+        double m1 = measurement[i].mean;
 
-        // New variance: V2 = (V0p * V1) / (V0p + V1)
-        double v2 = (v0p * v1) / (v0p + v1);
-        // New mean: M2 = (M0p * V1 + M1 * V0p) / (V0p + V1)
-        double m2 = (m0p * v1 + m1 * v0p) / (v0p + v1);
+        double v2 = (v0 * v1) / (v0 + v1);
+        double m2 = (m0 * v1 + m1 * v0) / (v0 + v1);
 
-        // Store updated values
-        state[i] = m2;
-        variance[i] = v2;
+        state[i] = {m2, v2};
+    }
+
+    // Perform fusion
+    for (const auto &[start_idx, end_idx] : fusion_rules)
+    {
+        double inv_var_sum = 0.0;
+        double weighted_mean_sum = 0.0;
+
+        for (size_t i = start_idx; i < end_idx; ++i)
+        {
+            const auto &g = state[i];
+            if (g.variance <= 0.0)
+                continue;
+
+            inv_var_sum += 1.0 / g.variance;
+            weighted_mean_sum += g.mean / g.variance;
+        }
+
+        if (inv_var_sum > 0.0)
+        {
+            double fused_var = 1.0 / inv_var_sum;
+            double fused_mean = fused_var * weighted_mean_sum;
+            if (end_idx < STATE_DIM)
+                state[end_idx] = {fused_mean, fused_var};
+        }
     }
 }
 
-const std::vector<double> &Estimator::getState() const { return state; }
+void Estimator::configureFusionGroups(const std::vector<std::pair<size_t, size_t>> &rules)
+{
+    fusion_rules = rules;
+}
 
-const std::vector<double> &Estimator::getVariance() const { return variance; }
+const std::array<Gaussian, STATE_DIM> &Estimator::getState() const
+{
+    return state;
+}

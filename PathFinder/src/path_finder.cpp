@@ -1,8 +1,7 @@
 #include "path_finder.hpp"
 
-// TODO: Gausian product of LR egoLanes yaw and curv
-// TODO: fuse multiple estimate of the same metric using product of Gaussians
-bool gt = false; // true for ground truth, false for BEV points
+// TODO: fuse yaw_error and curv using product of Gaussians
+bool gt = true; // true for ground truth, false for BEV points
 
 LanePts::LanePts(int id,
                  std::vector<cv::Point2f> GtPoints,
@@ -64,7 +63,7 @@ void drawLanes(const std::vector<LanePts> &lanes,
             if (i > 0)
             {
                 cv::Point prev(prev_u, prev_v);
-                // cv::line(image, prev, pt_pix, cv::Scalar(255, 0, 0), 1); // blue line
+                cv::line(image, prev, pt_pix, cv::Scalar(0, 255, 0), 1); // green line
             }
             prev_u = u;
             prev_v = v;
@@ -281,35 +280,6 @@ const std::vector<std::pair<int, int>> lanePairs = { // manually label LR egoLan
     {2, 1},
     {3, 0}};
 
-std::pair<double, double> fuseGaussians(const std::vector<double> &means,
-                                        const std::vector<double> &variances)
-{
-    if (means.size() != variances.size() || means.empty())
-    {
-        throw std::invalid_argument("Input vectors must be non-empty and the same size.");
-    }
-
-    double inv_var_sum = 0.0;
-    double weighted_mean_sum = 0.0;
-
-    for (size_t i = 0; i < means.size(); ++i)
-    {
-        if (variances[i] <= 0.0)
-        {
-            throw std::invalid_argument("Variance must be positive.");
-        }
-
-        double inv_var = 1.0 / variances[i];
-        inv_var_sum += inv_var;
-        weighted_mean_sum += means[i] * inv_var;
-    }
-
-    double fused_variance = 1.0 / inv_var_sum;
-    double fused_mean = fused_variance * weighted_mean_sum;
-
-    return {fused_mean, fused_variance};
-}
-
 int main()
 {
     namespace fs = std::filesystem;
@@ -376,7 +346,15 @@ int main()
     }
 
     // ----------------------
-    auto bayesFilter = Estimator();
+    auto bayesFilter = Estimator(); // Keeps track of individual sources
+    bayesFilter.configureFusionGroups({
+        // {start_idx,end_idx}
+        // fuse indices 1,2 → result in index 3
+        {0, 3}, // cte1, cte2 → fused at index 3
+        {5, 7}, // yaw1, yaw2 → fused at index 7
+        {9, 11} // curv1, curv2 → fused at index 11
+    });
+
     const double proc_SD = 0.5;
     const double meas_SD = 0.5;
     const double epsilon = 0.05;
@@ -388,119 +366,118 @@ int main()
     std::cout << "measurement standard dev: " << meas_SD << std::endl;
 
     // cte, yaw_error, curvature, driving corridor width
-    const std::vector<double> process_var = {proc_SD * proc_SD, proc_SD * proc_SD, proc_SD * proc_SD, // egoPath
-                                             proc_SD * proc_SD, proc_SD * proc_SD, proc_SD * proc_SD, // egoLaneL
-                                             proc_SD * proc_SD, proc_SD * proc_SD, proc_SD * proc_SD, // egoLaneR
-                                             proc_SD * proc_SD};                                      // width
-    const std::vector<double> measurement_var = {meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD,
-                                                 meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD,
-                                                 meas_SD * meas_SD, meas_SD * meas_SD, meas_SD * meas_SD,
-                                                 meas_SD * meas_SD};
+    std::array<Gaussian, STATE_DIM> measurement;
+    std::array<Gaussian, STATE_DIM> process;
 
-    std::vector<double> delta(process_var.size());
-    for (size_t i = 0; i < delta.size(); ++i)
+    for (size_t i = 0; i < STATE_DIM; ++i)
     {
-        delta[i] = dist(generator);
+        process[i].mean = dist(generator);
+        process[i].variance = proc_SD * proc_SD;
+        measurement[i].variance = meas_SD * meas_SD;
     }
 
-    for (int i = 0; i < drivCorr.size(); i++)
+    // Main loop
+    for (int i = 0; i < drivCorr.size(); ++i)
     {
         const auto &egoPath = drivCorr[i].egoPath;
         const auto &egoLaneL = drivCorr[i].egoLaneL;
         const auto &egoLaneR = drivCorr[i].egoLaneR;
-
         const auto &egoPathGT = drivCorrGT[i].egoPath;
 
-        std::vector<double> measurement = {
-            egoPath->cte,
-            egoPath->yaw_error,
-            egoPath->curvature,
+        measurement[0].mean = egoPath->cte;
+        measurement[1].mean = egoLaneL->cte - drivCorr[i].width / 2.0;
+        measurement[2].mean = egoLaneR->cte + drivCorr[i].width / 2.0;
+        measurement[3].mean = 0.0;
 
-            egoLaneL->cte - drivCorr[i].width / 2.0,
-            egoLaneL->yaw_error,
-            egoLaneL->curvature,
+        measurement[4].mean = egoPath->yaw_error;
+        measurement[5].mean = egoLaneL->yaw_error;
+        measurement[6].mean = egoLaneR->yaw_error;
+        measurement[7].mean = 0.0;
 
-            egoLaneR->cte + drivCorr[i].width / 2.0,
-            egoLaneR->yaw_error,
-            egoLaneR->curvature,
+        measurement[8].mean = egoPath->curvature;
+        measurement[9].mean = egoLaneL->curvature;
+        measurement[10].mean = egoLaneR->curvature;
+        measurement[11].mean = 0.0;
 
-            drivCorr[i].width};
+        measurement[12].mean = drivCorr[i].width;
 
         if (i == 0)
-            bayesFilter.initialize(measurement, measurement_var);
+        {
+            bayesFilter.initialize(measurement);
+        }
         else
-            bayesFilter.update(measurement, measurement_var);
+        {
+            bayesFilter.update(measurement);
+        }
 
         const auto &state = bayesFilter.getState();
-        const auto &variance = bayesFilter.getVariance();
 
         std::cout << std::fixed << std::setprecision(4);
-        int w = 8; // column width
-
+        int w = 8;
         // Header
         std::cout << "Frame " << i << "\n";
         std::cout << "\033[32m"
                   << std::setw(w) << "Label"
-                  << std::setw(w) << "CTE" << std::setw(w) << "var"
-                  << std::setw(w) << "YawErr" << std::setw(w) << "var"
-                  << std::setw(w) << "Curv" << std::setw(w) << "var"
+                  << std::setw(w) << "M_CTE" << std::setw(w) << "var"
                   << std::setw(w) << "L_CTE" << std::setw(w) << "var"
-                  << std::setw(w) << "L_Yaw" << std::setw(w) << "var"
-                  << std::setw(w) << "L_Curv" << std::setw(w) << "var"
                   << std::setw(w) << "R_CTE" << std::setw(w) << "var"
+                  << std::setw(w) << "MLR_CTE" << std::setw(w) << "var"
+                  << std::setw(w) << "M_Yaw" << std::setw(w) << "var"
+                  << std::setw(w) << "L_Yaw" << std::setw(w) << "var"
                   << std::setw(w) << "R_Yaw" << std::setw(w) << "var"
+                  << std::setw(w) << "LR_Yaw" << std::setw(w) << "var"
+                  << std::setw(w) << "M_Curv" << std::setw(w) << "var"
+                  << std::setw(w) << "L_Curv" << std::setw(w) << "var"
                   << std::setw(w) << "R_Curv" << std::setw(w) << "var"
+                  << std::setw(w) << "LR_Curv" << std::setw(w) << "var"
                   << std::setw(w) << "Width" << std::setw(w) << "var"
                   << std::endl;
+        std::cout << "\033[0m\n";
 
-        // Ground Truth (no variance for GT)
-        std::cout << "\033[0m"
-                  << std::setw(w) << "GT:";
+        // Ground Truth
         std::vector<double> gt_values = {
-            egoPathGT->cte, egoPathGT->yaw_error, egoPathGT->curvature,
+            egoPathGT->cte,
             drivCorrGT[i].egoLaneL->cte - drivCorrGT[i].width / 2.0,
-            drivCorrGT[i].egoLaneL->yaw_error, drivCorrGT[i].egoLaneL->curvature,
             drivCorrGT[i].egoLaneR->cte + drivCorrGT[i].width / 2.0,
-            drivCorrGT[i].egoLaneR->yaw_error, drivCorrGT[i].egoLaneR->curvature,
+            egoPathGT->cte,
+            egoPathGT->yaw_error,
+            drivCorrGT[i].egoLaneL->yaw_error,
+            drivCorrGT[i].egoLaneR->yaw_error,
+            egoPathGT->yaw_error,
+            egoPathGT->curvature,
+            drivCorrGT[i].egoLaneL->curvature,
+            drivCorrGT[i].egoLaneR->curvature,
+            egoPathGT->curvature,
             drivCorrGT[i].width};
+
+        std::cout << std::setw(w) << "GT:";
         for (double v : gt_values)
-        {
-            std::cout << std::setw(w) << v << std::setw(w) << ""; // empty σ²
-        }
+            std::cout << std::setw(w) << v << std::setw(w) << "";
         std::cout << "\n";
 
         // Measurement
         std::cout << std::setw(w) << "Meas:";
-        for (int j = 0; j < 10; ++j)
-        {
-            std::cout << std::setw(w) << measurement[j]
-                      << std::setw(w) << measurement_var[j];
-        }
+        for (size_t j = 0; j < STATE_DIM; ++j)
+            std::cout << std::setw(w) << measurement[j].mean
+                      << std::setw(w) << measurement[j].variance;
         std::cout << "\n";
 
-        // Filter
+        // Filter Estimate
         std::cout << std::setw(w) << "Filter:";
-        for (int j = 0; j < 10; ++j)
-        {
-            std::cout << std::setw(w) << state[j]
-                      << std::setw(w) << variance[j];
-        }
+        for (size_t j = 0; j < STATE_DIM; ++j)
+            std::cout << std::setw(w) << state[j].mean
+                      << std::setw(w) << state[j].variance;
         std::cout << "\n";
 
-        // Error (no variance printed for error row)
+        // Error
         std::cout << "\033[31m" << std::setw(w) << "Error:";
-        for (int j = 0; j < 10; ++j)
-        {
-            std::cout << std::setw(w) << (gt_values[j] - state[j])
+        for (size_t j = 0; j < STATE_DIM; ++j)
+            std::cout << std::setw(w) << (gt_values[j] - state[j].mean)
                       << std::setw(w) << "";
-        }
         std::cout << "\033[0m\n";
 
-        // Separator
         std::cout << "-----------------------------------------------------------------------------------------------------------\n";
 
-        bayesFilter.predict(delta, process_var);
+        bayesFilter.predict(process);
     }
-
-    return 0;
 }

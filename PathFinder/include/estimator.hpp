@@ -1,18 +1,26 @@
 #pragma once
 
 #include <vector>
-#include <iostream>
+#include <array>
+
+constexpr size_t STATE_DIM = 13;
+
+struct Gaussian
+{
+    double mean;
+    double variance;
+};
 
 class Estimator
 {
 private:
-    size_t dim;                   // dimensionality
-    std::vector<double> state;    // mean estimate for each variable
-    std::vector<double> variance; // variance for each variable (diagonal covariance)
+    std::array<Gaussian, STATE_DIM> state;
+    std::vector<std::pair<size_t, size_t>> fusion_rules;
+
 public:
-    void initialize(const std::vector<double> &init_state, const std::vector<double> &init_var);
-    void predict(const std::vector<double> &delta, const std::vector<double> &process_var);
-    void update(const std::vector<double> &measurement, const std::vector<double> &measurement_var);
-    const std::vector<double> &getState() const;
-    const std::vector<double> &getVariance() const;
+    void initialize(const std::array<Gaussian, STATE_DIM> &init_state);
+    void predict(const std::array<Gaussian, STATE_DIM> &process);
+    void update(const std::array<Gaussian, STATE_DIM> &measurement);
+    void configureFusionGroups(const std::vector<std::pair<size_t, size_t>> &rules);
+    const std::array<Gaussian, STATE_DIM> &getState() const;
 };
