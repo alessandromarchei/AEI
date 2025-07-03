@@ -108,3 +108,26 @@ def getLineAnchor(line):
     x0 = (H - b) / a
     
     return (x0, a, b)
+
+
+def drawLine(
+    img: np.ndarray, 
+    line: list,
+    color: tuple,
+    thickness: int = 2
+):
+    for i in range(1, len(line)):
+        pt1 = (
+            int(line[i - 1][0]), 
+            int(line[i - 1][1])
+        )
+        pt2 = (
+            int(line[i][0]), 
+            int(line[i][1])
+        )
+        cv2.line(
+            img, 
+            pt1, pt2, 
+            color = color, 
+            thickness = thickness
+        )
