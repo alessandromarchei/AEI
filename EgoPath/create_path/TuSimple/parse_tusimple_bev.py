@@ -27,6 +27,7 @@ skipped_dict = {}
 def log_skipped(frame_id, reason):
     skipped_dict[frame_id] = reason
 
+
 def roundLineFloats(line, ndigits = 4):
     line = list(line)
     for i in range(len(line)):
@@ -37,11 +38,13 @@ def roundLineFloats(line, ndigits = 4):
     line = tuple(line)
     return line
 
+
 def normalizeCoords(line, width, height):
     """
     Normalize the coords of line points.
     """
     return [(x / width, y / height) for x, y in line]
+
 
 def interpLine(line: list, points_quota: int):
     """
@@ -77,3 +80,31 @@ def interpLine(line: list, points_quota: int):
     y_new = interp_y(evenly_t, distances, y)
 
     return list(zip(x_new, y_new))
+
+
+def getLineAnchor(line):
+    """
+    Determine "anchor" point of a lane.
+
+    """
+    (x2, y2) = line[-1]
+    (x1, y1) = line[-2]
+
+    for i in range(len(line) - 2, 0, -1):
+        if (line[i][0] != x2):
+            (x1, y1) = line[i]
+            break
+
+    if (x1 == x2) or (y1 == y2):
+        if (x1 == x2):
+            error_lane = "Vertical"
+        elif (y1 == y2):
+            error_lane = "Horizontal"
+        warnings.warn(f"{error_lane} line detected: {line}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
+        return (x1, None, None)
+    
+    a = (y2 - y1) / (x2 - x1)
+    b = y1 - a * x1
+    x0 = (H - b) / a
+    
+    return (x0, a, b)
