@@ -131,3 +131,19 @@ def drawLine(
             color = color, 
             thickness = thickness
         )
+
+
+def interpX(line, y):
+    """
+    Interpolate x-value of a point on a line, given y-value
+    """
+    points = np.array(line)
+    list_x = points[:, 0]
+    list_y = points[:, 1]
+
+    if not np.all(np.diff(list_y) > 0):
+        sort_idx = np.argsort(list_y)
+        list_y = list_y[sort_idx]
+        list_x = list_x[sort_idx]
+
+    return float(np.interp(y, list_y, list_x))
