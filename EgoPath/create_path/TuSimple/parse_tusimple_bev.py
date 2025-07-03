@@ -147,3 +147,42 @@ def interpX(line, y):
         list_x = list_x[sort_idx]
 
     return float(np.interp(y, list_y, list_x))
+
+
+def polyfit_BEV(
+    bev_egopath: list,
+    order: int,
+    y_step: int,
+    y_limit: int
+):
+    x = [point[0] for point in bev_egopath]
+    y = [point[1] for point in bev_egopath]
+    z = np.polyfit(y, x, order)
+    f = np.poly1d(z)
+    y_new = np.linspace(
+        0, y_limit, 
+        int(y_limit / y_step) + 1
+    )
+    x_new = f(y_new)
+
+    # Sort by decreasing y
+    fitted_bev_egopath = sorted(
+        tuple(zip(x_new, y_new)),
+        key = lambda x: x[1],
+        reverse = True
+    )
+
+    flag_list = [0] * len(fitted_bev_egopath)
+    for i in range(len(fitted_bev_egopath)):
+        if (not 0 <= fitted_bev_egopath[i][0] <= BEV_W):
+            flag_list[i - 1] = 1
+            break
+    if (not 1 in flag_list):
+        flag_list[-1] = 1
+
+    validity_list = [1] * len(fitted_bev_egopath)
+    last_valid_index = flag_list.index(1)
+    for i in range(last_valid_index + 1, len(validity_list)):
+        validity_list[i] = 0
+    
+    return fitted_bev_egopath, flag_list, validity_list
