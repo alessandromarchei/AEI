@@ -2,9 +2,9 @@
 import torch
 import torch.nn as nn
 
-class PathContext(nn.Module):
+class BEVPathContext(nn.Module):
     def __init__(self):
-        super(PathContext, self).__init__()
+        super(BEVPathContext, self).__init__()
         # Standard
         self.GeLU = nn.GELU()
         self.sigmoid = nn.Sigmoid()
