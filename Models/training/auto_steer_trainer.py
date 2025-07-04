@@ -13,17 +13,14 @@ from typing import Literal, get_args
 import sys
 
 sys.path.append('..')
-from model_components.scene_seg_network import SceneSegNetwork
-from model_components.ego_path_network import EgoPathNetwork
+from model_components.auto_steer_network import AutoSteerNetwork
 from data_utils.augmentations import Augmentations
 
 
-class BEVEgoPathTrainer():
+class AutoSteerTrainer():
     def __init__(
         self,  
-        checkpoint_path = "", 
-        pretrained_checkpoint_path = "", 
-        is_pretrained = False
+        checkpoint_path = ""
     ):
         
         # Images and gts
@@ -47,7 +44,9 @@ class BEVEgoPathTrainer():
 
         # Model and pred
         self.model = None
-        self.pred_xs = None
+        self.pred_ego_path = None
+        self.pred_ego_left_lane = None
+        self.pred_ego_right_lane = None
 
         # Losses
         self.loss = 0
@@ -81,46 +80,17 @@ class BEVEgoPathTrainer():
         )
         print(f"Using {self.device} for inference.")
 
-        if (is_pretrained):
-
-            # Instantiate model for validation or inference - load both pre-trained SceneSeg and SuperDepth weights
-            if (len(checkpoint_path) > 0):
-
-                # Loading model with full pre-trained weights
-                sceneSegNetwork = SceneSegNetwork()
-                self.model = EgoPathNetwork(sceneSegNetwork)
-
-                # If the model is also pre-trained then load the pre-trained downstream weights
-                self.model.load_state_dict(torch.load(
-                    checkpoint_path, 
-                    weights_only = True, 
-                    map_location = self.device
-                ))
-                print("Loading pre-trained model weights of EgoPath from a saved checkpoint file")
-            else:
-                raise ValueError("Please ensure EgoPath network weights are provided for downstream elements")
+        # Instantiate model
+        self.model = AutoSteerNetwork()
             
-        else:
-
-            # Instantiate Model for training - load pre-trained SceneSeg weights only
-            if (len(pretrained_checkpoint_path) > 0):
-                
-                # Loading SceneSeg pre-trained for upstream weights
-                sceneSegNetwork = SceneSegNetwork()
-                sceneSegNetwork.load_state_dict(torch.load(
-                    pretrained_checkpoint_path, 
-                    weights_only = True, 
-                    map_location = self.device
-                ))
-                    
-                # Loading model with pre-trained upstream weights
-                self.model = EgoPathNetwork(sceneSegNetwork)
-                print("Loading pre-trained backbone model weights only, EgoPath initialised with random weights")
-            else:
-                raise ValueError("Please ensure EgoPath network weights are provided for upstream elements")
-            
-        # Model to device
+        if(len(self.checkpoint_path) > 0):
+            self.model.load_state_dict(torch.load \
+                (self.checkpoint_path, weights_only=True))
+            print("Loading trained AutoSteer model from checkpoint")
+        
         self.model = self.model.to(self.device)
+        print("Loading vanilla AutoSteer model for training")
+
         
         # TensorBoard
         self.writer = SummaryWriter()
@@ -189,11 +159,14 @@ class BEVEgoPathTrainer():
     # Run Model
     def run_model(self):
         self.pred_xs = self.model(self.image_tensor)
-        self.loss = self.calc_loss(
-            self.pred_xs, 
-            self.xs_tensor,
-            self.valids_tensor
-        )
+        self.pred_ego_path, self.pred_ego_left_lane, \
+            self.pred_ego_right_lane = self.model(self.image_tensor)
+        
+        #self.loss = self.calc_loss(
+        #    self.pred_xs, 
+        #    self.xs_tensor,
+        #    self.valids_tensor
+        #)
 
     # Calculate loss
     def calc_loss(self, pred_xs, xs, valids):
