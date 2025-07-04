@@ -2,7 +2,7 @@
 This folder contains scripts and code examples which demonstrate how to convert, export and run the AutoSeg Vision Foundation model networks in various formats
 
 ## export_utils
-Helpful scripts related to format conversion and exporting of Pytorch models
+Helpful scripts related to format conversion and exporting of Pytorch models as well as our model quantization pipeline called Quanty
 
 ## libtorch
 Code for using libTorch C++ to load model and inference
