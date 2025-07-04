@@ -25,7 +25,7 @@ VALID_DATASET_LITERALS = Literal[
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 
-class LoadDataEgoPath():
+class LoadDataAutoSteer():
     def __init__(
             self, 
             labels_filepath: str,
