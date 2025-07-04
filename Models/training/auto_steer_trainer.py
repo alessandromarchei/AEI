@@ -83,9 +83,9 @@ class AutoSteerTrainer():
         # Instantiate model
         self.model = AutoSteerNetwork()
             
-        if(len(self.checkpoint_path) > 0):
+        if(len(checkpoint_path) > 0):
             self.model.load_state_dict(torch.load \
-                (self.checkpoint_path, weights_only=True))
+                (checkpoint_path, weights_only=True))
             print("Loading trained AutoSteer model from checkpoint")
         
         self.model = self.model.to(self.device)
