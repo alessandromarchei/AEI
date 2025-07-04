@@ -14,7 +14,7 @@ class EgoLanesNetwork(nn.Module):
         # Path Context
         self.PathContext = BEVPathContext()
 
-        # EgoPath Head
+        # EgoLanes Head
         self.EgoLanesHead = EgoLanesHead()
     
 
