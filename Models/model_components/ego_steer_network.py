@@ -5,9 +5,9 @@ from .ego_path_head import EgoPathHead
 
 import torch.nn as nn
 
-class EgoSteerNetwork(nn.Module):
+class AutoSteerNetwork(nn.Module):
     def __init__(self, pretrained):
-        super(EgoSteerNetwork, self).__init__()
+        super(AutoSteerNetwork, self).__init__()
 
         # Upstream blocks
         self.PreTrainedBackbone = PreTrainedBackbone(pretrained)
