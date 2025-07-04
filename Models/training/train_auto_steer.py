@@ -10,7 +10,7 @@ from typing import Literal, get_args
 from matplotlib import pyplot as plt
 import sys
 sys.path.append('../..')
-from Models.data_utils.load_data_ego_path_bev import LoadDataBEVEgoPath
+from Models.data_utils.load_data_auto_steer import LoadDataAutoSteer
 from Models.training.auto_steer_trainer import AutoSteerTrainer
 
 # Currently limiting to available datasets only. Will unlock eventually
@@ -40,13 +40,6 @@ def main():
         dest = "root", 
         required = True,
         help = "root path to folder where data training data is stored")
-    
-    parser.add_argument(
-        "-b", "--backbone_path", 
-        dest = "backbone_path",
-        help = "path to SceneSeg *.pth checkpoint file to load pre-trained backbone " \
-        "if we are training EgoPath from scratch"
-    )
     
     parser.add_argument(
         "-c", "--checkpoint_path", 
@@ -99,7 +92,7 @@ def main():
 
     # Load datasets
     for dataset in VALID_DATASET_LIST:
-        this_dataset_loader = LoadDataBEVEgoPath(
+        this_dataset_loader = LoadDataAutoSteer(
             labels_filepath = msdict[dataset]["path_labels"],
             images_filepath = msdict[dataset]["path_images"],
             dataset = dataset
@@ -133,29 +126,13 @@ def main():
     # Trainer instance
     trainer = None
 
-    BACKBONE_PATH = args.backbone_path
+    
     CHECKPOINT_PATH = args.checkpoint_path
 
-    if (BACKBONE_PATH and not CHECKPOINT_PATH):
-        trainer = BEVEgoPathTrainer(pretrained_checkpoint_path = BACKBONE_PATH)
-    elif (CHECKPOINT_PATH and not BACKBONE_PATH):
-        trainer = BEVEgoPathTrainer(
-            checkpoint_path = CHECKPOINT_PATH, 
-            is_pretrained = True
-        )
-    elif (not CHECKPOINT_PATH and not BACKBONE_PATH):
-        raise ValueError(
-            "No checkpoint file found - Please ensure that you pass in either " \
-            "a saved BEVEgoPath checkpoint file or SceneSeg checkpoint to load " \
-            "the backbone weights"
-        )
+    if (CHECKPOINT_PATH):
+        trainer = AutoSteerTrainer(checkpoint_path = CHECKPOINT_PATH)
     else:
-        raise ValueError(
-            "Both BEVEgoPath checkpoint and SceneSeg checkpoint file provided - " \
-            "please provide either the BEVEgoPath checkponit to continue training " \
-            "from a saved checkpoint, or the SceneSeg checkpoint file to train " \
-            "BEVEgoPath from scratch"
-        )
+      trainer = AutoSteerTrainer()
     
     # Zero gradients
     trainer.zero_grad()
