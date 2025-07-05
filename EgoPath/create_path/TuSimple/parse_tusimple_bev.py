@@ -370,7 +370,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset_dir", 
         type = str, 
-        help = "Processed CurveLanes directory",
+        help = "Processed TuSimple directory",
         required = True
     )
     # For debugging only
@@ -381,3 +381,31 @@ if __name__ == "__main__":
         required = False
     )
     args = parser.parse_args()
+
+    # Parse dataset dir
+    dataset_dir = args.dataset_dir
+    IMG_DIR = os.path.join(dataset_dir, IMG_DIR)
+    JSON_PATH = os.path.join(dataset_dir, JSON_PATH)
+    BEV_JSON_PATH = os.path.join(dataset_dir, BEV_JSON_PATH)
+    BEV_SKIPPED_JSON_PATH = os.path.join(dataset_dir, BEV_SKIPPED_JSON_PATH)
+
+    # Parse early stopping
+    if (args.early_stopping):
+        print(f"Early stopping set, stopping after {args.early_stopping} files.")
+        early_stopping = args.early_stopping
+    else:
+        early_stopping = None
+
+    # Generate new dirs and paths
+    BEV_IMG_DIR = os.path.join(dataset_dir, BEV_IMG_DIR)
+    BEV_VIS_DIR = os.path.join(dataset_dir, BEV_VIS_DIR)
+
+    if not (os.path.exists(BEV_IMG_DIR)):
+        os.makedirs(BEV_IMG_DIR)
+    if not (os.path.exists(BEV_VIS_DIR)):
+        os.makedirs(BEV_VIS_DIR)
+
+    # Preparing data
+    with open(JSON_PATH, "r") as f:
+        json_data = json.load(f)
+    data_master = {}    # Dumped later
