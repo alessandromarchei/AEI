@@ -361,3 +361,23 @@ if __name__ == "__main__":
     POLYFIT_ORDER = 2
 
     COLOR_EGOPATH = (0, 255, 255)   # Yellow (BGR)
+
+    # PARSING ARGS
+
+    parser = argparse.ArgumentParser(
+        description = "Generating BEV from TuSimple processed datasets"
+    )
+    parser.add_argument(
+        "--dataset_dir", 
+        type = str, 
+        help = "Processed CurveLanes directory",
+        required = True
+    )
+    # For debugging only
+    parser.add_argument(
+        "--early_stopping",
+        type = int,
+        help = "Num. frames you wanna limit, instead of whole set.",
+        required = False
+    )
+    args = parser.parse_args()
