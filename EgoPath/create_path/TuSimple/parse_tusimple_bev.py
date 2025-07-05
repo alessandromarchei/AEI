@@ -133,6 +133,54 @@ def drawLine(
         )
 
 
+def annotateGT(
+    img: np.ndarray,
+    frame_id: str,
+    bev_egopath: list,
+    raw_dir: str, 
+    visualization_dir: str,
+    normalized: bool
+):
+    """
+    Annotates and saves an image with:
+        - Raw image, in "output_dir/image".
+        - Annotated image with all lanes, in "output_dir/visualization".
+    """
+
+    # Save raw img in raw dir, as PNG
+    cv2.imwrite(
+        os.path.join(
+            raw_dir,
+            f"{frame_id}.png"
+        ),
+        img
+    )
+
+    # Draw egopath
+    if (normalized):
+        h, w, _ = img.shape
+        renormed_bev_egopath = [
+            (x * w, y * h) 
+            for x, y in bev_egopath
+        ]
+    else:
+        renormed_bev_egopath = bev_egopath
+    drawLine(
+        img = img,
+        line = renormed_bev_egopath,
+        color = COLOR_EGOPATH
+    )
+
+    # Save visualization img in vis dir, as JPG (saving storage space)
+    cv2.imwrite(
+        os.path.join(
+            visualization_dir,
+            f"{frame_id}.jpg"
+        ),
+        img
+    )
+
+
 def interpX(line, y):
     """
     Interpolate x-value of a point on a line, given y-value
