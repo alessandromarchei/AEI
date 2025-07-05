@@ -16,7 +16,7 @@ warnings.formatwarning = custom_warning_format
 
 # ============================== Helper functions ============================== #
 
-def round_line_floats(line, ndigits = 4):
+def roundLineFloats(line, ndigits = 4):
     line = list(line)
     for i in range(len(line)):
         line[i] = [
@@ -231,11 +231,32 @@ def parseAnnotations(anno_path):
 
         # Parse processed data, all coords normalized
         anno_data[raw_file] = {
-            "lanes" : [normalizeCoords(lane, img_width, img_height) for lane in lanes_decoupled],
+            "lanes" : [
+                roundLineFloats(normalizeCoords(lane, img_width, img_height)) 
+                for lane in lanes_decoupled
+            ],
             "ego_indexes" : ego_indexes,
-            "drivable_path" : normalizeCoords(drivable_path, img_width, img_height),
-            "img_width" : img_width,
-            "img_height" : img_height,
+            "drivable_path" : roundLineFloats(
+                normalizeCoords(
+                    drivable_path, 
+                    img_width, 
+                    img_height
+                )
+            ),
+            "egoleft_lane" : roundLineFloats(
+                normalizeCoords(
+                    left_ego, 
+                    img_width, 
+                    img_height
+                )
+            ),
+            "egoright_lane" : roundLineFloats(
+                normalizeCoords(
+                    right_ego, 
+                    img_width, 
+                    img_height
+                )
+            ),
         }
 
     return anno_data
