@@ -226,7 +226,7 @@ def findSourcePointsBEV(
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
-    ego_height = max(egoleft[-1][1], egoright[-1][1]) * EGO_HEIGHT_LIM
+    ego_height = max(egoleft[-1][1], egoright[-1][1]) * EGO_HEIGHT_RATIO
 
     # Both egos have Null anchors
     if ((not anchor_left[1]) and (not anchor_right[1])):
@@ -324,3 +324,40 @@ def transformBEV(
     )
 
     return (im_dst, bev_egopath, flag_list, validity_list, mat)
+
+
+# ============================== Main run ============================== #
+
+
+if __name__ == "__main__":
+
+    # DIRECTORY STRUCTURE
+
+    IMG_DIR = "image"
+    JSON_PATH = "drivable_path.json"
+
+    BEV_IMG_DIR = "image_bev"
+    BEV_VIS_DIR = "visualization_bev"
+    BEV_JSON_PATH = "drivable_path_bev.json"
+    BEV_SKIPPED_JSON_PATH = "skipped_frames.json"
+
+    # OTHER PARAMS
+
+    H = 1280
+    W = 720
+
+    MIN_POINTS = 30
+
+    BEV_PTS = {
+        "LS" : [120, 640],          # Left start
+        "RS" : [200, 640],          # Right start
+        "LE" : [120, 0],            # Left end
+        "RE" : [200, 0]             # Right end
+    }
+    BEV_W = 320
+    BEV_H = 640
+    EGO_HEIGHT_RATIO = 1.00
+    BEV_Y_STEP = 20
+    POLYFIT_ORDER = 2
+
+    COLOR_EGOPATH = (0, 255, 255)   # Yellow (BGR)
