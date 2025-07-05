@@ -127,7 +127,7 @@ def getDrivablePath(left_ego, right_ego):
 
 def annotateGT(
         anno_entry, anno_raw_file, 
-        raw_dir, visualization_dir, mask_dir,
+        raw_dir, visualization_dir,
         img_width, img_height,
         normalized = True
 ):
@@ -135,7 +135,6 @@ def annotateGT(
     Annotates and saves an image with:
         - Raw image, in "output_dir/image".
         - Annotated image with all lanes, in "output_dir/visualization".
-        - Binary segmentation mask of drivable path, in "output_dir/segmentation".
 
     """
 
@@ -175,14 +174,11 @@ def annotateGT(
         drivable_renormed = anno_entry["drivable_path"]
     draw.line(drivable_renormed, fill = lane_colors["drive_path_yellow"], width = lane_w)
 
-    # Save visualization img, same format with raw, just different dir
-    raw_img.save(os.path.join(visualization_dir, save_name))
-
-    # Working on binary mask
-    mask = Image.new("L", (img_width, img_height), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
-    mask.save(os.path.join(mask_dir, save_name))
+    # Save visualization img, JPG for lighter weight, just different dir
+    raw_img.save(os.path.join(
+        visualization_dir, 
+        save_name.replace(".png", ".jpg")
+    ))
 
 def parseAnnotations(anno_path):
     """
@@ -269,13 +265,12 @@ if __name__ == "__main__":
     """
     --output_dir
         |----image
-        |----segmentation
         |----visualization
         |----drivable_path.json
     """
     dataset_dir = args.dataset_dir
     output_dir = args.output_dir
-    list_subdirs = ["image", "segmentation", "visualization"]
+    list_subdirs = ["image", "visualization"]
     for subdir in list_subdirs:
         subdir_path = os.path.join(output_dir, subdir)
         if (not os.path.exists(subdir_path)):
@@ -321,7 +316,6 @@ if __name__ == "__main__":
                 anno_raw_file = os.path.join(set_dir, raw_file), 
                 raw_dir = os.path.join(output_dir, "image"),
                 visualization_dir = os.path.join(output_dir, "visualization"),
-                mask_dir = os.path.join(output_dir, "segmentation"),
                 img_height = anno_entry["img_height"],
                 img_width = anno_entry["img_width"],
             )
