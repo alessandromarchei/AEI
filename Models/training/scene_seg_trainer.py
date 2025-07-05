@@ -97,7 +97,7 @@ class SceneSegTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='SEGMENTATION')
-            augTrain.setDataSeg(self.image, self.gt)
+            augTrain.setData(self.image, self.gt)
             self.image, self.augmented,  = \
                 augTrain.applyTransformSeg(image=self.image, ground_truth=self.gt)
             
@@ -107,7 +107,7 @@ class SceneSegTrainer():
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='SEGMENTATION')
-            augVal.setDataSeg(self.image_val, self.gt_val)
+            augVal.setData(self.image_val, self.gt_val)
             self.image_val, self.augmented_val = \
                 augVal.applyTransformSeg(image=self.image_val, ground_truth=self.gt_val)
 

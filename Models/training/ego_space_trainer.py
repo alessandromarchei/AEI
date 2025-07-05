@@ -65,7 +65,9 @@ class EgoSpaceTrainer():
             else:
                 raise ValueError('Please ensure SceneSeg network weights are provided for upstream elements')
 
-
+        # Model to device
+        self.model = self.model.to(self.device)
+        
         # TensorBoard
         self.writer = SummaryWriter()
 
@@ -82,7 +84,9 @@ class EgoSpaceTrainer():
         )
 
         self.gt_loader = transforms.Compose(
-            [transforms.ToTensor()]
+            [
+                transforms.ToTensor()
+            ]
         )
 
     # Logging Training Loss
@@ -106,20 +110,20 @@ class EgoSpaceTrainer():
         if(is_train):
             # Augmenting Data for training
             augTrain = Augmentations(is_train=True, data_type='BINARY_SEGMENTATION')
-            augTrain.setDataSeg(self.image, self.gt)
-            self.image, self.augmented  = \
+            augTrain.setData(self.image, self.gt)
+            self.image, self.gt  = \
                 augTrain.applyTransformSeg(image=self.image, ground_truth=self.gt)
         else:
             # Augmenting Data for testing/validation
             augVal = Augmentations(is_train=False, data_type='BINARY_SEGMENTATION')
-            augVal.setDataSeg(self.image, self.gt)
-            self.image, self.augmented = \
+            augVal.setData(self.image, self.gt)
+            self.image, self.gt = \
                 augVal.applyTransformSeg(image=self.image, ground_truth=self.gt)
     
     # Load Data
-    def load_data(self, is_train):
-        self.load_image_tensor(is_train)
-        self.load_gt_tensor(is_train)
+    def load_data(self):
+        self.load_image_tensor()
+        self.load_gt_tensor()
 
     # Run Model
     def run_model(self):     

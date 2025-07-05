@@ -12,6 +12,7 @@ sys.path.append('..')
 from model_components.scene_seg_network import SceneSegNetwork
 from model_components.scene_3d_network import Scene3DNetwork
 from model_components.ego_path_network import EgoPathNetwork
+from model_components.domain_seg_network import DomainSegNetwork
 
 def benchmark(model, input_data, dtype='fp32', nwarmup=50, nruns=1000):
 
@@ -75,6 +76,9 @@ def main():
     elif (model_name == 'EgoPath'):
         sceneSegNetwork = SceneSegNetwork()
         model = EgoPathNetwork(sceneSegNetwork)
+    elif (model_name == 'DomainSeg'):
+        sceneSegNetwork = SceneSegNetwork()
+        model = DomainSegNetwork(sceneSegNetwork)
     else:
         raise Exception("Model name not specified correctly, please check")
     
