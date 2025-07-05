@@ -186,3 +186,11 @@ def polyfit_BEV(
         validity_list[i] = 0
     
     return fitted_bev_egopath, flag_list, validity_list
+
+
+def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
+    """
+    Parse all coords of an (x, y) point to int, making it
+    suitable for image operations.
+    """
+    return (int(point[0]), int(point[1]))
