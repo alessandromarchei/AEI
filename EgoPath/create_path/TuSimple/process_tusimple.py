@@ -16,6 +16,17 @@ warnings.formatwarning = custom_warning_format
 
 # ============================== Helper functions ============================== #
 
+def round_line_floats(line, ndigits = 4):
+    line = list(line)
+    for i in range(len(line)):
+        line[i] = [
+            round(line[i][0], ndigits),
+            round(line[i][1], ndigits)
+        ]
+    line = tuple(line)
+    return line
+
+
 def normalizeCoords(lane, width, height):
     """
     Normalize the coords of lane points.
