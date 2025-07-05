@@ -262,3 +262,65 @@ def findSourcePointsBEV(
     sps["ego_h"] = ego_height
 
     return sps
+
+
+def transformBEV(
+    img: np.ndarray,
+    egopath: list,
+    sps: dict
+):
+    h, w, _ = img.shape
+
+    # Renorm/tuplize drivable path
+    egopath = [
+        (point[0] * w, point[1] * h) for point in egopath
+        if (point[1] * h >= sps["ego_h"])
+    ]
+    if (not egopath):
+        return (None, None, None, None, None)
+
+    # Interp more points for original egopath
+    egopath = interpLine(egopath, MIN_POINTS)
+
+    # Get transformation matrix
+    mat, _ = cv2.findHomography(
+        srcPoints = np.array([
+            sps["LS"],
+            sps["RS"],
+            sps["LE"],
+            sps["RE"]
+        ]),
+        dstPoints = np.array([
+            BEV_PTS["LS"],
+            BEV_PTS["RS"],
+            BEV_PTS["LE"],
+            BEV_PTS["RE"],
+        ])
+    )
+
+    # Transform image
+    im_dst = cv2.warpPerspective(
+        img, mat,
+        np.array([BEV_W, BEV_H])
+    )
+
+    # Transform egopath
+    bev_egopath = np.array(
+        egopath,
+        dtype = np.float32
+    ).reshape(-1, 1, 2)
+    bev_egopath = cv2.perspectiveTransform(bev_egopath, mat)
+    bev_egopath = [
+        tuple(map(int, point[0])) 
+        for point in bev_egopath
+    ]
+
+    # Polyfit BEV egopath to get 33-coords format with flags
+    bev_egopath, flag_list, validity_list = polyfit_BEV(
+        bev_egopath = bev_egopath,
+        order = POLYFIT_ORDER,
+        y_step = BEV_Y_STEP,
+        y_limit = BEV_H
+    )
+
+    return (im_dst, bev_egopath, flag_list, validity_list, mat)
