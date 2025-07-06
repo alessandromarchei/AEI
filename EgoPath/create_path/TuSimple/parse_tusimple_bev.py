@@ -135,8 +135,10 @@ def drawLine(
 
 def annotateGT(
     img: np.ndarray,
+    orig_img: np.ndarray,
     frame_id: str,
     bev_egopath: list,
+    sps: dict,
     raw_dir: str, 
     visualization_dir: str,
     normalized: bool
@@ -160,9 +162,11 @@ def annotateGT(
 
     # =========================== BEV VIS =========================== #
 
+    img_bev_vis = img.copy()
+
     # Draw egopath
     if (normalized):
-        h, w, _ = img.shape
+        h, w, _ = img_bev_vis.shape
         renormed_bev_egopath = [
             (x * w, y * h) 
             for x, y in bev_egopath
@@ -170,7 +174,7 @@ def annotateGT(
     else:
         renormed_bev_egopath = bev_egopath
     drawLine(
-        img = img,
+        img = img_bev_vis,
         line = renormed_bev_egopath,
         color = COLOR_EGOPATH
     )
@@ -181,10 +185,48 @@ def annotateGT(
             visualization_dir,
             f"{frame_id}.jpg"
         ),
-        img
+        img_bev_vis
     )
 
     # =========================== ORIGINAL VIS =========================== #
+
+    # Start points
+    for point_id in ["LS", "RS"]:
+        orig_img = cv2.circle(
+            orig_img,
+            sps[point_id],
+            POINT_SIZE,
+            COLOR_STARTS,
+            THICKNESS
+        )
+    
+    # End points
+    for point_id in ["LE", "RE"]:
+        orig_img = cv2.circle(
+            orig_img,
+            sps[point_id],
+            POINT_SIZE,
+            COLOR_ENDS,
+            THICKNESS
+        )
+
+    # Ego height
+    orig_img = cv2.line(
+        orig_img,
+        (0, int(sps["ego_h"])),
+        (W, int(sps["ego_h"])),
+        COLOR_HEIGHT,
+        2
+    )
+
+    # Save it
+    cv2.imwrite(
+        os.path.join(
+            visualization_dir,
+            f"orig_{frame_id}.jpg"
+        ),
+        orig_img
+    )
 
 
 def interpX(line, y):
@@ -293,6 +335,9 @@ def findSourcePointsBEV(
         left_deg = 90 if (not anchor_left[1]) else math.degrees(math.atan(anchor_left[1])) % 180
         right_deg = 90 if (not anchor_right[1]) else math.degrees(math.atan(anchor_right[1])) % 180
         mid_deg = (left_deg + right_deg) / 2
+        print(f"left deg: {left_deg}")
+        print(f"right deg: {right_deg}")
+        print(f"mid_deg: {mid_deg}")
         mid_grad = - math.tan(math.radians(mid_deg))
         mid_intercept = h - mid_grad * midanchor_start[0]
         midanchor_end = [
@@ -335,7 +380,7 @@ def transformBEV(
         if (point[1] * h >= sps["ego_h"])
     ]
     if (not egopath):
-        return (None, None, None, None, None)
+        return (None, None, None, None, None, False)
 
     # Interp more points for original egopath
     egopath = interpLine(egopath, MIN_POINTS)
@@ -381,7 +426,7 @@ def transformBEV(
         y_limit = BEV_H
     )
 
-    return (im_dst, bev_egopath, flag_list, validity_list, mat)
+    return (im_dst, bev_egopath, flag_list, validity_list, mat, True)
 
 
 # ============================== Main run ============================== #
@@ -414,16 +459,18 @@ if __name__ == "__main__":
     }
     BEV_W = 320
     BEV_H = 640
-    EGO_HEIGHT_RATIO = 1.00
+    EGO_HEIGHT_RATIO = 1.05
     BEV_Y_STEP = 20
     POLYFIT_ORDER = 2
 
-    # Colors (BGR)
+    # Visualization (colors in BGR)
     COLOR_EGOPATH = (0, 255, 255)   # Yellow
     COLOR_EGOLINE = (0, 128, 0)     # Green
     COLOR_STARTS = (255, 0, 0)      # Blue
     COLOR_ENDS = (153, 0, 153)      # Kinda purple
-    COLOR_MIDS = (0, 165, 255)      # Orange
+    COLOR_HEIGHT = (0, 165, 255)    # Orange
+    POINT_SIZE = 8
+    THICKNESS = -1
 
     # PARSING ARGS
 
@@ -477,9 +524,9 @@ if __name__ == "__main__":
 
     counter = 0
     for frame_id, frame_content in json_data.items():
+        print(f"\n{frame_id}")
 
         counter += 1
-        print(f"\n{counter}")
 
         # Acquire frame
         frame_img_path = os.path.join(
@@ -492,66 +539,62 @@ if __name__ == "__main__":
         this_frame_data = json_data[frame_id]
 
         # MAIN ALGORITHM
-        try:
 
-            # Get source points for transform
-            sps_dict = findSourcePointsBEV(
-                h = H,
-                w = W,
-                egoleft = this_frame_data["egoleft_lane"],
-                egoright = this_frame_data["egoright_lane"]
+        # Get source points for transform
+        sps_dict = findSourcePointsBEV(
+            h = H,
+            w = W,
+            egoleft = this_frame_data["egoleft_lane"],
+            egoright = this_frame_data["egoright_lane"]
+        )
+
+        # Transform to BEV space
+        
+        (im_dst, bev_egopath, flag_list, validity_list, mat, success) = transformBEV(
+            img = img,
+            egopath = this_frame_data["drivable_path"],
+            sps = sps_dict
+        )
+
+        # Skip if invalid frame (due to too high ego_height value)
+        if (success == False):
+            log_skipped(
+                frame_id,
+                "Null EgoPath from BEV transformation algorithm."
             )
-
-            # Transform to BEV space
-            
-            (im_dst, bev_egopath, flag_list, validity_list, mat) = transformBEV(
-                img = img,
-                egopath = this_frame_data["drivable_path"],
-                sps = sps_dict
-            )
-
-            # Skip if invalid frame (due to too high ego_height value)
-            if (not bev_egopath):
-                log_skipped(
-                    frame_id,
-                    "Null EgoPath from BEV transformation algorithm."
-                )
-                continue
-
-            # Save stuffs
-            annotateGT(
-                img = im_dst,
-                frame_id = frame_id,
-                bev_egopath = bev_egopath,
-                raw_dir = BEV_IMG_DIR,
-                visualization_dir = BEV_VIS_DIR,
-                normalized = False
-            )
-
-            # Register this frame GT to master JSON
-            # Each point has tuple format (x, y, flag, valid)
-            data_master[frame_id] = {
-                "drivable_path" : [
-                    (point[0], point[1], flag, valid)
-                    for point, flag, valid in list(zip(
-                        roundLineFloats(
-                            normalizeCoords(
-                                bev_egopath,
-                                width = BEV_W,
-                                height = BEV_H
-                            )
-                        ), 
-                        flag_list, 
-                        validity_list
-                    ))
-                ],
-                "transform_matrix" : mat.tolist()
-            }
-
-        except Exception as e:
-            log_skipped(frame_id, str(e))
-            print(f"Error: {e}")
             continue
+
+        # Save stuffs
+        annotateGT(
+            img = im_dst,
+            orig_img = img,
+            frame_id = frame_id,
+            bev_egopath = bev_egopath,
+            sps = sps_dict,
+            raw_dir = BEV_IMG_DIR,
+            visualization_dir = BEV_VIS_DIR,
+            normalized = False
+        )
+
+        # Register this frame GT to master JSON
+        # Each point has tuple format (x, y, flag, valid)
+        data_master[frame_id] = {
+            "drivable_path" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            bev_egopath,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    flag_list, 
+                    validity_list
+                ))
+            ],
+            "transform_matrix" : mat.tolist()
+        }
 
         # Break if early_stopping reached
         if (early_stopping is not None):

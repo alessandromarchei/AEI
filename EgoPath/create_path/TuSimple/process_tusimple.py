@@ -350,6 +350,11 @@ if __name__ == "__main__":
 
             # Conduct index increment
             img_id_counter += 1
+
+            # Early stopping, it defined
+            if (early_stopping and img_id_counter >= early_stopping - 1):
+                break
+            
             #set_dir = "/".join(anno_file.split("/")[ : -1]) # Slap "train_set" or "test_set" to the end  <-- Specific to linux hence used os.path.dirname command below
             set_dir= os.path.dirname(anno_file)
             set_dir = os.path.join(set_dir, test_dir) if test_file in anno_file else set_dir    # Tricky test dir
@@ -363,10 +368,6 @@ if __name__ == "__main__":
                 visualization_dir = os.path.join(output_dir, "visualization")
             )
 
-            # Pop redundant keys
-            del anno_entry["lanes"]
-            del anno_entry["ego_indexes"]
-
             # Reorder all lines by decreasing y
             anno_entry["drivable_path"] = sorted(
                 anno_entry["drivable_path"],
@@ -374,25 +375,23 @@ if __name__ == "__main__":
                 reverse = True
             )
             anno_entry["egoleft_lane"] = sorted(
-                anno_entry["drivable_path"],
+                anno_entry["egoleft_lane"],
                 key = lambda p: p[1],
                 reverse = True
             )
             anno_entry["egoright_lane"] = sorted(
-                anno_entry["drivable_path"],
+                anno_entry["egoright_lane"],
                 key = lambda p: p[1],
                 reverse = True
             )
 
             # Change `raw_file` to 6-digit incremental index
-            this_data[str(img_id_counter).zfill(6)] = anno_entry
-            this_data.pop(raw_file)
+            data_master[str(img_id_counter).zfill(6)] = {
+                "drivable_path" : anno_entry["drivable_path"],
+                "egoleft_lane" : anno_entry["egoleft_lane"],
+                "egoright_lane" : anno_entry["egoright_lane"]
+            }
 
-            # Early stopping, it defined
-            if (early_stopping and img_id_counter >= early_stopping - 1):
-                break
-
-        data_master.update(this_data)
         print(f"Processed {len(this_data)} entries in above file.\n")
 
     print(f"Done processing data with {len(data_master)} entries in total.\n")
