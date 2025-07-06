@@ -366,6 +366,24 @@ if __name__ == "__main__":
             # Pop redundant keys
             del anno_entry["lanes"]
             del anno_entry["ego_indexes"]
+
+            # Reorder all lines by decreasing y
+            anno_entry["drivable_path"] = sorted(
+                anno_entry["drivable_path"],
+                key = lambda p: p[1],
+                reverse = True
+            )
+            anno_entry["egoleft_lane"] = sorted(
+                anno_entry["drivable_path"],
+                key = lambda p: p[1],
+                reverse = True
+            )
+            anno_entry["egoright_lane"] = sorted(
+                anno_entry["drivable_path"],
+                key = lambda p: p[1],
+                reverse = True
+            )
+
             # Change `raw_file` to 6-digit incremental index
             this_data[str(img_id_counter).zfill(6)] = anno_entry
             this_data.pop(raw_file)
