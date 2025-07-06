@@ -147,6 +147,8 @@ def annotateGT(
         - Annotated image with all lanes, in "output_dir/visualization".
     """
 
+    # =========================== RAW IMAGE =========================== #
+
     # Save raw img in raw dir, as PNG
     cv2.imwrite(
         os.path.join(
@@ -155,6 +157,8 @@ def annotateGT(
         ),
         img
     )
+
+    # =========================== BEV VIS =========================== #
 
     # Draw egopath
     if (normalized):
@@ -179,6 +183,8 @@ def annotateGT(
         ),
         img
     )
+
+    # =========================== ORIGINAL VIS =========================== #
 
 
 def interpX(line, y):
@@ -266,15 +272,17 @@ def findSourcePointsBEV(
     ]
 
     # Acquire LS and RS
-    anchor_left = getLineAnchor(egoleft, h)
-    anchor_right = getLineAnchor(egoright, h)
+    anchor_left = getLineAnchor(egoleft)
+    anchor_right = getLineAnchor(egoright)
     sps["LS"] = [anchor_left[0], h]
     sps["RS"] = [anchor_right[0], h]
 
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
+    print(f"midanchor start: {midanchor_start}")
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * EGO_HEIGHT_RATIO
+    print(f"ego height: {ego_height}")
 
     # Both egos have Null anchors
     if ((not anchor_left[1]) and (not anchor_right[1])):
@@ -292,6 +300,7 @@ def findSourcePointsBEV(
             ego_height
         ]
         original_end_w = interpX(egoright, ego_height) - interpX(egoleft, ego_height)
+    print(f"midanchor end: {midanchor_end}")
 
     sps["LE"] = [
         midanchor_end[0] - original_end_w / 2,
@@ -308,6 +317,7 @@ def findSourcePointsBEV(
 
     # Log the ego_height too
     sps["ego_h"] = ego_height
+    print(f"sps: {sps}")
 
     return sps
 
@@ -391,11 +401,11 @@ if __name__ == "__main__":
 
     # OTHER PARAMS
 
-    H = 1280
-    W = 720
+    W = 1280
+    H = 720
 
+    # BEV-related
     MIN_POINTS = 30
-
     BEV_PTS = {
         "LS" : [120, 640],          # Left start
         "RS" : [200, 640],          # Right start
@@ -408,7 +418,12 @@ if __name__ == "__main__":
     BEV_Y_STEP = 20
     POLYFIT_ORDER = 2
 
-    COLOR_EGOPATH = (0, 255, 255)   # Yellow (BGR)
+    # Colors (BGR)
+    COLOR_EGOPATH = (0, 255, 255)   # Yellow
+    COLOR_EGOLINE = (0, 128, 0)     # Green
+    COLOR_STARTS = (255, 0, 0)      # Blue
+    COLOR_ENDS = (153, 0, 153)      # Kinda purple
+    COLOR_MIDS = (0, 165, 255)      # Orange
 
     # PARSING ARGS
 
@@ -464,6 +479,7 @@ if __name__ == "__main__":
     for frame_id, frame_content in json_data.items():
 
         counter += 1
+        print(f"\n{counter}")
 
         # Acquire frame
         frame_img_path = os.path.join(
@@ -534,6 +550,7 @@ if __name__ == "__main__":
 
         except Exception as e:
             log_skipped(frame_id, str(e))
+            print(f"Error: {e}")
             continue
 
         # Break if early_stopping reached
