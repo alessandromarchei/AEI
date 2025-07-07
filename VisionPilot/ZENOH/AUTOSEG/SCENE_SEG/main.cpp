@@ -26,6 +26,8 @@ DESC:   C++ Deployment of SceneSeg Network
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/dnn.hpp>
 
+#include <zenoh.h>
+
 #if USE_EP_DNNL
     #include <dnnl_provider_options.h> 
 #endif
