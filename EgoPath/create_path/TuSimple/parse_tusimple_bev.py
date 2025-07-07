@@ -87,8 +87,10 @@ def getLineAnchor(line):
     Determine "anchor" point of a lane.
 
     """
-    (x2, y2) = line[-1]
-    (x1, y1) = line[-2]
+    (x2, y2) = line[0]
+    (x1, y1) = line[1]
+    print(f"Closest point: {x2}, {y2}")
+    print(f"2nd closest point: {x1}, {y1}")
 
     for i in range(len(line) - 2, 0, -1):
         if (line[i][0] != x2):
@@ -308,10 +310,12 @@ def findSourcePointsBEV(
         [p[0] * w, p[1] * h]
         for p in egoleft
     ]
+    print(f"egoleft: {egoleft}")
     egoright = [
         [p[0] * w, p[1] * h]
         for p in egoright
     ]
+    print(f"egoright: {egoright}")
 
     # Acquire LS and RS
     anchor_left = getLineAnchor(egoleft)
@@ -332,6 +336,8 @@ def findSourcePointsBEV(
         original_end_w = sps["RS"][0] - sps["LS"][0]
 
     else:
+        print(f"anchor left: {anchor_left}")
+        print(f"anchor right: {anchor_right}")
         left_deg = 90 if (not anchor_left[1]) else math.degrees(math.atan(anchor_left[1])) % 180
         right_deg = 90 if (not anchor_right[1]) else math.degrees(math.atan(anchor_right[1])) % 180
         mid_deg = (left_deg + right_deg) / 2
