@@ -89,8 +89,6 @@ def getLineAnchor(line):
     """
     (x2, y2) = line[0]
     (x1, y1) = line[1]
-    print(f"Closest point: {x2}, {y2}")
-    print(f"2nd closest point: {x1}, {y1}")
 
     for i in range(len(line) - 2, 0, -1):
         if (line[i][0] != x2):
@@ -310,12 +308,10 @@ def findSourcePointsBEV(
         [p[0] * w, p[1] * h]
         for p in egoleft
     ]
-    print(f"egoleft: {egoleft}")
     egoright = [
         [p[0] * w, p[1] * h]
         for p in egoright
     ]
-    print(f"egoright: {egoright}")
 
     # Acquire LS and RS
     anchor_left = getLineAnchor(egoleft)
@@ -326,9 +322,7 @@ def findSourcePointsBEV(
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
-    print(f"midanchor start: {midanchor_start}")
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * EGO_HEIGHT_RATIO
-    print(f"ego height: {ego_height}")
 
     # Both egos have Null anchors
     if ((not anchor_left[1]) and (not anchor_right[1])):
@@ -336,14 +330,9 @@ def findSourcePointsBEV(
         original_end_w = sps["RS"][0] - sps["LS"][0]
 
     else:
-        print(f"anchor left: {anchor_left}")
-        print(f"anchor right: {anchor_right}")
         left_deg = 90 if (not anchor_left[1]) else math.degrees(math.atan(anchor_left[1])) % 180
         right_deg = 90 if (not anchor_right[1]) else math.degrees(math.atan(anchor_right[1])) % 180
         mid_deg = (left_deg + right_deg) / 2
-        print(f"left deg: {left_deg}")
-        print(f"right deg: {right_deg}")
-        print(f"mid_deg: {mid_deg}")
         mid_grad = - math.tan(math.radians(mid_deg))
         mid_intercept = h - mid_grad * midanchor_start[0]
         midanchor_end = [
@@ -351,7 +340,6 @@ def findSourcePointsBEV(
             ego_height
         ]
         original_end_w = interpX(egoright, ego_height) - interpX(egoleft, ego_height)
-    print(f"midanchor end: {midanchor_end}")
 
     sps["LE"] = [
         midanchor_end[0] - original_end_w / 2,
@@ -368,7 +356,6 @@ def findSourcePointsBEV(
 
     # Log the ego_height too
     sps["ego_h"] = ego_height
-    print(f"sps: {sps}")
 
     return sps
 
@@ -530,7 +517,6 @@ if __name__ == "__main__":
 
     counter = 0
     for frame_id, frame_content in json_data.items():
-        print(f"\n{frame_id}")
 
         counter += 1
 
