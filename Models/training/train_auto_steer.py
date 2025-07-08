@@ -319,7 +319,7 @@ def main():
             )
             msdict[current_dataset]["iter"] = current_dataset_iter + 1
 
-            # Also fetch original visualization
+            # Also fetch original RGB Image
             orig_image = Image.open(
                 os.path.join(
                     msdict[dataset]["path_orig_image"],
@@ -327,10 +327,7 @@ def main():
                 )
             ).convert("RGB")
 
-            # Start the training on this data
-
             # Assign data
-
             trainer.set_data(orig_image, image, drivable_path_bev, drivable_path, \
                 ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
                 ego_right_lane)
