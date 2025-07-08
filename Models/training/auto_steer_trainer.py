@@ -24,14 +24,16 @@ class AutoSteerTrainer():
     ):
         
         # Images and gts
-        self.orig_vis = None
+        self.orig_image = None
         self.image = None
         self.H = None
         self.W = None
-        self.xs = []
-        self.ys = []
-        self.valids = []
-        self.mat = []
+        self.drivable_path_bev = []
+        self.drivable_path = []
+        self.ego_left_lane_bev = []
+        self.ego_left_lane = []
+        self.ego_right_lane_bev = []
+        self.ego_right_lane = []
 
         # Dims
         self.height = 640
@@ -138,16 +140,21 @@ class AutoSteerTrainer():
         self.ego_lanes_loss_scale_factor = ego_lanes_loss_scale_factor
 
     # Assign input variables
-    def set_data(self, orig_vis, image, xs, ys, valids, mat):
-        self.orig_vis = orig_vis
+    def set_data(self, orig_image, image, drivable_path_bev, drivable_path, \
+                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
+                ego_right_lane):
+        
+        self.orig_image = orig_image
         h, w, _ = image.shape
         self.image = image
         self.H = h
         self.W = w
-        self.xs = np.array(xs, dtype = "float32")
-        self.ys = np.array(ys, dtype = "float32")
-        self.valids = np.array(valids, dtype = "float32")
-        self.mat = np.array(mat, dtype = "float32")
+        self.drivable_path_bev = np.array(drivable_path_bev, dtype = "float32")
+        self.drivable_path = np.array(drivable_path, dtype = "float32")
+        self.ego_left_lane_bev = np.array(ego_left_lane_bev, dtype = "float32")
+        self.ego_left_lane = np.array(ego_left_lane, dtype = "float32")
+        self.ego_right_lane_bev = np.array(ego_right_lane_bev, dtype = "float32")
+        self.ego_right_lane = np.array(ego_right_lane, dtype = "float32")
 
     # Image agumentations
     def apply_augmentations(self, is_train):
