@@ -223,7 +223,7 @@ def annotateGT(
     cv2.imwrite(
         os.path.join(
             visualization_dir,
-            f"orig_{frame_id}.jpg"
+            f"{frame_id}_orig.jpg"
         ),
         orig_img
     )
