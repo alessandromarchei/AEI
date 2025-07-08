@@ -160,11 +160,16 @@ def main():
 
     DATA_LOSS_SCALE_FACTOR = 1.0
     SMOOTHING_LOSS_SCALE_FACTOR = 10.0
+    EGO_PATH_LOSS_SCALE_FACTOR = 1.0
+    EGO_LANES_LOSS_SCALE_FACTOR = 1.0
 
     # Set training loss term scale factors
     trainer.set_loss_scale_factors(
         DATA_LOSS_SCALE_FACTOR,
-        SMOOTHING_LOSS_SCALE_FACTOR
+        SMOOTHING_LOSS_SCALE_FACTOR,
+        EGO_PATH_LOSS_SCALE_FACTOR,
+        EGO_LANES_LOSS_SCALE_FACTOR
+
     )
     
     print(f"DATA_LOSS_SCALE_FACTOR : {DATA_LOSS_SCALE_FACTOR}")

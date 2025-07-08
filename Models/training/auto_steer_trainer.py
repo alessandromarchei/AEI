@@ -58,6 +58,8 @@ class AutoSteerTrainer():
         # Loss scale factors
         self.data_loss_scale_factor = 1.0
         self.smoothing_loss_scale_factor = 1.0
+        self.ego_path_loss_scale_factor = 1.0
+        self.ego_lanes_loss_scale_factor = 1.0
 
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
@@ -115,6 +117,19 @@ class AutoSteerTrainer():
     # Learning rate adjustment
     def set_learning_rate(self, learning_rate):
         self.learning_rate = learning_rate
+
+    # Set scale factors for losses
+    def set_loss_scale_factors(
+        self,
+        data_loss_scale_factor,
+        smoothing_loss_scale_factor,
+        ego_path_loss_scale_factor,
+        ego_lanes_loss_scale_factor
+    ):
+        self.data_loss_scale_factor = data_loss_scale_factor
+        self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
+        self.ego_path_loss_scale_factor = ego_path_loss_scale_factor
+        self.ego_lanes_loss_scale_factor = ego_lanes_loss_scale_factor
 
     # Assign input variables
     def set_data(self, orig_vis, image, xs, ys, valids, mat):
@@ -180,14 +195,6 @@ class AutoSteerTrainer():
 
         return total_loss 
     
-    # Set scale factors for losses
-    def set_loss_scale_factors(
-        self,
-        data_loss_scale_factor,
-        smoothing_loss_scale_factor,
-    ):
-        self.data_loss_scale_factor = data_loss_scale_factor
-        self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
 
     # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
     def set_gradient_loss_type(self, type):
