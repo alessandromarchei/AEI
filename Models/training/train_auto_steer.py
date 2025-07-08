@@ -26,7 +26,7 @@ VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
 BEV_IMG_PATH = "image_bev"
-ORIG_VIS_PATH = "visualization"
+ORIG_IMG_PATH = "image"
 
 
 def main():
@@ -76,7 +76,7 @@ def main():
         msdict[dataset] = {
             "path_labels"   : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
             "path_images"   : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH),
-            "path_orig_vis" : os.path.join(ROOT_PATH, dataset, ORIG_VIS_PATH)
+            "path_orig_image" : os.path.join(ROOT_PATH, dataset, ORIG_IMG_PATH)
         }
 
     # Deal with TEST dataset
@@ -302,24 +302,28 @@ def main():
             # Fetch data from current processed dataset
             
             image = None
-            xs = []
-            ys = []
-            valids = []
-            mat = []
-
+            drivable_path_bev = []
+            drivable_path = []
+            ego_left_lane_bev = []
+            ego_left_lane = []
+            ego_right_lane_bev = []
+            ego_right_lane = []
+            
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            frame_id, image, xs, ys, _, valids, mat = msdict[current_dataset]["loader"].getItem(
+            frame_id, image, drivable_path_bev, drivable_path, \
+                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
+                ego_right_lane = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
             msdict[current_dataset]["iter"] = current_dataset_iter + 1
 
             # Also fetch original visualization
-            orig_vis = Image.open(
+            orig_image = Image.open(
                 os.path.join(
-                    msdict[dataset]["path_orig_vis"],
-                    f"{frame_id}.jpg"
+                    msdict[dataset]["path_orig_image"],
+                    f"{frame_id}.png"
                 )
             ).convert("RGB")
 
@@ -414,8 +418,8 @@ def main():
                             # Fetch it again, the orig vis
                             orig_vis = Image.open(
                                 os.path.join(
-                                    msdict[dataset]["path_orig_vis"],
-                                    f"{frame_id}.jpg"
+                                    msdict[dataset]["path_orig_image"],
+                                    f"{frame_id}.png"
                                 )
                             ).convert("RGB")
 
