@@ -331,7 +331,9 @@ def main():
 
             # Assign data
 
-            trainer.set_data(orig_vis, image, xs, ys, valids, mat)
+            trainer.set_data(orig_image, image, drivable_path_bev, drivable_path, \
+                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
+                ego_right_lane)
             
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
