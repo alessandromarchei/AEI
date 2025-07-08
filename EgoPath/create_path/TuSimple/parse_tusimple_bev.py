@@ -315,10 +315,10 @@ def findSourcePointsBEV(
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * EGO_HEIGHT_RATIO
 
     sps = {
-        "LS" : [0, h - 1],
-        "RS" : [w - 1, h - 1],
-        "LE" : [w * 1/4, h * 4/10],
-        "RE" : [w * 3/4, h * 4/10]
+        "LS" : egoleft[0],
+        "RS" : egoright[0],
+        "LE" : egoleft[-1],
+        "RE" : egoright[-1]
     }
 
     # Tuplize 4 corners
@@ -416,15 +416,15 @@ if __name__ == "__main__":
     # BEV-related
     MIN_POINTS = 30
     BEV_PTS = {
-        "LS" : [120, 640],          # Left start
-        "RS" : [200, 640],          # Right start
-        "LE" : [120, 0],            # Left end
-        "RE" : [200, 0]             # Right end
+        "LS" : [240, 1280],          # Left start
+        "RS" : [400, 1280],          # Right start
+        "LE" : [240, 0],            # Left end
+        "RE" : [400, 0]             # Right end
     }
-    BEV_W = 320
-    BEV_H = 640
+    BEV_W = 640
+    BEV_H = 1280
     EGO_HEIGHT_RATIO = 1.05
-    BEV_Y_STEP = 20
+    BEV_Y_STEP = 128
     POLYFIT_ORDER = 2
 
     # Visualization (colors in BGR)
@@ -484,6 +484,16 @@ if __name__ == "__main__":
         json_data = json.load(f)
     data_master = {}    # Dumped later
 
+    # Get source points for transform
+    standard_frame = "000022"
+    standard_json = json_data[standard_frame]
+    sps_dict = findSourcePointsBEV(
+        h = H,
+        w = W,
+        egoleft = standard_json["egoleft_lane"],
+        egoright = standard_json["egoright_lane"]
+    )
+
     # MAIN GENERATION LOOP
 
     counter = 0
@@ -503,15 +513,7 @@ if __name__ == "__main__":
 
         # MAIN ALGORITHM
 
-        # Get source points for transform
-        sps_dict = findSourcePointsBEV(
-            h = H,
-            w = W,
-            egoleft = this_frame_data["egoleft_lane"],
-            egoright = this_frame_data["egoright_lane"]
-        )
-
-        # Transform to BEV space
+        # Transform to BEV space            
         
         (im_dst, bev_egopath, flag_list, validity_list, mat, success) = transformBEV(
             img = img,
