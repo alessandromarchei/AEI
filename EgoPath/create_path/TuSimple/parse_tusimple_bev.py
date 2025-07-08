@@ -317,8 +317,8 @@ def findSourcePointsBEV(
     sps = {
         "LS" : [0, h - 1],
         "RS" : [w - 1, h - 1],
-        "LE" : [w * 1/4, h / 2],
-        "RE" : [w * 3/4, h / 2]
+        "LE" : [w * 1/4, h * 4/10],
+        "RE" : [w * 3/4, h * 4/10]
     }
 
     # Tuplize 4 corners
