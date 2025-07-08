@@ -231,18 +231,15 @@ def main():
             batch_size = 3
         
         # Learning Rate Schedule
-        if ((epoch >= 1) and (epoch < 2)):
-            trainer.set_learning_rate(0.000025)
-        elif (epoch >= 2):
-            trainer.set_learning_rate(0.0000125)
-        # ((epoch >= 2) and (epoch < 3)):
-        # elif (epoch >= 4):
-        #     trainer.set_learning_rate(0.00000625)
+        if ((epoch >= 30) and (epoch < 40)):
+            trainer.set_learning_rate(0.0001)
+        elif (epoch >= 40):
+            trainer.set_learning_rate(0.00005)
 
         # Augmentation Schedule
-        apply_augmentation = True
-        if epoch >= 1:
-            apply_augmentation = False
+        apply_augmentation = False
+        if ((epoch >= 15) and (epoch < 35)):
+            apply_augmentation = True
 
         # Shuffle overall data list at start of epoch
         random.shuffle(data_list)
