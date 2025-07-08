@@ -158,6 +158,8 @@ def main():
     # scaling to increase or decrease the contribution of that specific
     # loss towards the overall loss
 
+    DATA_LOSS_BEV_SCALE_FACTOR = 1.0
+    SMOOTHING_LOSS_BEV_SCALE_FACTOR = 10.0
     DATA_LOSS_SCALE_FACTOR = 1.0
     SMOOTHING_LOSS_SCALE_FACTOR = 10.0
     EGO_PATH_LOSS_SCALE_FACTOR = 1.0
@@ -165,6 +167,8 @@ def main():
 
     # Set training loss term scale factors
     trainer.set_loss_scale_factors(
+        DATA_LOSS_BEV_SCALE_FACTOR,
+        SMOOTHING_LOSS_BEV_SCALE_FACTOR,
         DATA_LOSS_SCALE_FACTOR,
         SMOOTHING_LOSS_SCALE_FACTOR,
         EGO_PATH_LOSS_SCALE_FACTOR,

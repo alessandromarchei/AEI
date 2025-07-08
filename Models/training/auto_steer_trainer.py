@@ -56,6 +56,8 @@ class AutoSteerTrainer():
         self.gradient_type = "NUMERICAL"
 
         # Loss scale factors
+        self.data_loss_bev_scale_factor = 1.0
+        self.smoothing_loss_bev_scale_factor = 1.0
         self.data_loss_scale_factor = 1.0
         self.smoothing_loss_scale_factor = 1.0
         self.ego_path_loss_scale_factor = 1.0
@@ -121,11 +123,15 @@ class AutoSteerTrainer():
     # Set scale factors for losses
     def set_loss_scale_factors(
         self,
+        data_loss_bev_scale_factor,
+        smoothing_loss_bev_scale_factor,
         data_loss_scale_factor,
         smoothing_loss_scale_factor,
         ego_path_loss_scale_factor,
         ego_lanes_loss_scale_factor
     ):
+        self.data_loss_bev_scale_factor = data_loss_bev_scale_factor
+        self.smoothing_loss_bev_scale_factor = smoothing_loss_bev_scale_factor
         self.data_loss_scale_factor = data_loss_scale_factor
         self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
         self.ego_path_loss_scale_factor = ego_path_loss_scale_factor
