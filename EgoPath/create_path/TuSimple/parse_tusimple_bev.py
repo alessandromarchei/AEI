@@ -301,7 +301,6 @@ def findSourcePointsBEV(
     """
     Find 4 source points for the BEV homography transform.
     """
-    sps = {}
 
     # Renorm 2 egolines
     egoleft = [
@@ -313,42 +312,14 @@ def findSourcePointsBEV(
         for p in egoright
     ]
 
-    # Acquire LS and RS
-    anchor_left = getLineAnchor(egoleft)
-    anchor_right = getLineAnchor(egoright)
-    sps["LS"] = [anchor_left[0], h]
-    sps["RS"] = [anchor_right[0], h]
-
-    # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
-
-    midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * EGO_HEIGHT_RATIO
 
-    # Both egos have Null anchors
-    if ((not anchor_left[1]) and (not anchor_right[1])):
-        midanchor_end = [midanchor_start[0], h]
-        original_end_w = sps["RS"][0] - sps["LS"][0]
-
-    else:
-        left_deg = 90 if (not anchor_left[1]) else math.degrees(math.atan(anchor_left[1])) % 180
-        right_deg = 90 if (not anchor_right[1]) else math.degrees(math.atan(anchor_right[1])) % 180
-        mid_deg = (left_deg + right_deg) / 2
-        mid_grad = - math.tan(math.radians(mid_deg))
-        mid_intercept = h - mid_grad * midanchor_start[0]
-        midanchor_end = [
-            (ego_height - mid_intercept) / mid_grad,
-            ego_height
-        ]
-        original_end_w = interpX(egoright, ego_height) - interpX(egoleft, ego_height)
-
-    sps["LE"] = [
-        midanchor_end[0] - original_end_w / 2,
-        ego_height
-    ]
-    sps["RE"] = [
-        midanchor_end[0] + original_end_w / 2,
-        ego_height
-    ]
+    sps = {
+        "LS" : [0, h - 1],
+        "RS" : [w - 1, h - 1],
+        "LE" : [w * 1/4, h / 2],
+        "RE" : [w * 3/4, h / 2]
+    }
 
     # Tuplize 4 corners
     for i, pt in sps.items():
