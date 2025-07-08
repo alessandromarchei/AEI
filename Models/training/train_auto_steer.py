@@ -138,7 +138,7 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 5
+    NUM_EPOCHS = 50
     LOGSTEP_LOSS = 250
     LOGSTEP_VIS = 1000
     LOGSTEP_MODEL = 10000
@@ -208,19 +208,6 @@ def main():
 
     print(f"DATA_SAMPLING_SCHEME : {DATA_SAMPLING_SCHEME}")
 
-    # BATCH_SIZE_SCHEME
-    # There are three type of BATCH_SIZE_SCHEME, the 'CONSTANT' batch size
-    # scheme sets a constant, fixed batch size value of 24 throughout training.
-    # The 'SLOW_DECAY' batch size scheme reduces the batch size during training,
-    # helping the model escape from local minima. The 'FAST_DECAY' batch size
-    # scheme decays the batch size faster, and may help with quicker model
-    # convergence.
-
-    BATCH_SIZE_SCHEME = "FAST_DECAY" # FAST_DECAY or SLOW_DECAY or CONSTANT
-
-    print(f"BATCH_SIZE_SCHEME : {BATCH_SIZE_SCHEME}")
-    
-    # ======================================================================= #
 
     # ========================= Main training loop ========================= #
 
@@ -233,24 +220,15 @@ def main():
 
         print(f"EPOCH : {epoch}")
 
-        if (BATCH_SIZE_SCHEME == "CONSTANT"):
+        # Batch Size Schedule
+        if (epoch == 0):
+            batch_size = 24
+        elif (epoch >= 10 and epoch < 20):
+            batch_size = 12
+        elif (epoch >= 20 and epoch < 30):
+            batch_size = 6
+        elif (epoch >= 30):
             batch_size = 3
-        elif (BATCH_SIZE_SCHEME == "FAST_DECAY"):
-            if (epoch == 0):
-                batch_size = 24
-            else:
-                batch_size = 3
-        elif (BATCH_SIZE_SCHEME == "SLOW_DECAY"):
-            if (epoch == 0):
-                batch_size = 24
-            else:
-                batch_size = 8
-
-        else:
-            raise ValueError(
-                "Please speficy BATCH_SIZE_SCHEME as either " \
-                " CONSTANT or FAST_DECAY or SLOW_DECAY"
-            )
         
         # Learning Rate Schedule
         if ((epoch >= 1) and (epoch < 2)):
