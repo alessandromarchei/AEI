@@ -138,6 +138,8 @@ def annotateGT(
     orig_img: np.ndarray,
     frame_id: str,
     bev_egopath: list,
+    bev_egoleft: list,
+    bev_egoright: list,
     sps: dict,
     raw_dir: str, 
     visualization_dir: str,
@@ -177,6 +179,36 @@ def annotateGT(
         img = img_bev_vis,
         line = renormed_bev_egopath,
         color = COLOR_EGOPATH
+    )
+    
+    # Draw egoleft
+    if (normalized):
+        h, w, _ = img_bev_vis.shape
+        renormed_bev_egoleft = [
+            (x * w, y * h) 
+            for x, y in bev_egoleft
+        ]
+    else:
+        renormed_bev_egoleft = bev_egoleft
+    drawLine(
+        img = img_bev_vis,
+        line = renormed_bev_egoleft,
+        color = COLOR_EGOLEFT
+    )
+
+    # Draw egoright
+    if (normalized):
+        h, w, _ = img_bev_vis.shape
+        renormed_bev_egoright = [
+            (x * w, y * h) 
+            for x, y in bev_egoright
+        ]
+    else:
+        renormed_bev_egoright = bev_egoright
+    drawLine(
+        img = img_bev_vis,
+        line = renormed_bev_egoright,
+        color = COLOR_EGORIGHT
     )
 
     # Save visualization img in vis dir, as JPG (saving storage space)
@@ -551,6 +583,8 @@ if __name__ == "__main__":
             orig_img = img,
             frame_id = frame_id,
             bev_egopath = bev_egopath,
+            bev_egoleft = bev_egoleft,
+            bev_egoright = bev_egoright,
             sps = sps_dict,
             raw_dir = BEV_IMG_DIR,
             visualization_dir = BEV_VIS_DIR,
