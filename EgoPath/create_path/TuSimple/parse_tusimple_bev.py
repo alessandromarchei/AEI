@@ -518,13 +518,13 @@ if __name__ == "__main__":
     data_master = {}    # Dumped later
 
     # Get source points for transform
-    standard_frame = "000022"
-    standard_json = json_data[standard_frame]
-    sps_dict = findSourcePointsBEV(
+    STANDARD_FRAME = "000022"
+    STANDARD_JSON = json_data[STANDARD_FRAME]
+    STANDARD_SPS = findSourcePointsBEV(
         h = H,
         w = W,
-        egoleft = standard_json["egoleft_lane"],
-        egoright = standard_json["egoright_lane"]
+        egoleft = STANDARD_JSON["egoleft_lane"],
+        egoright = STANDARD_JSON["egoright_lane"]
     )
 
     # MAIN GENERATION LOOP
@@ -552,21 +552,21 @@ if __name__ == "__main__":
         (im_dst, bev_egopath, flag_list, validity_list, mat, success) = transformBEV(
             img = img,
             egopath = this_frame_data["drivable_path"],
-            sps = sps_dict
+            sps = STANDARD_SPS
         )
 
         # Egoleft
         (_, bev_egoleft, flag_list, validity_list, _, _) = transformBEV(
             img = img, 
             egopath = this_frame_data["egoleft_lane"],
-            sps = sps_dict
+            sps = STANDARD_SPS
         )
 
         # Egoright
         (_, bev_egoright, flag_list, validity_list, _, _) = transformBEV(
             img = img, 
             egopath = this_frame_data["egoright_lane"],
-            sps = sps_dict
+            sps = STANDARD_SPS
         )
         
         # Skip if invalid frame (due to too high ego_height value)
@@ -585,7 +585,7 @@ if __name__ == "__main__":
             bev_egopath = bev_egopath,
             bev_egoleft = bev_egoleft,
             bev_egoright = bev_egoright,
-            sps = sps_dict,
+            sps = STANDARD_SPS,
             raw_dir = BEV_IMG_DIR,
             visualization_dir = BEV_VIS_DIR,
             normalized = False
