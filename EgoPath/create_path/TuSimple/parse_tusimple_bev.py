@@ -416,8 +416,8 @@ if __name__ == "__main__":
     # BEV-related
     MIN_POINTS = 30
     BEV_PTS = {
-        "LS" : [240, 1280],          # Left start
-        "RS" : [400, 1280],          # Right start
+        "LS" : [240, 1280],         # Left start
+        "RS" : [400, 1280],         # Right start
         "LE" : [240, 0],            # Left end
         "RE" : [400, 0]             # Right end
     }
@@ -429,7 +429,8 @@ if __name__ == "__main__":
 
     # Visualization (colors in BGR)
     COLOR_EGOPATH = (0, 255, 255)   # Yellow
-    COLOR_EGOLINE = (0, 128, 0)     # Green
+    COLOR_EGOLEFT = (0, 128, 0)     # Green
+    COLOR_EGORIGHT = (255, 255, 0)  # Cyan
     COLOR_STARTS = (255, 0, 0)      # Blue
     COLOR_ENDS = (153, 0, 153)      # Kinda purple
     COLOR_HEIGHT = (0, 165, 255)    # Orange
