@@ -515,13 +515,28 @@ if __name__ == "__main__":
         # MAIN ALGORITHM
 
         # Transform to BEV space            
-        
+
+        # Egopath
         (im_dst, bev_egopath, flag_list, validity_list, mat, success) = transformBEV(
             img = img,
             egopath = this_frame_data["drivable_path"],
             sps = sps_dict
         )
 
+        # Egoleft
+        (_, bev_egoleft, flag_list, validity_list, _, _) = transformBEV(
+            img = img, 
+            egopath = this_frame_data["egoleft_lane"],
+            sps = sps_dict
+        )
+
+        # Egoright
+        (_, bev_egoright, flag_list, validity_list, _, _) = transformBEV(
+            img = img, 
+            egopath = this_frame_data["egoright_lane"],
+            sps = sps_dict
+        )
+        
         # Skip if invalid frame (due to too high ego_height value)
         if (success == False):
             log_skipped(
