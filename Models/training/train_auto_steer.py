@@ -10,8 +10,8 @@ from typing import Literal, get_args
 from matplotlib import pyplot as plt
 import sys
 sys.path.append('../..')
-from Models.data_utils.load_data_ego_path_bev import LoadDataBEVEgoPath
-from Models.training.ego_path_trainer_bev import BEVEgoPathTrainer
+from Models.data_utils.load_data_auto_steer import LoadDataAutoSteer
+from Models.training.auto_steer_trainer import AutoSteerTrainer
 
 # Currently limiting to available datasets only. Will unlock eventually
 VALID_DATASET_LITERALS = Literal[
@@ -26,7 +26,7 @@ VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
 BEV_IMG_PATH = "image_bev"
-ORIG_VIS_PATH = "visualization"
+ORIG_IMG_PATH = "image"
 
 
 def main():
@@ -40,13 +40,6 @@ def main():
         dest = "root", 
         required = True,
         help = "root path to folder where data training data is stored")
-    
-    parser.add_argument(
-        "-b", "--backbone_path", 
-        dest = "backbone_path",
-        help = "path to SceneSeg *.pth checkpoint file to load pre-trained backbone " \
-        "if we are training EgoPath from scratch"
-    )
     
     parser.add_argument(
         "-c", "--checkpoint_path", 
@@ -83,7 +76,7 @@ def main():
         msdict[dataset] = {
             "path_labels"   : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
             "path_images"   : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH),
-            "path_orig_vis" : os.path.join(ROOT_PATH, dataset, ORIG_VIS_PATH)
+            "path_orig_image" : os.path.join(ROOT_PATH, dataset, ORIG_IMG_PATH)
         }
 
     # Deal with TEST dataset
@@ -99,7 +92,7 @@ def main():
 
     # Load datasets
     for dataset in VALID_DATASET_LIST:
-        this_dataset_loader = LoadDataBEVEgoPath(
+        this_dataset_loader = LoadDataAutoSteer(
             labels_filepath = msdict[dataset]["path_labels"],
             images_filepath = msdict[dataset]["path_images"],
             dataset = dataset
@@ -133,35 +126,19 @@ def main():
     # Trainer instance
     trainer = None
 
-    BACKBONE_PATH = args.backbone_path
+    
     CHECKPOINT_PATH = args.checkpoint_path
 
-    if (BACKBONE_PATH and not CHECKPOINT_PATH):
-        trainer = BEVEgoPathTrainer(pretrained_checkpoint_path = BACKBONE_PATH)
-    elif (CHECKPOINT_PATH and not BACKBONE_PATH):
-        trainer = BEVEgoPathTrainer(
-            checkpoint_path = CHECKPOINT_PATH, 
-            is_pretrained = True
-        )
-    elif (not CHECKPOINT_PATH and not BACKBONE_PATH):
-        raise ValueError(
-            "No checkpoint file found - Please ensure that you pass in either " \
-            "a saved BEVEgoPath checkpoint file or SceneSeg checkpoint to load " \
-            "the backbone weights"
-        )
+    if (CHECKPOINT_PATH):
+        trainer = AutoSteerTrainer(checkpoint_path = CHECKPOINT_PATH)
     else:
-        raise ValueError(
-            "Both BEVEgoPath checkpoint and SceneSeg checkpoint file provided - " \
-            "please provide either the BEVEgoPath checkponit to continue training " \
-            "from a saved checkpoint, or the SceneSeg checkpoint file to train " \
-            "BEVEgoPath from scratch"
-        )
+      trainer = AutoSteerTrainer()
     
     # Zero gradients
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 5
+    NUM_EPOCHS = 50
     LOGSTEP_LOSS = 250
     LOGSTEP_VIS = 1000
     LOGSTEP_MODEL = 10000
@@ -181,17 +158,30 @@ def main():
     # scaling to increase or decrease the contribution of that specific
     # loss towards the overall loss
 
+    DATA_LOSS_BEV_SCALE_FACTOR = 1.0
+    SMOOTHING_LOSS_BEV_SCALE_FACTOR = 10.0
     DATA_LOSS_SCALE_FACTOR = 1.0
     SMOOTHING_LOSS_SCALE_FACTOR = 10.0
+    EGO_PATH_LOSS_SCALE_FACTOR = 1.0
+    EGO_LANES_LOSS_SCALE_FACTOR = 1.0
 
     # Set training loss term scale factors
     trainer.set_loss_scale_factors(
+        DATA_LOSS_BEV_SCALE_FACTOR,
+        SMOOTHING_LOSS_BEV_SCALE_FACTOR,
         DATA_LOSS_SCALE_FACTOR,
-        SMOOTHING_LOSS_SCALE_FACTOR
+        SMOOTHING_LOSS_SCALE_FACTOR,
+        EGO_PATH_LOSS_SCALE_FACTOR,
+        EGO_LANES_LOSS_SCALE_FACTOR
+
     )
     
+    print(f"DATA_LOSS_BEV_SCALE_FACTOR : {DATA_LOSS_BEV_SCALE_FACTOR}")
+    print(f"SMOOTHING_LOSS_BEV_SCALE_FACTOR : {SMOOTHING_LOSS_BEV_SCALE_FACTOR}")
     print(f"DATA_LOSS_SCALE_FACTOR : {DATA_LOSS_SCALE_FACTOR}")
     print(f"SMOOTHING_LOSS_SCALE_FACTOR : {SMOOTHING_LOSS_SCALE_FACTOR}")
+    print(f"EGO_PATH_LOSS_SCALE_FACTOR : {EGO_PATH_LOSS_SCALE_FACTOR}")
+    print(f"EGO_LANES_LOSS_SCALE_FACTOR : {EGO_LANES_LOSS_SCALE_FACTOR}")
 
     # GRAD_LOSS_TYPE
     # There are two types of gradients loss, and either can be selected.
@@ -218,19 +208,6 @@ def main():
 
     print(f"DATA_SAMPLING_SCHEME : {DATA_SAMPLING_SCHEME}")
 
-    # BATCH_SIZE_SCHEME
-    # There are three type of BATCH_SIZE_SCHEME, the 'CONSTANT' batch size
-    # scheme sets a constant, fixed batch size value of 24 throughout training.
-    # The 'SLOW_DECAY' batch size scheme reduces the batch size during training,
-    # helping the model escape from local minima. The 'FAST_DECAY' batch size
-    # scheme decays the batch size faster, and may help with quicker model
-    # convergence.
-
-    BATCH_SIZE_SCHEME = "FAST_DECAY" # FAST_DECAY or SLOW_DECAY or CONSTANT
-
-    print(f"BATCH_SIZE_SCHEME : {BATCH_SIZE_SCHEME}")
-    
-    # ======================================================================= #
 
     # ========================= Main training loop ========================= #
 
@@ -243,38 +220,26 @@ def main():
 
         print(f"EPOCH : {epoch}")
 
-        if (BATCH_SIZE_SCHEME == "CONSTANT"):
+        # Batch Size Schedule
+        if (epoch == 0):
+            batch_size = 24
+        elif (epoch >= 10 and epoch < 20):
+            batch_size = 12
+        elif (epoch >= 20 and epoch < 30):
+            batch_size = 6
+        elif (epoch >= 30):
             batch_size = 3
-        elif (BATCH_SIZE_SCHEME == "FAST_DECAY"):
-            if (epoch == 0):
-                batch_size = 24
-            else:
-                batch_size = 3
-        elif (BATCH_SIZE_SCHEME == "SLOW_DECAY"):
-            if (epoch == 0):
-                batch_size = 24
-            else:
-                batch_size = 8
-
-        else:
-            raise ValueError(
-                "Please speficy BATCH_SIZE_SCHEME as either " \
-                " CONSTANT or FAST_DECAY or SLOW_DECAY"
-            )
         
         # Learning Rate Schedule
-        if ((epoch >= 1) and (epoch < 2)):
-            trainer.set_learning_rate(0.000025)
-        elif (epoch >= 2):
-            trainer.set_learning_rate(0.0000125)
-        # ((epoch >= 2) and (epoch < 3)):
-        # elif (epoch >= 4):
-        #     trainer.set_learning_rate(0.00000625)
+        if ((epoch >= 30) and (epoch < 40)):
+            trainer.set_learning_rate(0.0001)
+        elif (epoch >= 40):
+            trainer.set_learning_rate(0.00005)
 
         # Augmentation Schedule
-        apply_augmentation = True
-        if epoch >= 1:
-            apply_augmentation = False
+        apply_augmentation = False
+        if ((epoch >= 15) and (epoch < 35)):
+            apply_augmentation = True
 
         # Shuffle overall data list at start of epoch
         random.shuffle(data_list)
@@ -337,32 +302,35 @@ def main():
             # Fetch data from current processed dataset
             
             image = None
-            xs = []
-            ys = []
-            valids = []
-            mat = []
-
+            drivable_path_bev = []
+            drivable_path = []
+            ego_left_lane_bev = []
+            ego_left_lane = []
+            ego_right_lane_bev = []
+            ego_right_lane = []
+            
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            frame_id, image, xs, ys, _, valids, mat = msdict[current_dataset]["loader"].getItem(
+            frame_id, image, drivable_path_bev, drivable_path, \
+                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
+                ego_right_lane = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
             msdict[current_dataset]["iter"] = current_dataset_iter + 1
 
-            # Also fetch original visualization
-            orig_vis = Image.open(
+            # Also fetch original RGB Image
+            orig_image = Image.open(
                 os.path.join(
-                    msdict[dataset]["path_orig_vis"],
-                    f"{frame_id}.jpg"
+                    msdict[dataset]["path_orig_image"],
+                    f"{frame_id}.png"
                 )
             ).convert("RGB")
 
-            # Start the training on this data
-
             # Assign data
-
-            trainer.set_data(orig_vis, image, xs, ys, valids, mat)
+            trainer.set_data(orig_image, image, drivable_path_bev, drivable_path, \
+                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
+                ego_right_lane)
             
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
@@ -449,8 +417,8 @@ def main():
                             # Fetch it again, the orig vis
                             orig_vis = Image.open(
                                 os.path.join(
-                                    msdict[dataset]["path_orig_vis"],
-                                    f"{frame_id}.jpg"
+                                    msdict[dataset]["path_orig_image"],
+                                    f"{frame_id}.png"
                                 )
                             ).convert("RGB")
 

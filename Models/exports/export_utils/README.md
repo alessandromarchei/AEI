@@ -1,4 +1,4 @@
-# ONNX Model Quantization and Benchmarking Tools
+# Quanty - ONNX Model Quantization and Benchmarking Tools
 
 This folder adds two new utilities for ONNX model optimization and performance analysis:
 

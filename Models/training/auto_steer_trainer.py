@@ -13,28 +13,27 @@ from typing import Literal, get_args
 import sys
 
 sys.path.append('..')
-from model_components.scene_seg_network import SceneSegNetwork
-from model_components.ego_path_network import EgoPathNetwork
+from model_components.auto_steer_network import AutoSteerNetwork
 from data_utils.augmentations import Augmentations
 
 
-class BEVEgoPathTrainer():
+class AutoSteerTrainer():
     def __init__(
         self,  
-        checkpoint_path = "", 
-        pretrained_checkpoint_path = "", 
-        is_pretrained = False
+        checkpoint_path = ""
     ):
         
         # Images and gts
-        self.orig_vis = None
+        self.orig_image = None
         self.image = None
         self.H = None
         self.W = None
-        self.xs = []
-        self.ys = []
-        self.valids = []
-        self.mat = []
+        self.drivable_path_bev = []
+        self.drivable_path = []
+        self.ego_left_lane_bev = []
+        self.ego_left_lane = []
+        self.ego_right_lane_bev = []
+        self.ego_right_lane = []
 
         # Dims
         self.height = 640
@@ -47,7 +46,9 @@ class BEVEgoPathTrainer():
 
         # Model and pred
         self.model = None
-        self.pred_xs = None
+        self.pred_ego_path = None
+        self.pred_ego_left_lane = None
+        self.pred_ego_right_lane = None
 
         # Losses
         self.loss = 0
@@ -57,8 +58,12 @@ class BEVEgoPathTrainer():
         self.gradient_type = "NUMERICAL"
 
         # Loss scale factors
+        self.data_loss_bev_scale_factor = 1.0
+        self.smoothing_loss_bev_scale_factor = 1.0
         self.data_loss_scale_factor = 1.0
         self.smoothing_loss_scale_factor = 1.0
+        self.ego_path_loss_scale_factor = 1.0
+        self.ego_lanes_loss_scale_factor = 1.0
 
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
@@ -81,52 +86,23 @@ class BEVEgoPathTrainer():
         )
         print(f"Using {self.device} for inference.")
 
-        if (is_pretrained):
-
-            # Instantiate model for validation or inference - load both pre-trained SceneSeg and SuperDepth weights
-            if (len(checkpoint_path) > 0):
-
-                # Loading model with full pre-trained weights
-                sceneSegNetwork = SceneSegNetwork()
-                self.model = EgoPathNetwork(sceneSegNetwork)
-
-                # If the model is also pre-trained then load the pre-trained downstream weights
-                self.model.load_state_dict(torch.load(
-                    checkpoint_path, 
-                    weights_only = True, 
-                    map_location = self.device
-                ))
-                print("Loading pre-trained model weights of EgoPath from a saved checkpoint file")
-            else:
-                raise ValueError("Please ensure EgoPath network weights are provided for downstream elements")
+        # Instantiate model
+        self.model = AutoSteerNetwork()
             
-        else:
-
-            # Instantiate Model for training - load pre-trained SceneSeg weights only
-            if (len(pretrained_checkpoint_path) > 0):
-                
-                # Loading SceneSeg pre-trained for upstream weights
-                sceneSegNetwork = SceneSegNetwork()
-                sceneSegNetwork.load_state_dict(torch.load(
-                    pretrained_checkpoint_path, 
-                    weights_only = True, 
-                    map_location = self.device
-                ))
-                    
-                # Loading model with pre-trained upstream weights
-                self.model = EgoPathNetwork(sceneSegNetwork)
-                print("Loading pre-trained backbone model weights only, EgoPath initialised with random weights")
-            else:
-                raise ValueError("Please ensure EgoPath network weights are provided for upstream elements")
-            
-        # Model to device
+        if(len(checkpoint_path) > 0):
+            self.model.load_state_dict(torch.load \
+                (checkpoint_path, weights_only=True))
+            print("Loading trained AutoSteer model from checkpoint")
+        
         self.model = self.model.to(self.device)
+        print("Loading vanilla AutoSteer model for training")
+
         
         # TensorBoard
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.00005
+        self.learning_rate = 0.0005
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
@@ -146,17 +122,39 @@ class BEVEgoPathTrainer():
     def set_learning_rate(self, learning_rate):
         self.learning_rate = learning_rate
 
+    # Set scale factors for losses
+    def set_loss_scale_factors(
+        self,
+        data_loss_bev_scale_factor,
+        smoothing_loss_bev_scale_factor,
+        data_loss_scale_factor,
+        smoothing_loss_scale_factor,
+        ego_path_loss_scale_factor,
+        ego_lanes_loss_scale_factor
+    ):
+        self.data_loss_bev_scale_factor = data_loss_bev_scale_factor
+        self.smoothing_loss_bev_scale_factor = smoothing_loss_bev_scale_factor
+        self.data_loss_scale_factor = data_loss_scale_factor
+        self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
+        self.ego_path_loss_scale_factor = ego_path_loss_scale_factor
+        self.ego_lanes_loss_scale_factor = ego_lanes_loss_scale_factor
+
     # Assign input variables
-    def set_data(self, orig_vis, image, xs, ys, valids, mat):
-        self.orig_vis = orig_vis
+    def set_data(self, orig_image, image, drivable_path_bev, drivable_path, \
+                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
+                ego_right_lane):
+        
+        self.orig_image = orig_image
         h, w, _ = image.shape
         self.image = image
         self.H = h
         self.W = w
-        self.xs = np.array(xs, dtype = "float32")
-        self.ys = np.array(ys, dtype = "float32")
-        self.valids = np.array(valids, dtype = "float32")
-        self.mat = np.array(mat, dtype = "float32")
+        self.drivable_path_bev = np.array(drivable_path_bev, dtype = "float32")
+        self.drivable_path = np.array(drivable_path, dtype = "float32")
+        self.ego_left_lane_bev = np.array(ego_left_lane_bev, dtype = "float32")
+        self.ego_left_lane = np.array(ego_left_lane, dtype = "float32")
+        self.ego_right_lane_bev = np.array(ego_right_lane_bev, dtype = "float32")
+        self.ego_right_lane = np.array(ego_right_lane, dtype = "float32")
 
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -189,11 +187,14 @@ class BEVEgoPathTrainer():
     # Run Model
     def run_model(self):
         self.pred_xs = self.model(self.image_tensor)
-        self.loss = self.calc_loss(
-            self.pred_xs, 
-            self.xs_tensor,
-            self.valids_tensor
-        )
+        self.pred_ego_path, self.pred_ego_left_lane, \
+            self.pred_ego_right_lane = self.model(self.image_tensor)
+        
+        #self.loss = self.calc_loss(
+        #    self.pred_xs, 
+        #    self.xs_tensor,
+        #    self.valids_tensor
+        #)
 
     # Calculate loss
     def calc_loss(self, pred_xs, xs, valids):
@@ -207,14 +208,6 @@ class BEVEgoPathTrainer():
 
         return total_loss 
     
-    # Set scale factors for losses
-    def set_loss_scale_factors(
-        self,
-        data_loss_scale_factor,
-        smoothing_loss_scale_factor,
-    ):
-        self.data_loss_scale_factor = data_loss_scale_factor
-        self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
 
     # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
     def set_gradient_loss_type(self, type):

@@ -1,12 +1,12 @@
 from .pre_trained_backbone import PreTrainedBackbone
 from .bev_path_context import BEVPathContext
-from .ego_path_head import EgoPathHead
+from .ego_lanes_head import EgoLanesHead
 
 import torch.nn as nn
 
-class EgoPathNetwork(nn.Module):
+class EgoLanesNetwork(nn.Module):
     def __init__(self, pretrained):
-        super(EgoPathNetwork, self).__init__()
+        super(EgoLanesNetwork, self).__init__()
 
         # Upstream blocks
         self.PreTrainedBackbone = PreTrainedBackbone(pretrained)
@@ -14,13 +14,13 @@ class EgoPathNetwork(nn.Module):
         # Path Context
         self.PathContext = BEVPathContext()
 
-        # EgoPath Head
-        self.EgoPathHead = EgoPathHead()
+        # EgoLanes Head
+        self.EgoLanesHead = EgoLanesHead()
     
 
     def forward(self, image):
         features = self.PreTrainedBackbone(image)
         deep_features = features[4]
         context = self.PathContext(deep_features)
-        ego_path = self.EgoPathHead(context)
-        return ego_path
+        ego_left_lane, ego_right_lane = self.EgoLanesHead(context)
+        return ego_left_lane, ego_right_lane
