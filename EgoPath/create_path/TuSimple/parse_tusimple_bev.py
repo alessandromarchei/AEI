@@ -594,7 +594,7 @@ if __name__ == "__main__":
         # Register this frame GT to master JSON
         # Each point has tuple format (x, y, flag, valid)
         data_master[frame_id] = {
-            "drivable_path" : [
+            "bev_egopath" : [
                 (point[0], point[1], flag, valid)
                 for point, flag, valid in list(zip(
                     roundLineFloats(
@@ -608,7 +608,21 @@ if __name__ == "__main__":
                     validity_list
                 ))
             ],
+            "reproj_egopath" : [
+
+            ],
+            "bev_egoleft" : [
             
+            ],
+            "reproj_egoleft" : [
+
+            ],
+            "bev_egoright" : [
+
+            ],
+            "reproj_egoright" : [
+                
+            ]
         }
 
         # Break if early_stopping reached
