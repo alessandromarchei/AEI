@@ -20,9 +20,19 @@ void Estimator::update(const std::array<Gaussian, STATE_DIM> &measurement)
     for (size_t i = 0; i < STATE_DIM; ++i)
     {
         double v0 = state[i].variance;
-        double v1 = measurement[i].variance;
         double m0 = state[i].mean;
-        double m1 = measurement[i].mean;
+
+        double v1, m1;
+        if (std::isnan(measurement[i].mean))
+        {
+            m1 = state[i].mean;
+            v1 = state[i].variance * 1.25;
+        }
+        else
+        {
+            v1 = measurement[i].variance;
+            m1 = measurement[i].mean;
+        }
 
         double v2 = (v0 * v1) / (v0 + v1);
         double m2 = (m0 * v1 + m1 * v0) / (v0 + v1);

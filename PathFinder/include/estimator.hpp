@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <array>
+#include <cmath>
 
 constexpr size_t STATE_DIM = 13;
 
