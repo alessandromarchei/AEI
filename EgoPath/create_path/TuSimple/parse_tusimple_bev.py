@@ -608,7 +608,7 @@ if __name__ == "__main__":
                     validity_list
                 ))
             ],
-            "transform_matrix" : mat.tolist()
+            
         }
 
         # Break if early_stopping reached
