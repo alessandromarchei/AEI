@@ -609,21 +609,36 @@ if __name__ == "__main__":
         # Transform to BEV space            
 
         # Egopath
-        (im_dst, bev_egopath, orig_bev_egopath, flag_list, validity_list, mat, success) = transformBEV(
+        (
+            im_dst, 
+            bev_egopath, orig_bev_egopath, 
+            egopath_flag_list, egopath_validity_list, 
+            mat, success
+        ) = transformBEV(
             img = img,
             line = this_frame_data["drivable_path"],
             sps = STANDARD_SPS
         )
 
         # Egoleft
-        (_, bev_egoleft, orig_bev_egoleft, flag_list, validity_list, _, _) = transformBEV(
+        (
+            _, 
+            bev_egoleft, orig_bev_egoleft, 
+            egoleft_flag_list, egoleft_validity_list, 
+            _, _
+        ) = transformBEV(
             img = img, 
             line = this_frame_data["egoleft_lane"],
             sps = STANDARD_SPS
         )
 
         # Egoright
-        (_, bev_egoright, orig_bev_egoright, flag_list, validity_list, _, _) = transformBEV(
+        (
+            _, 
+            bev_egoright, orig_bev_egoright, 
+            egoright_flag_list, egoright_validity_list, 
+            _, _
+        ) = transformBEV(
             img = img, 
             line = this_frame_data["egoright_lane"],
             sps = STANDARD_SPS
@@ -667,24 +682,79 @@ if __name__ == "__main__":
                             height = BEV_H
                         )
                     ), 
-                    flag_list, 
-                    validity_list
+                    egopath_flag_list, 
+                    egopath_validity_list
                 ))
             ],
             "reproj_egopath" : [
-
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            orig_bev_egopath,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egopath_flag_list, 
+                    egopath_validity_list
+                ))
             ],
             "bev_egoleft" : [
-            
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            bev_egoleft,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egoleft_flag_list, 
+                    egoleft_validity_list
+                ))
             ],
             "reproj_egoleft" : [
-
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            orig_bev_egoleft,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egoleft_flag_list, 
+                    egoleft_validity_list
+                ))
             ],
             "bev_egoright" : [
-
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            bev_egoright,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egoright_flag_list, 
+                    egoright_validity_list
+                ))
             ],
             "reproj_egoright" : [
-
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            orig_bev_egoright,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egoright_flag_list, 
+                    egoright_validity_list
+                ))
             ]
         }
 
