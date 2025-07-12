@@ -138,8 +138,11 @@ def annotateGT(
     orig_img: np.ndarray,
     frame_id: str,
     bev_egopath: list,
+    reproj_egopath: list,
     bev_egoleft: list,
+    reproj_egoleft: list,
     bev_egoright: list,
+    reproj_egoright: list,
     sps: dict,
     raw_dir: str, 
     visualization_dir: str,
@@ -249,6 +252,51 @@ def annotateGT(
         (W, int(sps["ego_h"])),
         COLOR_HEIGHT,
         2
+    )
+
+    # Draw reprojected egopath
+    if (normalized):
+        h, w, _ = img_bev_vis.shape
+        renormed_reproj_egopath = [
+            (x * w, y * h) 
+            for x, y in reproj_egopath
+        ]
+    else:
+        renormed_reproj_egopath = reproj_egopath
+    drawLine(
+        img = orig_img,
+        line = renormed_reproj_egopath,
+        color = COLOR_EGOPATH
+    )
+    
+    # Draw reprojected egoleft
+    if (normalized):
+        h, w, _ = img_bev_vis.shape
+        renormed_reproj_egoleft = [
+            (x * w, y * h) 
+            for x, y in reproj_egoleft
+        ]
+    else:
+        renormed_reproj_egoleft = reproj_egoleft
+    drawLine(
+        img = orig_img,
+        line = renormed_reproj_egoleft,
+        color = COLOR_EGOLEFT
+    )
+
+    # Draw reprojected egoright
+    if (normalized):
+        h, w, _ = img_bev_vis.shape
+        renormed_reproj_egoright = [
+            (x * w, y * h) 
+            for x, y in reproj_egoright
+        ]
+    else:
+        renormed_reproj_egoright = reproj_egoright
+    drawLine(
+        img = orig_img,
+        line = renormed_reproj_egoright,
+        color = COLOR_EGORIGHT
     )
 
     # Save it
@@ -595,8 +643,11 @@ if __name__ == "__main__":
             orig_img = img,
             frame_id = frame_id,
             bev_egopath = bev_egopath,
+            reproj_egopath = orig_bev_egopath,
             bev_egoleft = bev_egoleft,
+            reproj_egoleft = orig_bev_egoleft,
             bev_egoright = bev_egoright,
+            reproj_egoright = orig_bev_egoright,
             sps = STANDARD_SPS,
             raw_dir = BEV_IMG_DIR,
             visualization_dir = BEV_VIS_DIR,
