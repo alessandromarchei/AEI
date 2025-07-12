@@ -278,13 +278,13 @@ def interpX(line, y):
 
 
 def polyfit_BEV(
-    bev_egopath: list,
+    bev_line: list,
     order: int,
     y_step: int,
     y_limit: int
 ):
-    x = [point[0] for point in bev_egopath]
-    y = [point[1] for point in bev_egopath]
+    x = [point[0] for point in bev_line]
+    y = [point[1] for point in bev_line]
     z = np.polyfit(y, x, order)
     f = np.poly1d(z)
     y_new = np.linspace(
@@ -294,26 +294,26 @@ def polyfit_BEV(
     x_new = f(y_new)
 
     # Sort by decreasing y
-    fitted_bev_egopath = sorted(
+    fitted_bev_line = sorted(
         tuple(zip(x_new, y_new)),
         key = lambda x: x[1],
         reverse = True
     )
 
-    flag_list = [0] * len(fitted_bev_egopath)
-    for i in range(len(fitted_bev_egopath)):
-        if (not 0 <= fitted_bev_egopath[i][0] <= BEV_W):
+    flag_list = [0] * len(fitted_bev_line)
+    for i in range(len(fitted_bev_line)):
+        if (not 0 <= fitted_bev_line[i][0] <= BEV_W):
             flag_list[i - 1] = 1
             break
     if (not 1 in flag_list):
         flag_list[-1] = 1
 
-    validity_list = [1] * len(fitted_bev_egopath)
+    validity_list = [1] * len(fitted_bev_line)
     last_valid_index = flag_list.index(1)
     for i in range(last_valid_index + 1, len(validity_list)):
         validity_list[i] = 0
     
-    return fitted_bev_egopath, flag_list, validity_list
+    return fitted_bev_line, flag_list, validity_list
 
 
 def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
@@ -365,21 +365,21 @@ def findSourcePointsBEV(
 
 def transformBEV(
     img: np.ndarray,
-    egopath: list,
+    line: list,
     sps: dict
 ):
     h, w, _ = img.shape
 
     # Renorm/tuplize drivable path
-    egopath = [
-        (point[0] * w, point[1] * h) for point in egopath
+    line = [
+        (point[0] * w, point[1] * h) for point in line
         if (point[1] * h >= sps["ego_h"])
     ]
-    if (not egopath):
+    if (not line):
         return (None, None, None, None, None, False)
 
-    # Interp more points for original egopath
-    egopath = interpLine(egopath, MIN_POINTS)
+    # Interp more points for original line
+    line = interpLine(line, MIN_POINTS)
 
     # Get transformation matrix
     mat, _ = cv2.findHomography(
@@ -404,25 +404,37 @@ def transformBEV(
     )
 
     # Transform egopath
-    bev_egopath = np.array(
-        egopath,
+    bev_line = np.array(
+        line,
         dtype = np.float32
     ).reshape(-1, 1, 2)
-    bev_egopath = cv2.perspectiveTransform(bev_egopath, mat)
-    bev_egopath = [
+    bev_line = cv2.perspectiveTransform(bev_line, mat)
+    bev_line = [
         tuple(map(int, point[0])) 
-        for point in bev_egopath
+        for point in bev_line
     ]
 
     # Polyfit BEV egopath to get 33-coords format with flags
-    bev_egopath, flag_list, validity_list = polyfit_BEV(
-        bev_egopath = bev_egopath,
+    bev_line, flag_list, validity_list = polyfit_BEV(
+        bev_line = bev_line,
         order = POLYFIT_ORDER,
         y_step = BEV_Y_STEP,
         y_limit = BEV_H
     )
 
-    return (im_dst, bev_egopath, flag_list, validity_list, mat, True)
+    # Now reproject it back to orig space
+    inv_mat = np.linalg.inv(mat)
+    reproj_line = np.array(
+        bev_line,
+        dtype = np.float32
+    ).reshape(-1, 1, 2)
+    reproj_line = cv2.perspectiveTransform(reproj_line, inv_mat)
+    reproj_line = [
+        tuple(map(int, point[0])) 
+        for point in reproj_line
+    ]
+
+    return (im_dst, bev_line, reproj_line, flag_list, validity_list, mat, True)
 
 
 # ============================== Main run ============================== #
@@ -549,23 +561,23 @@ if __name__ == "__main__":
         # Transform to BEV space            
 
         # Egopath
-        (im_dst, bev_egopath, flag_list, validity_list, mat, success) = transformBEV(
+        (im_dst, bev_egopath, orig_bev_egopath, flag_list, validity_list, mat, success) = transformBEV(
             img = img,
-            egopath = this_frame_data["drivable_path"],
+            line = this_frame_data["drivable_path"],
             sps = STANDARD_SPS
         )
 
         # Egoleft
-        (_, bev_egoleft, flag_list, validity_list, _, _) = transformBEV(
+        (_, bev_egoleft, orig_bev_egoleft, flag_list, validity_list, _, _) = transformBEV(
             img = img, 
-            egopath = this_frame_data["egoleft_lane"],
+            line = this_frame_data["egoleft_lane"],
             sps = STANDARD_SPS
         )
 
         # Egoright
-        (_, bev_egoright, flag_list, validity_list, _, _) = transformBEV(
+        (_, bev_egoright, orig_bev_egoright, flag_list, validity_list, _, _) = transformBEV(
             img = img, 
-            egopath = this_frame_data["egoright_lane"],
+            line = this_frame_data["egoright_lane"],
             sps = STANDARD_SPS
         )
         
@@ -621,7 +633,7 @@ if __name__ == "__main__":
 
             ],
             "reproj_egoright" : [
-                
+
             ]
         }
 
