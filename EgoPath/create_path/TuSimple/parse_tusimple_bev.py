@@ -424,7 +424,7 @@ def transformBEV(
         if (point[1] * h >= sps["ego_h"])
     ]
     if (not line):
-        return (None, None, None, None, None, False)
+        return (None, None, None, None, None, None, False)
 
     # Interp more points for original line
     line = interpLine(line, MIN_POINTS)
