@@ -2,7 +2,7 @@
 
 C++ module responsible for fusing the outputs of EgoPath and EgoLanes and deriving the shape of the driving corridor and the relative position of the vehicle with respect to the driving corridor. It takes in labelled EgoLane and EgoPath detection in pixel coordinates from camera perspective and tracks error metrics (cross-track error, yaw error, curvature and corridor width) in metric coordinates from Bird's-Eye-View perspective using Bayes filter. These error metrics will be utilized by a downstream steering controller.
 
-![](docs/bev.png)![](docs/camera_view_lane_annotations.png) 
+![](../Media/PathFinder_bev.png)![](../Media/PathFinder_lane_annotations.png) 
 
 ## Dependencies
 - C++17
@@ -24,7 +24,7 @@ The following measures are taken to ensure robust estimation of
 2. Yaw error & Curvature: Fused left and right EgoLanes Yaw error & Curvature to reduce the effect of perspective warping from the flat ground plane assumption. 
 
 13 Tracked states including 10 individually tracked states and 3 fused states:
-![alt text](docs/tracked_states.png)
+![alt text](../Media/PathFinder_tracked_states.png)
 
 ## How to run
 

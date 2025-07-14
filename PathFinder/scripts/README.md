@@ -30,7 +30,7 @@ The generated annotated images and yaml files are located here
 
 ```
 Example of annotated image
-![](../docs/camera_view_lane_annotations.png)
+![](../../Media/PathFinder_lane_annotations.png)
 
 YAML file structure
 ```yaml
