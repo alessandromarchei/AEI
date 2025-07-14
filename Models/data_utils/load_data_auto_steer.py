@@ -106,24 +106,28 @@ class LoadDataAutoSteer():
     def getItem(self, index, is_train: bool):
         if (is_train):
             img = Image.open(str(self.train_images[index])).convert("RGB")
+            drivable_path_bev = self.train_labels[index]["drivable_path_bev"]
+            ego_left_lane_bev = self.train_labels[index]["ego_left_lane_bev"]
+            ego_right_lane_bev = self.train_labels[index]["ego_right_lane_bev"]
             drivable_path = self.train_labels[index]["drivable_path"]
-            transform_matrix = self.train_labels[index]["transform_matrix"]
+            ego_left_lane = self.train_labels[index]["ego_left_lane"]
+            ego_right_lane = self.train_labels[index]["ego_right_lane"]
             frame_id = self.train_ids[index]
         else:
             img = Image.open(str(self.val_images[index])).convert("RGB")
-            drivable_path = self.val_labels[index]["drivable_path"]
-            transform_matrix = self.val_labels[index]["transform_matrix"]
+            drivable_path_bev = self.train_labels[index]["drivable_path_bev"]
+            ego_left_lane_bev = self.train_labels[index]["ego_left_lane_bev"]
+            ego_right_lane_bev = self.train_labels[index]["ego_right_lane_bev"]
+            drivable_path = self.train_labels[index]["drivable_path"]
+            ego_left_lane = self.train_labels[index]["ego_left_lane"]
+            ego_right_lane = self.train_labels[index]["ego_right_lane"]
             frame_id = self.val_ids[index]
 
         W, H = img.size
 
         # Convert image to OpenCV/Numpy format for augmentations
         img = np.array(img)
-
-        # Split label to 3 lists
-        xs = [lab[0] / W for lab in drivable_path]
-        ys = [lab[1] / H for lab in drivable_path]
-        flags = [lab[2] for lab in drivable_path]
-        valids = [lab[3] for lab in drivable_path]
         
-        return frame_id, img, xs, ys, flags, valids, transform_matrix
+        return frame_id, img, drivable_path_bev, drivable_path, \
+                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
+                ego_right_lane
