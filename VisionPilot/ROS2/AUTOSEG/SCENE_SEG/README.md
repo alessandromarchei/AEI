@@ -17,10 +17,10 @@ The easiest way to see the node in action is to use the provided test pipeline, 
 
 ### 1. Build the Package
 
-First, build the workspace, making sure to point `cmake` to the location of your ONNX Runtime installation.
+First, build the workspace, making sure to point `cmake` to the location of your ONNX Runtime installation. For better performance, it is highly recommended to build in `Release` mode.
 
 ```bash
-colcon build --packages-select autoware_pov_scene_seg --cmake-args -DONNXRUNTIME_ROOTDIR=/path/to/your/onnxruntime
+colcon build --packages-select autoware_pov_scene_seg --cmake-args -DONNXRUNTIME_ROOTDIR=/path/to/your/onnxruntime -DCMAKE_BUILD_TYPE=Release
 ```
 
 ### 2. Run the Test Launch File

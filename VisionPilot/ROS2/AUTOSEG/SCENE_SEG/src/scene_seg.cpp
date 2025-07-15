@@ -3,6 +3,7 @@
 #include "scene_seg.hpp"
 #include <vector>
 #include <stdexcept>
+#include "rclcpp/rclcpp.hpp"
 
 // Use the C API for wider compatibility with pre-built binaries
 #include "onnxruntime_c_api.h"
@@ -27,12 +28,12 @@ void SceneSeg::initializeOrtSession(const std::string& model_path, const std::st
   if (precision == "cuda") {
      try {
         Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CUDA(session_options_, gpu_id));
-        fprintf(stdout, "INFO: Using CUDA Execution Provider on GPU %d.\n", gpu_id);
+        RCLCPP_INFO(rclcpp::get_logger("scene_seg"), "Using CUDA Execution Provider on GPU %d.", gpu_id);
      } catch (const Ort::Exception& e) {
-        fprintf(stderr, "WARN: CUDA Execution Provider is not available. Falling back to CPU. Error: %s\n", e.what());
+        RCLCPP_WARN(rclcpp::get_logger("scene_seg"), "CUDA Execution Provider is not available. Falling back to CPU. Error: %s", e.what());
      }
   } else {
-    fprintf(stdout, "INFO: Using default CPU Execution Provider.\n");
+    RCLCPP_INFO(rclcpp::get_logger("scene_seg"), "Using default CPU Execution Provider.");
   }
 
   ort_session_ = std::make_unique<Ort::Session>(env_, model_path.c_str(), session_options_);
@@ -88,7 +89,7 @@ bool SceneSeg::doInference(const cv::Mat & input_image)
             Ort::RunOptions{nullptr}, const_cast<const char* const*>(input_names_.data()), &input_tensor, 1,
             const_cast<const char* const*>(output_names_.data()), output_names_.size());
     } catch (const Ort::Exception& e) {
-        fprintf(stderr, "ONNX Runtime inference failed: %s\n", e.what());
+        RCLCPP_ERROR(rclcpp::get_logger("scene_seg"), "ONNX Runtime inference failed: %s", e.what());
         return false;
     }
     

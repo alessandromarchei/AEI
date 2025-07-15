@@ -42,8 +42,9 @@ target_link_libraries(${PROJECT_NAME}_engine
   PUBLIC
     onnxruntime
     ${OpenCV_LIBS}
+    rclcpp::rclcpp
 )
-ament_target_dependencies(${PROJECT_NAME}_engine PUBLIC)
+# ament_target_dependencies(${PROJECT_NAME}_engine rclcpp)
 
 # --- ROS2 Node ---
 add_library(${PROJECT_NAME}_node SHARED src/scene_seg_node.cpp)
