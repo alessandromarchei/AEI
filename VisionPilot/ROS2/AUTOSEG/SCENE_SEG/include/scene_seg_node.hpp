@@ -26,6 +26,7 @@ public:
   explicit SceneSegNode(const rclcpp::NodeOptions & node_options);
 
 private:
+  bool measure_latency_;
   // ROS2 Callback
   void onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg);
   void onConnect();
@@ -41,9 +42,10 @@ private:
   // Timer to check for connections
   rclcpp::TimerBase::SharedPtr timer_;
 
-//   // Debugging utilities
-//   std::unique_ptr<autoware_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_;
-//   std::unique_ptr<autoware_utils::DebugPublisher> debug_publisher_;
+  // Lightweight latency monitoring
+  std::chrono::steady_clock::time_point inference_start_time_;
+  size_t frame_count_{0};
+  static constexpr size_t LATENCY_SAMPLE_INTERVAL = 100; // Log every 100 frames
 };
 
 }  // namespace autoware_pov::AutoSeg::SceneSeg
