@@ -18,4 +18,6 @@ include_directories(
 
 ## Build & Link
 add_executable(video_publisher video_publisher.cpp)
-target_link_libraries(video_publisher PRIVATE ${OpenCV_LIBS} opencv_videoio opencv_imgproc opencv_highgui )
+target_link_libraries(video_publisher PRIVATE ${OpenCV_LIBS} opencv_videoio opencv_imgproc opencv_highgui zenohc::lib)
+add_executable(video_subscriber video_subscriber.cpp)
+target_link_libraries(video_subscriber PRIVATE ${OpenCV_LIBS} opencv_videoio opencv_imgproc opencv_highgui zenohc::lib)
