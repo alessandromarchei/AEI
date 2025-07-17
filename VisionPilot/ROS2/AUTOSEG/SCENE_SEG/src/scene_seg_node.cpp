@@ -12,11 +12,13 @@ SceneSegNode::SceneSegNode(const rclcpp::NodeOptions & node_options)
 {
   // Declare and get parameters
   const std::string model_path = this->declare_parameter<std::string>("model_path");
+  const std::string backend = this->declare_parameter<std::string>("backend", "onnxruntime");
   const std::string precision = this->declare_parameter<std::string>("precision", "cpu");
   const int gpu_id = this->declare_parameter<int>("gpu_id", 0);
+  measure_latency_ = this->declare_parameter<bool>("measure_latency", false);
 
   // Initialize the segmentation engine
-  scene_seg_ = std::make_unique<SceneSeg>(model_path, precision, gpu_id);
+  scene_seg_ = std::make_unique<SceneSeg>(model_path, backend, precision, gpu_id);
   
   // Setup publishers
   mask_pub_ = image_transport::create_publisher(this, "~/out/mask");
@@ -43,16 +45,34 @@ void SceneSegNode::onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg)
   cv_bridge::CvImagePtr in_image_ptr;
   try {
     in_image_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-  } catch (const cv_bridge::Exception& e) {
+  } catch (const cv_bridge::Exception & e) {
     RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
     return;
   }
-  
+
+  // --- Latency Watcher Start ---
+  if (measure_latency_ && (++frame_count_ % LATENCY_SAMPLE_INTERVAL == 0)) {
+    inference_start_time_ = std::chrono::steady_clock::now();
+  }
+  // -----------------------------
+
   // Run inference
   if (!scene_seg_->doInference(in_image_ptr->image)) {
     RCLCPP_WARN(this->get_logger(), "Failed to run inference");
     return;
   }
+
+  // --- Latency Watcher End & Report ---
+  if (measure_latency_ && (frame_count_ % LATENCY_SAMPLE_INTERVAL == 0)) {
+    auto inference_end_time = std::chrono::steady_clock::now();
+    auto latency_ms =
+      std::chrono::duration<double, std::milli>(inference_end_time - inference_start_time_)
+        .count();
+    RCLCPP_INFO(
+      this->get_logger(), "Frame %zu: Inference Latency: %.2f ms (%.1f FPS)", frame_count_,
+      latency_ms, 1000.0 / latency_ms);
+  }
+  // ------------------------------------
   
   // Decide whether we need to generate any masks
   const bool need_raw_mask = mask_pub_.getNumSubscribers() > 0;
