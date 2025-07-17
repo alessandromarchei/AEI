@@ -24,10 +24,22 @@ def generate_launch_description():
         description="The execution provider to use for inference (e.g., 'cpu', 'cuda')."
     )
 
+    declare_backend_arg = DeclareLaunchArgument(
+        "backend",
+        default_value="onnxruntime",
+        description="The backend to use for inference (e.g., 'onnxruntime', 'tensorrt')."
+    )
+
     declare_gpu_id_arg = DeclareLaunchArgument(
         "gpu_id",
         default_value="0",
         description="The GPU device ID to use for inference."
+    )
+
+    declare_measure_latency_arg = DeclareLaunchArgument(
+        "measure_latency",
+        default_value="false",
+        description="Whether to measure latency."
     )
 
     # Add a new launch argument to make the input topic configurable
@@ -44,8 +56,10 @@ def generate_launch_description():
         name="scene_seg_node",
         parameters=[{
             "model_path": LaunchConfiguration("model_path"),
+            "backend": LaunchConfiguration("backend"),
             "precision": LaunchConfiguration("precision"),
             "gpu_id": LaunchConfiguration("gpu_id"),
+            "measure_latency": LaunchConfiguration("measure_latency"),
         }],
         # --- Remap input/output topics using the launch argument ---
         remappings=[
@@ -67,7 +81,9 @@ def generate_launch_description():
     return LaunchDescription([
         declare_model_path_arg,
         declare_precision_arg,
+        declare_backend_arg,
         declare_gpu_id_arg,
+        declare_measure_latency_arg,
         declare_input_topic_arg,  # Add the new argument to the launch description
         container
     ]) 
