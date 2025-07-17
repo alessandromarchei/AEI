@@ -47,23 +47,27 @@ int main(int argc, char* argv[]) {
         if (z_declare_publisher(z_loan(s), &pub, z_loan(ke), NULL) < 0) {
             throw std::runtime_error("Error declaring Zenoh publisher for key expression: " + std::string(DEFAULT_KEYEXPR));
         }
-        // Set Zenoh publisher options
-        z_publisher_put_options_t options;
-        z_publisher_put_options_default(&options);
 
         // Display video frames
-        std::cout << "Processing video... Press ESC to stop." << std::endl;
         cv::Mat frame;
         while (cap.read(frame)) {
+            // Set Zenoh publisher options
+            z_publisher_put_options_t options;
+            z_publisher_put_options_default(&options);
+            // Put the frame information into the attachment
+            //std::cout << "Frame: dataSize=" << dataSize << ", row=" << frame.rows << ", cols=" << frame.cols << ", type=" << frame.type() << std::endl;
+            z_owned_bytes_t attachment;
+            // row, col, type
+            int input_bytes[] = {frame.rows, frame.cols, frame.type()};
+            z_bytes_copy_from_buf(&attachment, (const uint8_t*)input_bytes, sizeof(input_bytes));
+            options.attachment = z_move(attachment);
+
             // Publish images
             unsigned char* pixelPtr = frame.data; 
             size_t dataSize = frame.total() * frame.elemSize(); 
             z_owned_bytes_t payload;
             z_bytes_copy_from_buf(&payload, pixelPtr, dataSize);
             z_publisher_put(z_loan(pub), z_move(payload), &options);
-
-            // Frame information
-            //std::cout << "Frame: dataSize=" << dataSize << ", row=" << frame.rows << ", cols=" << frame.cols << ", type=" << frame.type() << std::endl;
         }
         
         // Clean up

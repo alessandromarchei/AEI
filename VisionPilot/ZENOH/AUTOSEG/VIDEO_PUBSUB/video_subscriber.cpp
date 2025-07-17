@@ -41,6 +41,7 @@ int main(int argc, char**) {
             throw std::runtime_error("Error declaring Zenoh subscriber for key expression: " + std::string(DEFAULT_KEYEXPR));
         }
         
+        std::cout << "Processing video... Press ESC to stop." << std::endl;
         z_owned_sample_t sample;
         while (Z_OK == z_recv(z_loan(handler), &sample)) {
             const z_loaned_sample_t* loaned_sample = z_loan(sample);
@@ -49,13 +50,27 @@ int main(int argc, char**) {
                 throw std::runtime_error("Wrong payload");
             }
             const uint8_t* ptr = z_slice_data(z_loan(zslice));
+
+            // Extract the frame information for the attachment
+            const z_loaned_bytes_t* attachment = z_sample_attachment(loaned_sample);
+            int row, col, type;
+            if (attachment != NULL) {
+                z_owned_slice_t output_bytes;
+                int attachment_arg[3];
+                z_bytes_to_slice(attachment, &output_bytes);
+                memcpy(attachment_arg, z_slice_data(z_loan(output_bytes)), z_slice_len(z_loan(output_bytes)));
+                row = attachment_arg[0];
+                col = attachment_arg[1];
+                type = attachment_arg[2];
+                z_drop(z_move(output_bytes));
+            } else {
+                throw std::runtime_error("No attachment");
+            }
             //size_t the_size = z_slice_len(z_loan(zslice));
+            //std::cout << "Frame: size=" << the_size << ", row=" << row << ", col=" << col << ", type=" << type << std::endl;
 
-            // Need to send rows, cols, and type through the attachment
-            //cv::Mat frame(frame.rows, frame.cols, frame.type(), ptr);
-            cv::Mat frame(720, 1280, 16, (uint8_t *)ptr);
-            //std::cout << "Receive: " << the_size << std::endl;
-
+            // Create the frame and show it
+            cv::Mat frame(row, col, type, (uint8_t *)ptr);
             cv::imshow("Play video", frame);
             if (cv::waitKey(1) == 27) { // Stop if 'ESC' is pressed
                 std::cout << "Processing stopped by user." << std::endl;
