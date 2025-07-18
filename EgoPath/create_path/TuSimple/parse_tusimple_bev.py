@@ -586,6 +586,7 @@ if __name__ == "__main__":
         egoleft = STANDARD_JSON["egoleft_lane"],
         egoright = STANDARD_JSON["egoright_lane"]
     )
+    matrix_registered = False
 
     # MAIN GENERATION LOOP
 
@@ -619,6 +620,12 @@ if __name__ == "__main__":
             line = this_frame_data["drivable_path"],
             sps = STANDARD_SPS
         )
+
+        # Register standard homography matrix for the first time
+        if (not matrix_registered):
+            data_master["standard_homomatrix"] = mat.tolist()
+            print("Registered standard homography matrix!")
+            matrix_registered = True
 
         # Egoleft
         (
