@@ -11,7 +11,8 @@ class EgoPathHead(nn.Module):
 
         # Context - MLP Layers
         self.ego_path_layer_0 = nn.Linear(800, 200)
-        self.ego_path_layer_1 = nn.Linear(200, 33)
+        self.ego_path_layer_1 = nn.Linear(200, 200)
+        self.ego_path_layer_2 = nn.Linear(200, 5)
  
 
     def forward(self, features):
@@ -21,7 +22,9 @@ class EgoPathHead(nn.Module):
         # MLP
         p0 = self.ego_path_layer_0(feature_vector)
         p0 = self.GeLU(p0)
-        ego_path = self.ego_path_layer_1(p0)
+        p1 = self.ego_path_layer_1(p0)
+        p1 = self.GeLU(p1)
+        ego_path = self.ego_path_layer_2(p1)
 
         # Final result
         return ego_path
