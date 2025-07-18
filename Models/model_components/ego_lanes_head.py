@@ -19,9 +19,7 @@ class EgoLanesHead(nn.Module):
         self.ego_right_lane_layer_2 = nn.Linear(200, 5)
  
 
-    def forward(self, features):
-        # Pooling and averaging channel layers to get a single vector
-        feature_vector = torch.mean(features, dim = [2,3])
+    def forward(self, feature_vector):
 
         # MLP
         p0_left = self.ego_left_lane_layer_0(feature_vector)
