@@ -361,7 +361,7 @@ def polyfit_BEV(
     for i in range(last_valid_index + 1, len(validity_list)):
         validity_list[i] = 0
     
-    return fitted_bev_line, flag_list, validity_list
+    return fitted_bev_line, flag_list, validity_list, z
 
 
 def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
@@ -463,7 +463,7 @@ def transformBEV(
     ]
 
     # Polyfit BEV egopath to get 33-coords format with flags
-    bev_line, flag_list, validity_list = polyfit_BEV(
+    bev_line, flag_list, validity_list, z = polyfit_BEV(
         bev_line = bev_line,
         order = POLYFIT_ORDER,
         y_step = BEV_Y_STEP,
@@ -482,7 +482,7 @@ def transformBEV(
         for point in reproj_line
     ]
 
-    return (im_dst, bev_line, reproj_line, flag_list, validity_list, mat, True)
+    return (im_dst, bev_line, reproj_line, flag_list, validity_list, mat, z, True)
 
 
 # ============================== Main run ============================== #
@@ -614,7 +614,7 @@ if __name__ == "__main__":
             im_dst, 
             bev_egopath, orig_bev_egopath, 
             egopath_flag_list, egopath_validity_list, 
-            mat, success
+            mat, z_egopath, success
         ) = transformBEV(
             img = img,
             line = this_frame_data["drivable_path"],
@@ -632,7 +632,7 @@ if __name__ == "__main__":
             _, 
             bev_egoleft, orig_bev_egoleft, 
             egoleft_flag_list, egoleft_validity_list, 
-            _, _
+            _, z_egoleft, _
         ) = transformBEV(
             img = img, 
             line = this_frame_data["egoleft_lane"],
@@ -644,7 +644,7 @@ if __name__ == "__main__":
             _, 
             bev_egoright, orig_bev_egoright, 
             egoright_flag_list, egoright_validity_list, 
-            _, _
+            _, z_egoright, _
         ) = transformBEV(
             img = img, 
             line = this_frame_data["egoright_lane"],
@@ -707,6 +707,7 @@ if __name__ == "__main__":
                     egopath_validity_list
                 ))
             ],
+            "quadratic_params_egopath" : z_egopath.tolist(),
             "bev_egoleft" : [
                 (point[0], point[1], flag, valid)
                 for point, flag, valid in list(zip(
@@ -735,6 +736,7 @@ if __name__ == "__main__":
                     egoleft_validity_list
                 ))
             ],
+            "quadratic_params_egoleft" : z_egoleft.tolist(),
             "bev_egoright" : [
                 (point[0], point[1], flag, valid)
                 for point, flag, valid in list(zip(
@@ -762,7 +764,8 @@ if __name__ == "__main__":
                     egoright_flag_list, 
                     egoright_validity_list
                 ))
-            ]
+            ],
+            "quadratic_params_egoright" : z_egoright.tolist(),
         }
 
         # Break if early_stopping reached
