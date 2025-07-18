@@ -67,10 +67,16 @@ class BEVPathContext(nn.Module):
         # Attention
         context = context*features + features
 
+        # Context feature vector
+        context_feature_vector = torch.max(context, dim = [2,3])
+
         # Decoding driving path related features
-        path_features = self.context_layer_7(context)
+        path_features = self.context_layer_7(context_feature_vector)
+        path_features = self.dropout(path_features)
         path_features = self.GeLU(path_features)
+     
         path_features = self.context_layer_8(path_features)
+        path_features = self.dropout(path_features)
         path_features = self.GeLU(path_features)
 
         return path_features   
