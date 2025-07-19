@@ -4,7 +4,7 @@ from rclpy.node import Node
 from autoware_planning_msgs.msg import Trajectory, TrajectoryPoint
 from geometry_msgs.msg import Pose, PoseStamped
 from nav_msgs.msg import Path
-from builtin_interfaces.msg import Duration
+from builtin_interfaces.msg import Time 
 
 import carla
 import math
@@ -78,9 +78,17 @@ class CarlaTrajectoryPublisher(Node):
 
         R_world_to_ego = rpy_to_matrix(ego_roll, ego_pitch, ego_yaw).T  # inverse = transpose
 
+        snapshot = self.world.get_snapshot()
+        elapsed = snapshot.timestamp.elapsed_seconds
+
+        # Create ROS time
+        ros_time = Time()
+        ros_time.sec = int(elapsed)
+        ros_time.nanosec = int((elapsed - ros_time.sec) * 1e9)
+
         traj_msg = Trajectory()
         traj_msg.header.frame_id = "hero"
-        traj_msg.header.stamp = self.get_clock().now().to_msg()
+        traj_msg.header.stamp = ros_time
 
         path_msg = Path()
         path_msg.header = traj_msg.header
