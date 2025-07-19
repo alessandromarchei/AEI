@@ -2,13 +2,13 @@ import rclpy
 from rclpy.node import Node
 
 from autoware_planning_msgs.msg import Trajectory, TrajectoryPoint
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PoseStamped
+from nav_msgs.msg import Path
 from builtin_interfaces.msg import Duration
 
 import carla
 import math
-
-import matplotlib.pyplot as plt
+import numpy as np
 
 LOOKAHEAD_DISTANCE = 100.0  # meters
 STEP_DISTANCE = 2.0        # distance between waypoints
@@ -22,34 +22,41 @@ def yaw_to_quaternion(yaw_deg):
         "z": math.sin(yaw / 2.0),
         "w": math.cos(yaw / 2.0)
     }
+def rpy_to_matrix(roll, pitch, yaw):
+    """Return 3x3 rotation matrix from roll, pitch, yaw (in radians)"""
+    cr = math.cos(roll)
+    sr = math.sin(roll)
+    cp = math.cos(pitch)
+    sp = math.sin(pitch)
+    cy = math.cos(yaw)
+    sy = math.sin(yaw)
+
+    R = np.array([
+        [cy*cp, cy*sp*sr - sy*cr, cy*sp*cr + sy*sr],
+        [sy*cp, sy*sp*sr + cy*cr, sy*sp*cr - cy*sr],
+        [  -sp,            cp*sr,            cp*cr]
+    ])
+    return R
 
 class CarlaTrajectoryPublisher(Node):
     def __init__(self):
         super().__init__('carla_trajectory_publisher')
-        self.publisher_ = self.create_publisher(Trajectory, '/planning/trajectory', 10)
-        timer_period = 0.1
-        self.timer = self.create_timer(timer_period, self.timer_callback)
 
         self.client = carla.Client("localhost", 2000)
         self.client.set_timeout(5.0)
         self.world = self.client.get_world()
         self.map = self.world.get_map()
         self.ego = self._find_ego_vehicle()
-        
-        self.fig, self.ax = plt.subplots()
-        self.fig.set_size_inches(10, 8)
-        self.line, = self.ax.plot([], [], 'b.-', label="Current Trajectory")
-        self.ax.set_title("Ego Trajectory")
-        self.ax.set_xlabel("x [m]")
-        self.ax.set_ylabel("y [m]")
-        self.ax.set_aspect('equal', adjustable='box')  # <- preserves x/y scale while fitting limits
-        self.ax.legend()
-        limit = 200
-        self.ax.set_xlim(-limit, limit)
-        self.ax.set_ylim(-limit, limit)
-        self.ax.grid(True)
-        plt.ion()
-        plt.show()
+        if self.ego is None:
+            self.get_logger().error('Ego vehicle not found, exiting.')
+            rclpy.shutdown()
+            return
+    
+        self.publisher_ = self.create_publisher(Trajectory, '/planning/trajectory', 10)
+        self.path_pub = self.create_publisher(Path, '/planning/path', 10)
+
+        timer_period = 0.1
+        self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def _find_ego_vehicle(self):
         for actor in self.world.get_actors().filter('vehicle.*'):
@@ -62,58 +69,58 @@ class CarlaTrajectoryPublisher(Node):
         if not self.ego:
             return
 
-        ego_transform = self.ego.get_transform()
-        location = ego_transform.location
-        waypoint = self.map.get_waypoint(location, project_to_road=True, lane_type=carla.LaneType.Driving)
+        ego_tf = self.ego.get_transform()
+        ego_loc = ego_tf.location
+        ego_rot = ego_tf.rotation
+        ego_yaw = math.radians(ego_rot.yaw)
+        ego_pitch = math.radians(ego_rot.pitch)
+        ego_roll = math.radians(ego_rot.roll)
 
-        if waypoint is None:
-            self.get_logger().warn("No valid waypoint found.")
-            return
+        R_world_to_ego = rpy_to_matrix(ego_roll, ego_pitch, ego_yaw).T  # inverse = transpose
 
         traj_msg = Trajectory()
+        traj_msg.header.frame_id = "hero"
+        traj_msg.header.stamp = self.get_clock().now().to_msg()
+
+        path_msg = Path()
+        path_msg.header = traj_msg.header
+
+        curr_wp = self.map.get_waypoint(ego_loc, project_to_road=True, lane_type=carla.LaneType.Driving)
         total_dist = 0.0
-        curr_wp = waypoint
         time_from_start = 0.0
-        traj_points = []
-        plot_x = []
-        plot_y = []
 
         while total_dist < LOOKAHEAD_DISTANCE and curr_wp is not None:
+            wp_loc = curr_wp.transform.location
+            wp_pos = np.array([wp_loc.x - ego_loc.x,
+                            wp_loc.y - ego_loc.y,
+                            wp_loc.z - ego_loc.z])
+            local_pos = R_world_to_ego @ wp_pos  # rotate to ego frame
+
             pt = TrajectoryPoint()
+            pt.pose.position.x = local_pos[0]
+            pt.pose.position.y = -local_pos[1] # CARLA uses left-handed coordinate system
+            pt.pose.position.z = local_pos[2]
 
-            # Pose
-            pt.pose = Pose()
-            pt.pose.position.x = curr_wp.transform.location.x
-            pt.pose.position.y = curr_wp.transform.location.y
-            pt.pose.position.z = curr_wp.transform.location.z
-
-            q = yaw_to_quaternion(curr_wp.transform.rotation.yaw)
+            # Orientation: relative yaw only (you can also convert full R_w to local frame if needed)
+            wp_yaw = math.radians(curr_wp.transform.rotation.yaw)
+            relative_yaw = wp_yaw - ego_yaw
+            q = yaw_to_quaternion(math.degrees(relative_yaw))
             pt.pose.orientation.x = q["x"]
             pt.pose.orientation.y = q["y"]
             pt.pose.orientation.z = q["z"]
             pt.pose.orientation.w = q["w"]
 
-            # Kinematic fields
             pt.longitudinal_velocity_mps = DEFAULT_SPEED
-            pt.lateral_velocity_mps = 0.0
-            pt.acceleration_mps2 = 0.0
-            pt.heading_rate_rps = 0.0
-            pt.front_wheel_angle_rad = 0.0
-            pt.rear_wheel_angle_rad = 0.0
+            pt.time_from_start.sec = int(time_from_start)
+            pt.time_from_start.nanosec = int((time_from_start - int(time_from_start)) * 1e9)
+            traj_msg.points.append(pt)
 
-            # Time
-            time_msg = Duration()
-            time_msg.sec = int(time_from_start)
-            time_msg.nanosec = int((time_from_start - int(time_from_start)) * 1e9)
-            pt.time_from_start = time_msg
+            ps = PoseStamped()
+            ps.header = path_msg.header
+            ps.pose = pt.pose
+            path_msg.poses.append(ps)
 
-            traj_points.append(pt)
-
-            # For plotting
-            plot_x.append(-pt.pose.position.x)
-            plot_y.append(pt.pose.position.y)
-
-            # Advance to next waypoint
+            # Advance
             next_wps = curr_wp.next(STEP_DISTANCE)
             if not next_wps:
                 break
@@ -123,16 +130,9 @@ class CarlaTrajectoryPublisher(Node):
             time_from_start += dist / DEFAULT_SPEED
             curr_wp = next_wp
 
-        traj_msg.points = traj_points
         self.publisher_.publish(traj_msg)
-        self.get_logger().info(f'Published {len(traj_points)} trajectory points.')
-
-        # Update live plot
-        self.line.set_data(plot_x, plot_y)
-        self.ax.plot(-location.x, location.y, 'r.', label="Ego Vehicle")
-        self.fig.canvas.draw()
-        self.fig.canvas.flush_events()
-
+        self.path_pub.publish(path_msg)
+        
 def main(args=None):
     rclpy.init(args=args)
     node = CarlaTrajectoryPublisher()
