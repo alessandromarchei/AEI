@@ -143,7 +143,6 @@ def annotateGT(
     reproj_egoleft: list,
     bev_egoright: list,
     reproj_egoright: list,
-    sps: dict,
     raw_dir: str, 
     visualization_dir: str,
     normalized: bool
@@ -168,10 +167,10 @@ def annotateGT(
     # =========================== BEV VIS =========================== #
 
     img_bev_vis = img.copy()
+    h, w, _ = img_bev_vis.shape
 
     # Draw egopath
     if (normalized):
-        h, w, _ = img_bev_vis.shape
         renormed_bev_egopath = [
             (x * w, y * h) 
             for x, y in bev_egopath
@@ -186,7 +185,6 @@ def annotateGT(
     
     # Draw egoleft
     if (normalized):
-        h, w, _ = img_bev_vis.shape
         renormed_bev_egoleft = [
             (x * w, y * h) 
             for x, y in bev_egoleft
@@ -201,7 +199,6 @@ def annotateGT(
 
     # Draw egoright
     if (normalized):
-        h, w, _ = img_bev_vis.shape
         renormed_bev_egoright = [
             (x * w, y * h) 
             for x, y in bev_egoright
@@ -225,38 +222,8 @@ def annotateGT(
 
     # =========================== ORIGINAL VIS =========================== #
 
-    # Start points
-    for point_id in ["LS", "RS"]:
-        orig_img = cv2.circle(
-            orig_img,
-            sps[point_id],
-            POINT_SIZE,
-            COLOR_STARTS,
-            THICKNESS
-        )
-    
-    # End points
-    for point_id in ["LE", "RE"]:
-        orig_img = cv2.circle(
-            orig_img,
-            sps[point_id],
-            POINT_SIZE,
-            COLOR_ENDS,
-            THICKNESS
-        )
-
-    # Ego height
-    orig_img = cv2.line(
-        orig_img,
-        (0, int(sps["ego_h"])),
-        (W, int(sps["ego_h"])),
-        COLOR_HEIGHT,
-        2
-    )
-
     # Draw reprojected egopath
     if (normalized):
-        h, w, _ = img_bev_vis.shape
         renormed_reproj_egopath = [
             (x * w, y * h) 
             for x, y in reproj_egopath
@@ -271,7 +238,6 @@ def annotateGT(
     
     # Draw reprojected egoleft
     if (normalized):
-        h, w, _ = img_bev_vis.shape
         renormed_reproj_egoleft = [
             (x * w, y * h) 
             for x, y in reproj_egoleft
@@ -286,7 +252,6 @@ def annotateGT(
 
     # Draw reprojected egoright
     if (normalized):
-        h, w, _ = img_bev_vis.shape
         renormed_reproj_egoright = [
             (x * w, y * h) 
             for x, y in reproj_egoright
@@ -331,8 +296,12 @@ def polyfit_BEV(
     y_step: int,
     y_limit: int
 ):
-    x = [point[0] for point in bev_line]
-    y = [point[1] for point in bev_line]
+    valid_line = [
+        point for point in bev_line
+        if (0 <= point[0] < BEV_W) and (0 <= point[1] < BEV_H)
+    ]
+    x = [point[0] for point in valid_line]
+    y = [point[1] for point in valid_line]
     z = np.polyfit(y, x, order)
     f = np.poly1d(z)
     y_new = np.linspace(
@@ -361,7 +330,7 @@ def polyfit_BEV(
     for i in range(last_valid_index + 1, len(validity_list)):
         validity_list[i] = 0
     
-    return fitted_bev_line, flag_list, validity_list, z
+    return fitted_bev_line, flag_list, validity_list
 
 
 def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
@@ -463,7 +432,7 @@ def transformBEV(
     ]
 
     # Polyfit BEV egopath to get 33-coords format with flags
-    bev_line, flag_list, validity_list, z = polyfit_BEV(
+    bev_line, flag_list, validity_list = polyfit_BEV(
         bev_line = bev_line,
         order = POLYFIT_ORDER,
         y_step = BEV_Y_STEP,
@@ -482,7 +451,7 @@ def transformBEV(
         for point in reproj_line
     ]
 
-    return (im_dst, bev_line, reproj_line, flag_list, validity_list, mat, z, True)
+    return (im_dst, bev_line, reproj_line, flag_list, validity_list, mat, True)
 
 
 # ============================== Main run ============================== #
@@ -523,10 +492,10 @@ if __name__ == "__main__":
     COLOR_EGOPATH = (0, 255, 255)   # Yellow
     COLOR_EGOLEFT = (0, 128, 0)     # Green
     COLOR_EGORIGHT = (255, 255, 0)  # Cyan
-    COLOR_STARTS = (255, 0, 0)      # Blue
-    COLOR_ENDS = (153, 0, 153)      # Kinda purple
-    COLOR_HEIGHT = (0, 165, 255)    # Orange
-    POINT_SIZE = 8
+    # COLOR_STARTS = (255, 0, 0)      # Blue
+    # COLOR_ENDS = (153, 0, 153)      # Kinda purple
+    # COLOR_HEIGHT = (0, 165, 255)    # Orange
+    # POINT_SIZE = 8
     THICKNESS = -1
 
     # PARSING ARGS
@@ -614,7 +583,7 @@ if __name__ == "__main__":
             im_dst, 
             bev_egopath, orig_bev_egopath, 
             egopath_flag_list, egopath_validity_list, 
-            mat, z_egopath, success
+            mat, success
         ) = transformBEV(
             img = img,
             line = this_frame_data["drivable_path"],
@@ -632,7 +601,7 @@ if __name__ == "__main__":
             _, 
             bev_egoleft, orig_bev_egoleft, 
             egoleft_flag_list, egoleft_validity_list, 
-            _, z_egoleft, _
+            _, _
         ) = transformBEV(
             img = img, 
             line = this_frame_data["egoleft_lane"],
@@ -644,7 +613,7 @@ if __name__ == "__main__":
             _, 
             bev_egoright, orig_bev_egoright, 
             egoright_flag_list, egoright_validity_list, 
-            _, z_egoright, _
+            _, _
         ) = transformBEV(
             img = img, 
             line = this_frame_data["egoright_lane"],
@@ -670,7 +639,6 @@ if __name__ == "__main__":
             reproj_egoleft = orig_bev_egoleft,
             bev_egoright = bev_egoright,
             reproj_egoright = orig_bev_egoright,
-            sps = STANDARD_SPS,
             raw_dir = BEV_IMG_DIR,
             visualization_dir = BEV_VIS_DIR,
             normalized = False
@@ -699,15 +667,14 @@ if __name__ == "__main__":
                     roundLineFloats(
                         normalizeCoords(
                             orig_bev_egopath,
-                            width = BEV_W,
-                            height = BEV_H
+                            width = W,
+                            height = H
                         )
                     ), 
                     egopath_flag_list, 
                     egopath_validity_list
                 ))
             ],
-            "quadratic_params_egopath" : z_egopath.tolist(),
             "bev_egoleft" : [
                 (point[0], point[1], flag, valid)
                 for point, flag, valid in list(zip(
@@ -728,15 +695,14 @@ if __name__ == "__main__":
                     roundLineFloats(
                         normalizeCoords(
                             orig_bev_egoleft,
-                            width = BEV_W,
-                            height = BEV_H
+                            width = W,
+                            height = H
                         )
                     ), 
                     egoleft_flag_list, 
                     egoleft_validity_list
                 ))
             ],
-            "quadratic_params_egoleft" : z_egoleft.tolist(),
             "bev_egoright" : [
                 (point[0], point[1], flag, valid)
                 for point, flag, valid in list(zip(
@@ -757,15 +723,14 @@ if __name__ == "__main__":
                     roundLineFloats(
                         normalizeCoords(
                             orig_bev_egoright,
-                            width = BEV_W,
-                            height = BEV_H
+                            width = W,
+                            height = H
                         )
                     ), 
                     egoright_flag_list, 
                     egoright_validity_list
                 ))
             ],
-            "quadratic_params_egoright" : z_egoright.tolist(),
         }
 
         # Break if early_stopping reached
