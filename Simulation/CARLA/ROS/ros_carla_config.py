@@ -3,7 +3,7 @@
 import argparse
 import json
 import logging
-
+import signal
 import carla
 
 import math
@@ -122,14 +122,27 @@ def main(args):
         print('\nCancelled by user. Bye!')
 
     finally:
-        if original_settings:
-            world.apply_settings(original_settings)
+        # Block further KeyboardInterrupts during cleanup
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        
+        try:
+            if original_settings:
+                logging.info("Restoring original settings")
+                world.apply_settings(original_settings)
 
-        for sensor in sensors:
-            sensor.destroy()
+            for sensor in sensors:
+                if sensor.is_alive:
+                    logging.debug("Destroying sensor: {}".format(sensor.type_id))
+                sensor.destroy()
 
-        if vehicle:
-            vehicle.destroy()
+            if vehicle:
+                if vehicle.is_alive:
+                    logging.debug("Destroying vehicle: {}".format(vehicle.type_id))
+                vehicle.destroy()
+
+        finally:
+            # Re-enable KeyboardInterrupt handling
+            signal.signal(signal.SIGINT, signal.default_int_handler)
 
 
 if __name__ == '__main__':
