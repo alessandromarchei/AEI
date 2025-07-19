@@ -12,7 +12,7 @@ class EgoPathHead(nn.Module):
         # Context - MLP Layers
         self.ego_path_layer_0 = nn.Linear(800, 200)
         self.ego_path_layer_1 = nn.Linear(200, 200)
-        self.ego_path_layer_2 = nn.Linear(200, 5)
+        self.ego_path_layer_2 = nn.Linear(200, 11)
  
 
     def forward(self, feature_vector):
