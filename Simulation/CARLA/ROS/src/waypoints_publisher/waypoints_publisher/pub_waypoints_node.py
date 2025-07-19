@@ -73,7 +73,7 @@ class CarlaTrajectoryPublisher(Node):
         ego_loc = ego_tf.location
         ego_rot = ego_tf.rotation
         ego_yaw = math.radians(ego_rot.yaw)
-        ego_pitch = math.radians(ego_rot.pitch)
+        ego_pitch = -math.radians(ego_rot.pitch) # CARLA uses left-handed coordinate system
         ego_roll = math.radians(ego_rot.roll)
 
         R_world_to_ego = rpy_to_matrix(ego_roll, ego_pitch, ego_yaw).T  # inverse = transpose
