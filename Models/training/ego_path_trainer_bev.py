@@ -29,36 +29,63 @@ class BEVEgoPathTrainer():
         # Images and gts
         self.orig_vis = None
         self.image = None
+
         self.H = None
         self.W = None
-        self.xs = []
-        self.ys = []
-        self.valids = []
-        self.mat = []
 
-        # Dims
-        self.height = 640
-        self.width = 320
+        self.xs_bev_egopath = []
+        self.xs_reproj_egopath = []
+        self.xs_bev_egoleft = []
+        self.xs_reproj_egoleft = []
+        self.xs_bev_egoright = []
+        self.xs_reproj_egoright = []
+
+        self.ys_bev = []
+        self.ys_reproj = []
+
+        self.valids_egopath = []
+        self.valids_egoleft = []
+        self.valids_egoright = []
+
+        self.mat = []
 
         # Tensors
         self.image_tensor = None
-        self.xs_tensor = []
-        self.valids_tensor = []
 
-        # Model and pred
+        self.xs_tensor_bev_egopath = []
+        self.xs_tensor_reproj_egopath = []
+        self.xs_tensor_bev_egoleft = []
+        self.xs_tensor_reproj_egoleft = []
+        self.xs_tensor_bev_egoright = []
+        self.xs_tensor_reproj_egoright = []
+
+        self.valids_tensor_egopath = []
+        self.valids_tensor_egoleft = []
+        self.valids_tensor_egoright = []
+
+        # Model and preds
         self.model = None
-        self.pred_xs = None
+        self.pred_xs_egopath = None
+        self.pred_xs_egoleft = None
+        self.pred_xs_egoright = None
 
         # Losses
-        self.loss = 0
-        self.data_loss = 0
-        self.smoothing_loss = 0
-        self.flag_loss = 0
+        self.bev_data_loss = 0
+        self.bev_gradient_loss = 0
+        self.bev_loss = 0
+
+        self.reproj_data_loss = 0
+        self.reproj_gradient_loss = 0
+        self.reproj_loss = 0
+
+        self.total_loss = 0
+        
         self.gradient_type = "NUMERICAL"
 
         # Loss scale factors
-        self.data_loss_scale_factor = 1.0
-        self.smoothing_loss_scale_factor = 1.0
+        self.alpha = 1.0        # Scale factor of bev_gradient_loss
+        self.beta = 1.0         # Scale factor of reproj_gradient_loss
+        self.gamma = 1.0        # Scale factor of reproj_loss
 
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
@@ -68,9 +95,9 @@ class BEVEgoPathTrainer():
             # "BDD100K",
             # "COMMA2K19",
             # "CULANE",
-            "CURVELANES",
+            # "CURVELANES",
             # "ROADWORK",
-            # "TUSIMPLE"
+            "TUSIMPLE"
         ]
         self.VALID_DATASET_LIST = list(get_args(self.VALID_DATASET_LITERALS))
 
@@ -147,16 +174,77 @@ class BEVEgoPathTrainer():
         self.learning_rate = learning_rate
 
     # Assign input variables
-    def set_data(self, orig_vis, image, xs, ys, valids, mat):
+    def set_data(
+        self, 
+        orig_vis, image, 
+        xs_bev_egopath,
+        xs_reproj_egopath,
+        xs_bev_egoleft,
+        xs_reproj_egoleft,
+        xs_bev_egoright,
+        xs_reproj_egoright,
+        ys_bev,
+        ys_reproj,
+        valids_egopath,
+        valids_egoleft,
+        valids_egoright,
+        mat
+    ):
+        
+        # Parse all data
         self.orig_vis = orig_vis
         h, w, _ = image.shape
         self.image = image
         self.H = h
         self.W = w
-        self.xs = np.array(xs, dtype = "float32")
-        self.ys = np.array(ys, dtype = "float32")
-        self.valids = np.array(valids, dtype = "float32")
-        self.mat = np.array(mat, dtype = "float32")
+        self.xs_bev_egopath = np.array(
+            xs_bev_egopath, 
+            dtype = "float32"
+        )
+        self.xs_reproj_egopath = np.array(
+            xs_reproj_egopath, 
+            dtype = "float32"
+        )
+        self.xs_bev_egoleft = np.array(
+            xs_bev_egoleft, 
+            dtype = "float32"
+        )
+        self.xs_reproj_egoleft = np.array(
+            xs_reproj_egoleft, 
+            dtype = "float32"
+        )
+        self.xs_bev_egoright = np.array(
+            xs_bev_egoright, 
+            dtype = "float32"
+        )
+        self.xs_reproj_egoright = np.array(
+            xs_reproj_egoright, 
+            dtype = "float32"
+        )
+        self.ys_bev = np.array(
+            ys_bev, 
+            dtype = "float32"
+        )
+        self.ys_reproj = np.array(
+            ys_reproj, 
+            dtype = "float32"
+        )
+        self.valids_egopath = np.array(
+            valids_egopath, 
+            dtype = "float32"
+        )
+        self.valids_egoleft = np.array(
+            valids_egoleft, 
+            dtype = "float32"
+        )
+        self.valids_egoright = np.array(
+            valids_egoright, 
+            dtype = "float32"
+        )
+        self.mat = np.array(
+            mat, 
+            dtype = "float32"
+        )
 
     # Image agumentations
     def apply_augmentations(self, is_train):
@@ -176,15 +264,51 @@ class BEVEgoPathTrainer():
         self.image_tensor = image_tensor.to(self.device)
 
         # Converting gt lists to Pytorch Tensor
-        # Xs
-        xs_tensor = torch.from_numpy(self.xs)
-        xs_tensor = xs_tensor.unsqueeze(0)
-        self.xs_tensor = xs_tensor.to(self.device)
 
-        # Valids
-        valids_tensor = torch.from_numpy(self.valids)
-        valids_tensor = valids_tensor.unsqueeze(0)
-        self.valids_tensor = valids_tensor.to(self.device)
+        # Xs of bev egopath
+        xs_tensor_bev_egopath = torch.from_numpy(self.xs_bev_egopath)
+        xs_tensor_bev_egopath = xs_tensor_bev_egopath.unsqueeze(0)
+        self.xs_tensor_bev_egopath = xs_tensor_bev_egopath.to(self.device)
+        
+        # Xs of reproj egopath
+        xs_tensor_reproj_egopath = torch.from_numpy(self.xs_reproj_egopath)
+        xs_tensor_reproj_egopath = xs_tensor_reproj_egopath.unsqueeze(0)
+        self.xs_tensor_reproj_egopath = xs_tensor_reproj_egopath.to(self.device)
+
+        # Xs of bev egoleft
+        xs_tensor_bev_egoleft = torch.from_numpy(self.xs_bev_egoleft)
+        xs_tensor_bev_egoleft = xs_tensor_bev_egoleft.unsqueeze(0)
+        self.xs_tensor_bev_egoleft = xs_tensor_bev_egoleft.to(self.device)
+
+        # Xs of reproj egoleft
+        xs_tensor_reproj_egoleft = torch.from_numpy(self.xs_reproj_egoleft)
+        xs_tensor_reproj_egoleft = xs_tensor_reproj_egoleft.unsqueeze(0)
+        self.xs_tensor_reproj_egoleft = xs_tensor_reproj_egoleft.to(self.device)
+
+        # Xs of bev egoright
+        xs_tensor_bev_egoright = torch.from_numpy(self.xs_bev_egoright)
+        xs_tensor_bev_egoright = xs_tensor_bev_egoright.unsqueeze(0)
+        self.xs_tensor_bev_egoright = xs_tensor_bev_egoright.to(self.device)
+
+        # Xs of reproj egoright
+        xs_tensor_reproj_egoright = torch.from_numpy(self.xs_reproj_egoright)
+        xs_tensor_reproj_egoright = xs_tensor_reproj_egoright.unsqueeze(0)
+        self.xs_tensor_reproj_egoright = xs_tensor_reproj_egoright.to(self.device)
+
+        # Valids of egopath
+        valids_tensor_egopath = torch.from_numpy(self.valids_egopath)
+        valids_tensor_egopath = valids_tensor_egopath.unsqueeze(0)
+        self.valids_tensor_egopath = valids_tensor_egopath.to(self.device)
+
+        # Valids of egoleft
+        valids_tensor_egoleft = torch.from_numpy(self.valids_egoleft)
+        valids_tensor_egoleft = valids_tensor_egoleft.unsqueeze(0)
+        self.valids_tensor_egoleft = valids_tensor_egoleft.to(self.device)
+
+        # Valids of egoright
+        valids_tensor_egoright = torch.from_numpy(self.valids_egoright)
+        valids_tensor_egoright = valids_tensor_egoright.unsqueeze(0)
+        self.valids_tensor_egoright = valids_tensor_egoright.to(self.device)
     
     # Run Model
     def run_model(self):
