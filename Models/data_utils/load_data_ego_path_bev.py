@@ -19,9 +19,9 @@ VALID_DATASET_LITERALS = Literal[
     # "BDD100K",
     # "COMMA2K19",
     # "CULANE",
-    "CURVELANES",
+    # "CURVELANES",
     # "ROADWORK",
-    # "TUSIMPLE"
+    "TUSIMPLE"
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
@@ -106,13 +106,23 @@ class LoadDataBEVEgoPath():
     def getItem(self, index, is_train: bool):
         if (is_train):
             img = Image.open(str(self.train_images[index])).convert("RGB")
-            drivable_path = self.train_labels[index]["drivable_path"]
-            transform_matrix = self.train_labels[index]["transform_matrix"]
+            bev_egopath = self.train_labels[index]["bev_egopath"]
+            reproj_egopath = self.train_labels[index]["reproj_egopath"]
+            bev_egoleft = self.train_labels[index]["bev_egoleft"]
+            reproj_egoleft = self.train_labels[index]["reproj_egoleft"]
+            bev_egoright = self.train_labels[index]["bev_egoright"]
+            reproj_egoright = self.train_labels[index]["reproj_egoright"]
+            transform_matrix = self.train_labels[index]["standard_homomatrix"]
             frame_id = self.train_ids[index]
         else:
             img = Image.open(str(self.val_images[index])).convert("RGB")
-            drivable_path = self.val_labels[index]["drivable_path"]
-            transform_matrix = self.val_labels[index]["transform_matrix"]
+            bev_egopath = self.val_labels[index]["bev_egopath"]
+            reproj_egopath = self.val_labels[index]["reproj_egopath"]
+            bev_egoleft = self.val_labels[index]["bev_egoleft"]
+            reproj_egoleft = self.val_labels[index]["reproj_egoleft"]
+            bev_egoright = self.val_labels[index]["bev_egoright"]
+            reproj_egoright = self.val_labels[index]["reproj_egoright"]
+            transform_matrix = self.val_labels[index]["standard_homomatrix"]
             frame_id = self.val_ids[index]
 
         W, H = img.size
@@ -120,10 +130,36 @@ class LoadDataBEVEgoPath():
         # Convert image to OpenCV/Numpy format for augmentations
         img = np.array(img)
 
-        # Split label to 3 lists
-        xs = [lab[0] / W for lab in drivable_path]
-        ys = [lab[1] / H for lab in drivable_path]
-        flags = [lab[2] for lab in drivable_path]
-        valids = [lab[3] for lab in drivable_path]
+        # Split labels
+        xs_bev_egopath = [lab[0] / W for lab in bev_egopath]
+        xs_reproj_egopath = [lab[0] / W for lab in reproj_egopath]
+
+        xs_bev_egoleft = [lab[0] / W for lab in bev_egoleft]
+        xs_reproj_egoleft = [lab[0] / W for lab in reproj_egoleft]
+
+        xs_bev_egoright = [lab[0] / W for lab in bev_egoright]
+        xs_reproj_egoright = [lab[0] / W for lab in reproj_egoright]
+
+        ys_bev = [lab[1] / H for lab in bev_egopath]
+        ys_reproj = [lab[1] / H for lab in reproj_egopath]
+
+        flags_egopath = [lab[2] for lab in bev_egopath]
+        valids_egopath = [lab[3] for lab in bev_egopath]
+
+        flags_egoleft = [lab[2] for lab in bev_egoleft]
+        valids_egoleft = [lab[3] for lab in bev_egoleft]
         
-        return frame_id, img, xs, ys, flags, valids, transform_matrix
+        flags_egoright = [lab[2] for lab in bev_egoright]
+        valids_egoright = [lab[3] for lab in bev_egoright]
+        
+        return [
+            frame_id, img,
+            xs_bev_egopath, xs_reproj_egopath,
+            xs_bev_egoleft, xs_reproj_egoleft,
+            xs_bev_egoright, xs_reproj_egoright,
+            ys_bev, ys_reproj,
+            flags_egopath, valids_egopath,
+            flags_egoleft, valids_egoleft,
+            flags_egoright, valids_egoright,
+            transform_matrix
+        ]

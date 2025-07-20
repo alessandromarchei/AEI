@@ -337,14 +337,34 @@ def main():
             # Fetch data from current processed dataset
             
             image = None
-            xs = []
-            ys = []
-            valids = []
-            mat = []
+            xs_bev_egopath = []
+            xs_reproj_egopath = []
+            xs_bev_egoleft = []
+            xs_reproj_egoleft = []
+            xs_bev_egoright = []
+            xs_reproj_egoright = []
+            ys_bev = []
+            ys_reproj = []
+            flags_egopath = []
+            valids_egopath = []
+            flags_egoleft = []
+            valids_egoleft = []
+            flags_egoright = []
+            valids_egoright = []
 
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            frame_id, image, xs, ys, _, valids, mat = msdict[current_dataset]["loader"].getItem(
+            [
+                frame_id, image,
+                xs_bev_egopath, xs_reproj_egopath,
+                xs_bev_egoleft, xs_reproj_egoleft,
+                xs_bev_egoright, xs_reproj_egoright,
+                ys_bev, ys_reproj,
+                flags_egopath, valids_egopath,
+                flags_egoleft, valids_egoleft,
+                flags_egoright, valids_egoright,
+                transform_matrix
+            ] = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
@@ -362,7 +382,12 @@ def main():
 
             # Assign data
 
-            trainer.set_data(orig_vis, image, xs, ys, valids, mat)
+            trainer.set_data(
+                orig_vis, image, 
+                xs_bev_egoleft, ys_bev, 
+                valids_egopath, 
+                transform_matrix
+            )
             
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
@@ -421,7 +446,17 @@ def main():
                         for val_count in range(0, msdict[dataset]["N_vals"]):
 
                             # Fetch data
-                            frame_id, image, xs, ys, _, valids, mat = msdict[dataset]["loader"].getItem(
+                            [
+                                frame_id, image,
+                                xs_bev_egopath, xs_reproj_egopath,
+                                xs_bev_egoleft, xs_reproj_egoleft,
+                                xs_bev_egoright, xs_reproj_egoright,
+                                ys_bev, ys_reproj,
+                                flags_egopath, valids_egopath,
+                                flags_egoleft, valids_egoleft,
+                                flags_egoright, valids_egoright,
+                                transform_matrix
+                            ] = msdict[dataset]["loader"].getItem(
                                 val_count,
                                 is_train = False
                             )
@@ -457,7 +492,8 @@ def main():
                             # Validate
                             val_metric, val_data, val_smooth = trainer.validate(
                                 orig_vis, image, 
-                                xs, ys, valids, mat,
+                                xs_bev_egoleft, ys_bev, 
+                                valids_egopath, transform_matrix,
                                 val_save_path
                             )
                             
