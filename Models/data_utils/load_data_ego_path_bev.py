@@ -45,9 +45,11 @@ class LoadDataBEVEgoPath():
         if not (self.dataset_name in VALID_DATASET_LIST):
             raise ValueError("Unknown dataset! Contact our team so we can work on this.")
         
-        # Load JSON labels, address the diffs of format across datasets
+        # Load JSON labels, get homotrans matrix as well
         with open(self.label_filepath, "r") as f:
-            self.labels = json.load(f)
+            json_data = json.load(f)
+            self.homotrans_mat = json_data.pop("standard_homomatrix")
+            self.labels = json_data
 
         self.images = sorted([
             f for f in pathlib.Path(self.image_dirpath).glob("*.png")
@@ -106,24 +108,22 @@ class LoadDataBEVEgoPath():
     def getItem(self, index, is_train: bool):
         if (is_train):
             img = Image.open(str(self.train_images[index])).convert("RGB")
+            frame_id = self.train_ids[index]
             bev_egopath = self.train_labels[index]["bev_egopath"]
             reproj_egopath = self.train_labels[index]["reproj_egopath"]
             bev_egoleft = self.train_labels[index]["bev_egoleft"]
             reproj_egoleft = self.train_labels[index]["reproj_egoleft"]
             bev_egoright = self.train_labels[index]["bev_egoright"]
             reproj_egoright = self.train_labels[index]["reproj_egoright"]
-            transform_matrix = self.train_labels[index]["standard_homomatrix"]
-            frame_id = self.train_ids[index]
         else:
             img = Image.open(str(self.val_images[index])).convert("RGB")
+            frame_id = self.val_ids[index]
             bev_egopath = self.val_labels[index]["bev_egopath"]
             reproj_egopath = self.val_labels[index]["reproj_egopath"]
             bev_egoleft = self.val_labels[index]["bev_egoleft"]
             reproj_egoleft = self.val_labels[index]["reproj_egoleft"]
             bev_egoright = self.val_labels[index]["bev_egoright"]
             reproj_egoright = self.val_labels[index]["reproj_egoright"]
-            transform_matrix = self.val_labels[index]["standard_homomatrix"]
-            frame_id = self.val_ids[index]
 
         W, H = img.size
 
@@ -154,6 +154,7 @@ class LoadDataBEVEgoPath():
         
         return [
             frame_id, img,
+            self.homotrans_mat,
             xs_bev_egopath, xs_reproj_egopath,
             xs_bev_egoleft, xs_reproj_egoleft,
             xs_bev_egoright, xs_reproj_egoright,
@@ -161,5 +162,14 @@ class LoadDataBEVEgoPath():
             flags_egopath, valids_egopath,
             flags_egoleft, valids_egoleft,
             flags_egoright, valids_egoright,
-            transform_matrix
         ]
+    
+# if __name__ == "__main__":
+
+#     dataloader = LoadDataBEVEgoPath(
+#         labels_filepath = "/home/tranhuunhathuy/Documents/Autoware/POV_train/pov_datasets/TUSIMPLE/drivable_path_bev.json",
+#         images_filepath = "/home/tranhuunhathuy/Documents/Autoware/POV_train/pov_datasets/TUSIMPLE/image_bev",
+#         dataset = "TUSIMPLE"
+#     )
+
+#     print(dataloader.getItem(0, True))
