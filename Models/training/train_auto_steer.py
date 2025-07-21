@@ -381,8 +381,17 @@ def main():
 
             trainer.set_data(
                 orig_vis, image, 
-                xs_bev_egoleft, ys_bev, 
-                valids_egopath, 
+                xs_bev_egopath,
+                xs_reproj_egopath,
+                xs_bev_egoleft,
+                xs_reproj_egoleft,
+                xs_bev_egoright,
+                xs_reproj_egoright,
+                ys_bev,
+                ys_reproj,
+                valids_egopath,
+                valids_egoleft,
+                valids_egoright,
                 transform_matrix
             )
             
@@ -428,9 +437,17 @@ def main():
 
                 # Validation metrics for each dataset
                 for dataset in VALID_DATASET_LIST:
-                    msdict[dataset]["val_running"] = 0
-                    msdict[dataset]["val_data_running"] = 0
-                    msdict[dataset]["val_smooth_running"] = 0
+                    val_dict_schema = {
+                        "total_running" : 0,
+                        "total_score" : 0,
+                        "bev_running" : 0,
+                        "bev_score" : 0,
+                        "reproj_running" : 0,
+                        "reproj_score" : 0
+                    }
+                    msdict[dataset]["val_egopath"] = val_dict_schema
+                    msdict[dataset]["val_egoleft"] = val_dict_schema
+                    msdict[dataset]["val_egoright"] = val_dict_schema
                     msdict[dataset]["num_val_samples"] = 0
 
                 # Temporarily disable gradient computation for backpropagation
@@ -487,66 +504,113 @@ def main():
                             ).convert("RGB")
 
                             # Validate
-                            val_metric, val_data, val_smooth = trainer.validate(
+                            [
+                                val_total_loss_egopath, val_bev_loss_egopath, val_reproj_loss_egopath,
+                                val_total_loss_egoleft, val_bev_loss_egoleft, val_reproj_loss_egoleft,
+                                val_total_loss_egoright, val_bev_loss_egoright, val_reproj_loss_egoright
+                            ] = trainer.validate(
                                 orig_vis, image, 
-                                xs_bev_egoleft, ys_bev, 
-                                valids_egopath, transform_matrix,
+                                xs_bev_egopath,
+                                xs_reproj_egopath,
+                                xs_bev_egoleft,
+                                xs_reproj_egoleft,
+                                xs_bev_egoright,
+                                xs_reproj_egoright,
+                                ys_bev,
+                                ys_reproj,
+                                valids_egopath,
+                                valids_egoleft,
+                                valids_egoright,
+                                transform_matrix,
                                 val_save_path
                             )
                             
                             # Log
-                            msdict[dataset]["val_running"] = msdict[dataset]["val_running"] + val_metric
-                            msdict[dataset]["val_data_running"] = msdict[dataset]["val_data_running"] + val_data
-                            msdict[dataset]["val_smooth_running"] = msdict[dataset]["val_smooth_running"] + val_smooth
-                    
+
+                            # Egopath
+                            msdict[dataset]["val_egopath"]["total_running"] += val_total_loss_egopath
+                            msdict[dataset]["val_egopath"]["bev_running"] += val_bev_loss_egopath
+                            msdict[dataset]["val_egopath"]["reproj_running"] += val_reproj_loss_egopath
+
+                            # Egoleft
+                            msdict[dataset]["val_egoleft"]["total_running"] += val_total_loss_egoleft
+                            msdict[dataset]["val_egoleft"]["bev_running"] += val_bev_loss_egoleft
+                            msdict[dataset]["val_egoleft"]["reproj_running"] += val_reproj_loss_egoleft
+
+                            # Egoright
+                            msdict[dataset]["val_egoright"]["total_running"] += val_total_loss_egoright
+                            msdict[dataset]["val_egoright"]["bev_running"] += val_bev_loss_egoright
+                            msdict[dataset]["val_egoright"]["reproj_running"] += val_reproj_loss_egoright
+
                     # Calculate final validation scores for network on each dataset
                     # as well as overall validation score - A lower score is better
                     for dataset in VALID_DATASET_LIST:
-                        msdict[dataset]["val_score"] = msdict[dataset]["val_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_data_score"] = msdict[dataset]["val_data_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_smooth_score"] = msdict[dataset]["val_smooth_running"] / msdict[dataset]["num_val_samples"]
+                        # Egopath
+                        msdict[dataset]["val_egopath"]["total_score"] = msdict[dataset]["val_egopath"]["total_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egopath"]["bev_score"] = msdict[dataset]["val_egopath"]["bev_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egopath"]["reproj_score"] = msdict[dataset]["val_egopath"]["reproj_running"] / msdict[dataset]["num_val_samples"]
 
-                    # Overall validation metric
-                    msdict["val_overall_running"] = sum([
-                        msdict[dataset]["val_running"]
+                        # Egoleft
+                        msdict[dataset]["val_egoleft"]["total_score"] = msdict[dataset]["val_egoleft"]["total_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egoleft"]["bev_score"] = msdict[dataset]["val_egoleft"]["bev_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egoleft"]["reproj_score"] = msdict[dataset]["val_egoleft"]["reproj_running"] / msdict[dataset]["num_val_samples"]
+
+                        # Egoright
+                        msdict[dataset]["val_egoright"]["total_score"] = msdict[dataset]["val_egoright"]["total_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egoright"]["bev_score"] = msdict[dataset]["val_egoright"]["bev_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egoright"]["reproj_score"] = msdict[dataset]["val_egoright"]["reproj_running"] / msdict[dataset]["num_val_samples"]
+
+                    # Overall validation metric - total score
+                    msdict["val_overall_total_running"] = sum([
+                        (
+                            msdict[dataset]["val_egopath"]["total_score"] + \
+                            msdict[dataset]["val_egoleft"]["total_score"] + \
+                            msdict[dataset]["val_egoright"]["total_score"]
+                        ) / 3.0
                         for dataset in VALID_DATASET_LIST
                     ])
                     msdict["num_val_overall_samples"] = sum([
                         msdict[dataset]["num_val_samples"]
                         for dataset in VALID_DATASET_LIST
                     ])
-                    msdict["overall_val_score"] = msdict["val_overall_running"] / msdict["num_val_overall_samples"]
+                    msdict["overall_val_total_score"] = msdict["val_overall_running"] / msdict["num_val_overall_samples"]
 
-                    # Overall validation data metric
-                    msdict["val_overall_data_running"] = sum([
-                        msdict[dataset]["val_data_running"]
+                    # Overall validation metric - bev score
+                    msdict["overall_val_bev_running"] = sum([
+                        (
+                            msdict[dataset]["val_egopath"]["bev_running"] + \
+                            msdict[dataset]["val_egoleft"]["bev_running"] + \
+                            msdict[dataset]["val_egoright"]["bev_running"]
+                        ) / 3.0
                         for dataset in VALID_DATASET_LIST
                     ])
                     msdict["num_val_overall_samples"] = sum([
                         msdict[dataset]["num_val_samples"]
                         for dataset in VALID_DATASET_LIST
                     ])
-                    msdict["overall_val_data_score"] = msdict["val_overall_data_running"] / msdict["num_val_overall_samples"]
+                    msdict["overall_val_bev_score"] = msdict["overall_val_bev_running"] / msdict["num_val_overall_samples"]
 
-                    msdict["val_overall_smooth_running"] = sum([
-                        msdict[dataset]["val_smooth_running"]
+                    # Overall validation metric - reproj score
+                    msdict["overall_val_reproj_running"] = sum([
+                        (
+                            msdict[dataset]["val_egopath"]["reproj_running"] + \
+                            msdict[dataset]["val_egoleft"]["reproj_running"] + \
+                            msdict[dataset]["val_egoright"]["reproj_running"]
+                        ) / 3.0
                         for dataset in VALID_DATASET_LIST
                     ])
-                    msdict["num_val_overall_samples"] = sum([
-                        msdict[dataset]["num_val_samples"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["overall_val_smooth_score"] = msdict[dataset]["val_smooth_running"] / msdict["num_val_overall_samples"]
+                    msdict["overall_val_reproj_score"] = msdict["overall_val_reproj_running"] / msdict["num_val_overall_samples"]
                     
                     print("================ Complete - Validation Scores ================")
                     for dataset in VALID_DATASET_LIST:
-                        print(f"\n{dataset} - VAL SCORE : {msdict[dataset]['val_score']}")
-                        print(f"{dataset} - VAL DATA SCORE : {msdict[dataset]['val_data_score']}")
-                        print(f"{dataset} - VAL SMOOTH SCORE : {msdict[dataset]['val_smooth_score']}")
+                        for key in ["egopath", "egoleft", "egoright"]:
+                            print(f"\n{dataset} - {key.upper()} TOTAL SCORE : {msdict[dataset]['val_' + key]['total_score']}")
+                            print(f"{dataset} - {key.upper()} BEV SCORE : {msdict[dataset]['val_' + key]['bev_score']}")
+                            print(f"{dataset} - {key.upper()} REPROJ SCORE : {msdict[dataset]['val_' + key]['reproj_score']}")
                     print("\nOVERALL :")
-                    print(f"VAL SCORE : {msdict['overall_val_score']}")
-                    print(f"VAL DATA SCORE : {msdict['overall_val_data_score']}")
-                    print(f"VAL SMOOTH SCORE : {msdict['overall_val_smooth_score']}\n")
+                    print(f"VAL SCORE : {msdict['overall_val_total_score']}")
+                    print(f"VAL BEV SCORE : {msdict['overall_val_bev_score']}")
+                    print(f"VAL REPROJ SCORE : {msdict['overall_val_reproj_score']}\n")
 
                     # Logging average metrics
                     trainer.log_validation(msdict)
