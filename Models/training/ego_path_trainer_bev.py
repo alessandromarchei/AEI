@@ -70,15 +70,17 @@ class BEVEgoPathTrainer():
         self.pred_xs_egoright = None
 
         # Losses
-        self.bev_data_loss = 0
-        self.bev_gradient_loss = 0
-        self.bev_loss = 0
+        self.bev_loss_egopath = 0
+        self.bev_loss_egoleft = 0
+        self.bev_loss_egoright = 0
 
-        self.reproj_data_loss = 0
-        self.reproj_gradient_loss = 0
-        self.reproj_loss = 0
+        self.reproj_loss_egopath = 0
+        self.reproj_loss_egoleft = 0
+        self.reproj_loss_egoright = 0
 
-        self.total_loss = 0
+        self.total_loss_egopath = 0
+        self.total_loss_egoleft = 0
+        self.total_loss_egoright = 0
         
         self.gradient_type = "NUMERICAL"
 
@@ -312,11 +314,54 @@ class BEVEgoPathTrainer():
     
     # Run Model
     def run_model(self):
-        self.pred_xs = self.model(self.image_tensor)
-        self.loss = self.calc_loss(
-            self.pred_xs, 
-            self.xs_tensor,
-            self.valids_tensor
+        self.pred_xs_egopath, self.pred_xs_egoleft, self.pred_xs_egoright = self.model(self.image_tensor)
+
+        # Egopath
+        self.bev_loss_egopath = self.calc_bev_loss(
+            self.pred_xs_egopath,
+            self.xs_bev_egopath,
+            self.valids_tensor_egopath
+        )
+        self.reproj_loss_egopath = self.calc_reproj_loss(
+            self.reproject_line(self.pred_xs_egopath, self.mat),
+            self.xs_reproj_egopath,
+            self.valids_tensor_egopath
+        )
+        self.total_loss_egopath = self.calc_total_loss(
+            self.bev_loss_egopath,
+            self.reproj_loss_egopath
+        )
+
+        # Egoleft
+        self.bev_loss_egoleft = self.calc_bev_loss(
+            self.pred_xs_egoleft,
+            self.xs_bev_egoleft,
+            self.valids_tensor_egoleft
+        )
+        self.reproj_loss_egoleft = self.calc_reproj_loss(
+            self.reproject_line(self.pred_xs_egoleft, self.mat),
+            self.xs_reproj_egoleft,
+            self.valids_tensor_egoleft
+        )
+        self.total_loss_egoleft = self.calc_total_loss(
+            self.bev_loss_egoleft,
+            self.reproj_loss_egoleft
+        )
+
+        # Egoright
+        self.bev_loss_egoright = self.calc_bev_loss(
+            self.pred_xs_egoright,
+            self.xs_bev_egoright,
+            self.valids_tensor_egoright
+        )
+        self.reproj_loss_egoright = self.calc_reproj_loss(
+            self.reproject_line(self.pred_xs_egoright, self.mat),
+            self.xs_reproj_egoright,
+            self.valids_tensor_egoright
+        )
+        self.total_loss_egoright = self.calc_total_loss(
+            self.bev_loss_egoright,
+            self.reproj_loss_egoright
         )
 
     # Calculate loss
