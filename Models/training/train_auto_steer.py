@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 import sys
 sys.path.append('../..')
 from Models.data_utils.load_data_ego_path_bev import LoadDataBEVEgoPath
-from Models.training.ego_path_trainer_bev import BEVEgoPathTrainer
+from Models.training.auto_steer_trainer import BEVEgoPathTrainer
 
 # Currently limiting to available datasets only. Will unlock eventually
 VALID_DATASET_LITERALS = Literal[
