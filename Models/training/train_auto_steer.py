@@ -18,9 +18,9 @@ VALID_DATASET_LITERALS = Literal[
     # "BDD100K",
     # "COMMA2K19",
     # "CULANE",
-    "CURVELANES",
+    # "CURVELANES",
     # "ROADWORK",
-    # "TUSIMPLE"
+    "TUSIMPLE"
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
