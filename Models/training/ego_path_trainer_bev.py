@@ -364,12 +364,14 @@ class BEVEgoPathTrainer():
             self.reproj_loss_egoright
         )
 
-    # FUNCS TO CALCULATE LOSSES
+    # =============================== FUNCS TO CALCULATE LOSSES =============================== #
     
     # Data loss - MAE between x-point GTs and preds
     def calc_data_loss(self, pred_xs, gt_xs, valids):
         num_valids = torch.sum(valids)
-        loss = torch.sum(torch.abs(pred_xs * valids - gt_xs * valids)) / num_valids
+        loss = torch.sum(
+            torch.abs(pred_xs * valids - gt_xs * valids)
+        ) / num_valids
         return loss
 
     # Smoothing loss - MAE between gradient angle (tangent angle) of point pairs between GTs and preds
@@ -443,15 +445,19 @@ class BEVEgoPathTrainer():
     def calc_total_loss(self, bev_loss, reproj_loss):
         total_loss = bev_loss + reproj_loss * self.gamma
         return total_loss
+    
+    # ================================================================================ #
 
     # Set scale factors for losses
     def set_loss_scale_factors(
         self,
-        data_loss_scale_factor,
-        smoothing_loss_scale_factor,
+        alpha,      # Scale factor of bev_gradient_loss
+        beta,       # Scale factor of reproj_gradient_loss
+        gamma,      # Scale factor of total_loss
     ):
-        self.data_loss_scale_factor = data_loss_scale_factor
-        self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
 
     # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
     def set_gradient_loss_type(self, type):
@@ -464,31 +470,64 @@ class BEVEgoPathTrainer():
     
     # Loss backward pass
     def loss_backward(self):
-        self.loss.backward()
+        self.total_loss_egopath.backward()
+        self.total_loss_egoleft.backward()
+        self.total_loss_egoright.backward()
 
-    # Get total loss value
-    def get_loss(self):
-        return self.loss.item()
+    # Get total loss values
+    def get_total_loss_egopath(self):
+        return self.total_loss_egopath.item()
+    
+    def get_total_loss_egoleft(self):
+        return self.total_loss_egoleft.item()
+    
+    def get_total_loss_egoright(self):
+        return self.total_loss_egoright.item()
 
-    # Get data loss
-    def get_data_loss(self):
-        scaled_data_loss = self.data_loss * self.data_loss_scale_factor
-        return scaled_data_loss.item()
+    # Get bev loss values
+    def get_bev_loss_egopath(self):
+        return self.bev_loss_egopath.item()
     
-    # Get smoothing (gradient) loss
-    def get_smoothing_loss(self):
-        scaled_smoothing_loss = self.smoothing_loss * self.smoothing_loss_scale_factor
-        return scaled_smoothing_loss.item()
+    def get_bev_loss_egoleft(self):
+        return self.bev_loss_egoleft.item()
     
+    def get_bev_loss_egoright(self):
+        return self.bev_loss_egoright.item()
     
-    # Logging all losses
+    # Get reproj loss values
+    def get_reproj_loss_egopath(self):
+        return self.reproj_loss_egopath.item()
+
+    def get_reproj_loss_egoleft(self):
+        return self.reproj_loss_egoleft.item()
+
+    def get_reproj_loss_egoright(self):
+        return self.reproj_loss_egoright.item()
+
+    # Logging losses - bev, reproj, total
     def log_loss(self, log_count):
         self.writer.add_scalars(
-            "Train", {
-                "total_loss" : self.get_loss(),
-                "data_loss" : self.get_data_loss(),
-                "smoothing_loss" : self.get_smoothing_loss()
-            }, 
+            "Train_EgoPath", {
+                "total_loss_egopath" : self.get_total_loss_egopath(),
+                "bev_loss_egopath" : self.get_bev_loss_egopath(),
+                "reproj_loss_egopath" : self.get_reproj_loss_egopath()
+            },
+            (log_count)
+        )
+        self.writer.add_scalars(
+            "Train_EgoLeft", {
+                "total_loss_egoleft" : self.get_total_loss_egoleft(),
+                "bev_loss_egoleft" : self.get_bev_loss_egoleft(),
+                "reproj_loss_egoleft" : self.get_reproj_loss_egoleft()
+            },
+            (log_count)
+        )
+        self.writer.add_scalars(
+            "Train_EgoRight", {
+                "total_loss_egoright" : self.get_total_loss_egoright(),
+                "bev_loss_egoright" : self.get_bev_loss_egoright(),
+                "reproj_loss_egoright" : self.get_reproj_loss_egoright()
+            },
             (log_count)
         )
 
