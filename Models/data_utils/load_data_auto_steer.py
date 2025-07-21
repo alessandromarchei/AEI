@@ -163,13 +163,3 @@ class LoadDataAutoSteer():
             flags_egoleft, valids_egoleft,
             flags_egoright, valids_egoright,
         ]
-    
-# if __name__ == "__main__":
-
-#     dataloader = LoadDataBEVEgoPath(
-#         labels_filepath = "/home/tranhuunhathuy/Documents/Autoware/POV_train/pov_datasets/TUSIMPLE/drivable_path_bev.json",
-#         images_filepath = "/home/tranhuunhathuy/Documents/Autoware/POV_train/pov_datasets/TUSIMPLE/image_bev",
-#         dataset = "TUSIMPLE"
-#     )
-
-#     print(dataloader.getItem(0, True))
