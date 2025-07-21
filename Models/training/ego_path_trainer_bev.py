@@ -364,36 +364,8 @@ class BEVEgoPathTrainer():
             self.reproj_loss_egoright
         )
 
-    # Calculate loss
-    def calc_loss(self, pred_xs, xs, valids):
-        self.data_loss = self.calc_data_loss(pred_xs, xs, valids)
-        self.smoothing_loss = self.calc_smoothing_loss(pred_xs, xs, valids)
-
-        total_loss = (
-            self.data_loss * self.data_loss_scale_factor + \
-            self.smoothing_loss * self.smoothing_loss_scale_factor
-        )
-
-        return total_loss 
+    # FUNCS TO CALCULATE LOSSES
     
-    # Set scale factors for losses
-    def set_loss_scale_factors(
-        self,
-        data_loss_scale_factor,
-        smoothing_loss_scale_factor,
-    ):
-        self.data_loss_scale_factor = data_loss_scale_factor
-        self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
-
-    # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
-    def set_gradient_loss_type(self, type):
-        if (type == "NUMERICAL"):
-            self.gradient_type = "NUMERICAL"
-        elif(type == "ANALYTICAL"):
-            self.gradient_type = "ANALYTICAL"
-        else:
-            raise ValueError("Please specify either NUMERICAL or ANALYTICAL gradient loss as a string")
-        
     # Data loss - MAE between x-point GTs and preds
     def calc_data_loss(self, pred_xs, gt_xs, valids):
         num_valids = torch.sum(valids)
@@ -411,6 +383,84 @@ class BEVEgoPathTrainer():
         loss = torch.sum(torch.abs(pred_gradients - gt_gradients)) / num_valids
 
         return loss
+    
+    # BEV loss - MAE between BEV GTs and preds
+    def calc_bev_loss(self, pred_xs, gt_xs, valids):
+        # Data loss
+        bev_data_loss = self.calc_data_loss(
+            pred_xs,
+            gt_xs,
+            valids
+        )
+        # Gradient loss
+        bev_gradient_loss = self.calc_smoothing_loss(
+            pred_xs,
+            gt_xs,
+            valids
+        )
+
+        # BEV loss
+        bev_loss = bev_data_loss + bev_gradient_loss * self.alpha
+
+        return bev_loss
+    
+    # Aux func: reproject line from BEV to orig space
+    def reproject_line(self, line, homotrans_mat):
+        np_line = np.array(
+            line, 
+            dtype = np.float32
+        ).reshape(-1, 1, 2)
+        reproj_line = cv2.perspectiveTransform(np_line, homotrans_mat)
+        reproj_line = [tuple(point[0]) for point in reproj_line]
+
+        return reproj_line
+    
+    # Reprojection loss - MAE between reproj GTs and preds
+    def calc_reproj_loss(self, pred_xs, gt_xs, valids):
+        # Reproj of preds
+        pred_xs_reproj = self.reproject_line(pred_xs, self.mat)
+
+        # Data loss
+        reproj_data_loss = self.calc_data_loss(
+            pred_xs_reproj,
+            gt_xs,
+            valids
+        )
+
+        # Gradient loss
+        reproj_gradient_loss = self.calc_smoothing_loss(
+            pred_xs_reproj,
+            gt_xs,
+            valids
+        )
+
+        # Reproj loss
+        reproj_loss = reproj_data_loss + reproj_gradient_loss * self.beta
+
+        return reproj_loss
+    
+    # Total loss - BEV + reproj
+    def calc_total_loss(self, bev_loss, reproj_loss):
+        total_loss = bev_loss + reproj_loss * self.gamma
+        return total_loss
+
+    # Set scale factors for losses
+    def set_loss_scale_factors(
+        self,
+        data_loss_scale_factor,
+        smoothing_loss_scale_factor,
+    ):
+        self.data_loss_scale_factor = data_loss_scale_factor
+        self.smoothing_loss_scale_factor = smoothing_loss_scale_factor
+
+    # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
+    def set_gradient_loss_type(self, type):
+        if (type == "NUMERICAL"):
+            self.gradient_type = "NUMERICAL"
+        elif(type == "ANALYTICAL"):
+            self.gradient_type = "ANALYTICAL"
+        else:
+            raise ValueError("Please specify either NUMERICAL or ANALYTICAL gradient loss as a string")
     
     # Loss backward pass
     def loss_backward(self):
