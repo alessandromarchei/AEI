@@ -114,9 +114,10 @@ class AutoSteerTrainer():
             self.model.load_state_dict(torch.load \
                 (checkpoint_path, weights_only = True))
             print("Loading trained AutoSteer model from checkpoint")
-        
+        else:
+            print("Loading vanilla AutoSteer model for training")
+            
         self.model = self.model.to(self.device)
-        print("Loading vanilla AutoSteer model for training")
         
         # TensorBoard
         self.writer = SummaryWriter()
@@ -783,7 +784,7 @@ class AutoSteerTrainer():
                 {
                     "val_score" : val_score_payload[dataset],
                     "val_data" : val_data_score_payload[dataset],
-                    "val_smooth" : val_smooth_score_payload[dataset]
+                    "val_gradient" : val_smooth_score_payload[dataset]
                 },
                 (msdict["log_counter"])
             )
