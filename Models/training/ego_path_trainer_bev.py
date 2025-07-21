@@ -560,13 +560,34 @@ class BEVEgoPathTrainer():
     def save_visualization(self, log_count, orig_vis):
 
         # Get pred/gt tensors and detach em
-        pred_xs = self.pred_xs.cpu().detach().numpy()
-        gt_xs = self.xs_tensor.cpu().detach().numpy()
+        pred_xs_bev_egopath = self.pred_xs_egopath.cpu().detach().numpy()
+        pred_xs_bev_egoleft = self.pred_xs_egoleft.cpu().detach().numpy()
+        pred_xs_bev_egoright = self.pred_xs_egoright.cpu().detach().numpy()
+
+        gt_xs_bev_egopath = self.xs_tensor_bev_egopath.cpu().detach().numpy()
+        gt_xs_bev_egoleft = self.xs_tensor_bev_egoleft.cpu().detach().numpy()
+        gt_xs_bev_egoright = self.xs_tensor_bev_egoright.cpu().detach().numpy()
 
         # BEV GROUNDTRUTH
 
         # Plot fig
-        fig_gt_bev = self.visualizeBEV(gt_xs)
+        fig_gt_bev = self.visualizeBEV(
+            list_pred_xs = [
+                gt_xs_bev_egopath, 
+                gt_xs_bev_egoleft, 
+                gt_xs_bev_egoright
+            ],
+            list_labels = [
+                "Groundtruth_EgoPath",
+                "Groundtruth_EgoLeft",
+                "Groundtruth_EgoRight"
+            ],
+            list_colors = [
+                "yellow",
+                "green",
+                "cyan"
+            ]
+        )
 
         # Write fig
         self.writer.add_figure(
@@ -578,7 +599,23 @@ class BEVEgoPathTrainer():
         # BEV PREDICTION
 
         # Plot fig
-        fig_pred_bev = self.visualizeBEV(pred_xs)
+        fig_pred_bev = self.visualizeBEV(
+            list_pred_xs = [
+                pred_xs_bev_egopath, 
+                pred_xs_bev_egoleft, 
+                pred_xs_bev_egoright
+            ],
+            list_labels = [
+                "Predicted_EgoPath",
+                "Predicted_EgoLeft",
+                "Predicted_EgoRight"
+            ],
+            list_colors = [
+                "yellow",
+                "green",
+                "cyan"
+            ]
+        )
 
         # Write fig
         self.writer.add_figure(
@@ -590,26 +627,67 @@ class BEVEgoPathTrainer():
         # ORIGINAL GROUNDTRUTH (basically just slap the visualization img)
 
         # Prep image tensor
-        fig_orig = self.visualizeOriginal(pred_xs, self.mat)
+        fig_orig = self.visualizeOriginal(
+            list_pred_xs = [
+                pred_xs_bev_egopath,
+                pred_xs_bev_egoleft,
+                pred_xs_bev_egoright
+            ],
+            list_labels = [
+                "Predicted_EgoPath_reprojected",
+                "Predicted_EgoLeft_reprojected",
+                "Predicted_EgoRight_reprojected"
+            ],
+            list_colors = [
+                "yellow",
+                "green",
+                "cyan"
+            ],
+            transform_matrix = self.mat,
+        )
 
         # Write image
         self.writer.add_figure(
-            "Original - Groundtruth vs Prediction",
+            "Original perspective - Groundtruth vs Prediction",
             fig_orig,
             global_step = (log_count)
         )
 
     # Run validation with metrics
     def validate(
-        self, 
-        orig_vis,
-        image, 
-        gt_xs, gt_ys, valids, mat, 
+        self,
+        orig_vis, image, 
+        xs_bev_egopath,
+        xs_reproj_egopath,
+        xs_bev_egoleft,
+        xs_reproj_egoleft,
+        xs_bev_egoright,
+        xs_reproj_egoright,
+        ys_bev,
+        ys_reproj,
+        valids_egopath,
+        valids_egoleft,
+        valids_egoright,
+        mat,
         save_path = None
     ):
 
         # Set data
-        self.set_data(orig_vis, image, gt_xs, gt_ys, valids, mat)
+        self.set_data(
+            orig_vis, image, 
+            xs_bev_egopath,
+            xs_reproj_egopath,
+            xs_bev_egoleft,
+            xs_reproj_egoleft,
+            xs_bev_egoright,
+            xs_reproj_egoright,
+            ys_bev,
+            ys_reproj,
+            valids_egopath,
+            valids_egoleft,
+            valids_egoright,
+            mat
+        )
 
         # Augment image
         self.apply_augmentations(is_train = False)
@@ -618,39 +696,109 @@ class BEVEgoPathTrainer():
         self.load_data()
 
         # Run model
-        self.pred_xs = self.model(self.image_tensor)
+        self.pred_xs_egopath, self.pred_xs_egoleft, self.pred_xs_egoright = self.model(self.image_tensor)
 
-        # Validation loss
-        val_data_loss_tensor = self.calc_data_loss(
-            self.pred_xs,
-            self.xs_tensor,
-            self.valids_tensor
+        # Validation losses
+        
+        # Egopath
+        val_bev_loss_egopath = self.calc_bev_loss(
+            self.pred_xs_egopath,
+            self.xs_bev_egopath,
+            self.valids_tensor_egopath
+        )
+        val_reproj_loss_egopath = self.calc_reproj_loss(
+            self.reproject_line(self.pred_xs_egopath, self.mat),
+            self.xs_reproj_egopath,
+            self.valids_tensor_egopath
+        )
+        val_total_loss_egopath = self.calc_total_loss(
+            val_bev_loss_egopath,
+            val_reproj_loss_egopath
         )
 
-        val_smoothing_loss_tensor = self.calc_smoothing_loss(
-            self.pred_xs,
-            self.xs_tensor,
-            self.valids_tensor
+        # Egoleft
+        val_bev_loss_egoleft = self.calc_bev_loss(
+            self.pred_xs_egoleft,
+            self.xs_bev_egoleft,
+            self.valids_tensor_egoleft
+        )
+        val_reproj_loss_egoleft = self.calc_reproj_loss(
+            self.reproject_line(self.pred_xs_egoleft, self.mat),
+            self.xs_reproj_egoleft,
+            self.valids_tensor_egoleft
+        )
+        val_total_loss_egoleft = self.calc_total_loss(
+            val_bev_loss_egoleft,
+            val_reproj_loss_egoleft
         )
 
-        val_data_loss = val_data_loss_tensor.detach().cpu().numpy()
-        val_smoothing_loss = val_smoothing_loss_tensor.detach().cpu().numpy()
-        sum_val_loss = val_data_loss + val_smoothing_loss
+        # Egoright
+        val_bev_loss_egoright = self.calc_bev_loss(
+            self.pred_xs_egoright,
+            self.xs_bev_egoright,
+            self.valids_tensor_egoright
+        )
+        val_reproj_loss_egoright = self.calc_reproj_loss(
+            self.reproject_line(self.pred_xs_egoright, self.mat),
+            self.xs_reproj_egoright,
+            self.valids_tensor_egoright
+        )
+        val_total_loss_egoright = self.calc_total_loss(
+            val_bev_loss_egoright,
+            val_reproj_loss_egoright
+        )
 
         # Save this visualization, both BEV and original
         if (save_path):
-            pred_xs = self.pred_xs.detach().cpu().numpy()
             self.visualizeBEV(
-                pred_xs,
-                f"{save_path}_BEV.jpg"
+                list_pred_xs = [
+                    self.pred_xs_egopath.cpu().detach().numpy(),
+                    self.pred_xs_egoleft.cpu().detach().numpy(),
+                    self.pred_xs_egoright.cpu().detach().numpy()
+                ],
+                list_labels = [
+                    "Predicted_EgoPath",
+                    "Predicted_EgoLeft",
+                    "Predicted_EgoRight"
+                ],
+                list_colors = [
+                    "yellow",
+                    "green",
+                    "cyan"
+                ],
+                save_path = f"{save_path}_BEV.jpg"
             )
             self.visualizeOriginal(
-                pred_xs,
-                mat,
-                f"{save_path}_Orig.jpg"
+                list_pred_xs = [
+                    self.pred_xs_egopath.cpu().detach().numpy(),
+                    self.pred_xs_egoleft.cpu().detach().numpy(),
+                    self.pred_xs_egoright.cpu().detach().numpy()
+                ],
+                list_labels = [
+                    "Predicted_EgoPath_reprojected",
+                    "Predicted_EgoLeft_reprojected",
+                    "Predicted_EgoRight_reprojected"
+                ],
+                list_colors = [
+                    "yellow",
+                    "green",
+                    "cyan"
+                ],
+                transform_matrix = mat,
+                save_path = f"{save_path}_Orig.jpg"
             )
 
-        return sum_val_loss, val_data_loss, val_smoothing_loss
+        return [
+            val_total_loss_egopath,
+            val_bev_loss_egopath,
+            val_reproj_loss_egopath,
+            val_total_loss_egoleft,
+            val_bev_loss_egoleft,
+            val_reproj_loss_egoleft,
+            val_total_loss_egoright,
+            val_bev_loss_egoright,
+            val_reproj_loss_egoright
+        ]
     
     # Log val loss to TensorBoard
     def log_validation(self, msdict):
@@ -685,28 +833,28 @@ class BEVEgoPathTrainer():
         )
 
     # Validate network on TEST dataset and visualize result
-    def test(
-        self,
-        image_test,
-        save_path
-    ):
+    # def test(
+    #     self,
+    #     image_test,
+    #     save_path
+    # ):
         
-        # Acquire test image
-        frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        test_img = Image.fromarray(frame).resize((320, 640))
+    #     # Acquire test image
+    #     frame = cv2.imread(image_test, cv2.IMREAD_COLOR)
+    #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    #     test_img = Image.fromarray(frame).resize((320, 640))
 
-        # Load as tensor
-        test_img_tensor = self.image_loader(test_img).unsqueeze(0).to(self.device)
+    #     # Load as tensor
+    #     test_img_tensor = self.image_loader(test_img).unsqueeze(0).to(self.device)
 
-        # Model inference
-        test_pred_xs = self.model(test_img_tensor).cpu().detach().numpy()
+    #     # Model inference
+    #     test_pred_xs = self.model(test_img_tensor).cpu().detach().numpy()
 
-        # Vis it
-        self.visualizeBEV(
-            test_pred_xs,
-            save_path
-        )
+    #     # Vis it
+    #     self.visualizeBEV(
+    #         test_pred_xs,
+    #         save_path
+    #     )
 
     # Inverse transform: BEV -> original perspective
     def invTrans(
@@ -715,10 +863,6 @@ class BEVEgoPathTrainer():
         transform_matrix
     ):
         inv_mat = np.linalg.inv(transform_matrix)
-        orig_view = cv2.warpPerspective(
-            self.image, inv_mat,
-            (self.H, self.W)        # 320 x 640 ==> 640 x 320
-        )
         np_line = np.array(
             line, 
             dtype = np.float32
@@ -726,12 +870,14 @@ class BEVEgoPathTrainer():
         orig_line = cv2.perspectiveTransform(np_line, inv_mat)
         orig_line = [tuple(point[0]) for point in orig_line]
 
-        return orig_view, orig_line
+        return orig_line
 
     # Visualize BEV perspective
     def visualizeBEV(
         self,
-        pred_xs,
+        list_pred_xs : list,
+        list_colors : list,
+        list_labels : list,
         save_path = None
     ):
         # Visualize image
@@ -740,21 +886,28 @@ class BEVEgoPathTrainer():
         plt.axis("off")
         plt.imshow(self.image)
 
-        # Plot BEV egopath
-        BEV_egopath = list(zip(pred_xs[0], self.ys))
-        renormed_BEV_egopath = [
-            (
-                BEV_egopath[i][0] * W, 
-                BEV_egopath[i][1] * H
-            ) 
-            for i in range(len(BEV_egopath))
-            if (self.valids[i] > 0.0)
-        ]
-        plt.plot(
-            [p[0] for p in renormed_BEV_egopath],
-            [p[1] for p in renormed_BEV_egopath],
-            color = "yellow"
-        )
+        # Plot BEV lines
+        assert len(list_pred_xs) == len(list_colors) == len(list_labels), \
+            f"Mismatched lengths: {len(list_pred_xs)}, {len(list_colors)}, {len(list_labels)}"
+        for i in range(len(list_pred_xs)):
+            pred_xs = list_pred_xs[i]
+            color = list_colors[i]
+            label = list_labels[i]
+            BEV_egopath = list(zip(pred_xs[0], self.ys))
+            renormed_BEV_egopath = [
+                (
+                    BEV_egopath[i][0] * W, 
+                    BEV_egopath[i][1] * H
+                ) 
+                for i in range(len(BEV_egopath))
+                if (self.valids[i] > 0.0)
+            ]
+            plt.plot(
+                [p[0] for p in renormed_BEV_egopath],
+                [p[1] for p in renormed_BEV_egopath],
+                color = color,
+                label = label
+            )
 
         # Write fig
         if (save_path):
@@ -766,7 +919,9 @@ class BEVEgoPathTrainer():
     # Visualize original perspective
     def visualizeOriginal(
         self,
-        pred_xs,
+        list_pred_xs : list,
+        list_colors : list,
+        list_labels : list,
         transform_matrix,
         save_path = None
     ):
@@ -774,37 +929,46 @@ class BEVEgoPathTrainer():
         H, W, _ = self.image.shape
         fig_orig = plt.figure(figsize = self.ORIG_FIGSIZE)
         plt.axis("off")
-
-        # Inverse transform
-        _, orig_egopath = self.invTrans(
-            list(zip(
-                [
-                    pred_xs[0][i] * W
-                    for i in range(len(pred_xs[0]))
-                    if (self.valids[i] > 0.0)
-                ],
-                [
-                    self.ys[i] * H
-                    for i in range(len(self.ys))
-                    if (self.valids[i] > 0.0)
-                ]
-            )),
-            transform_matrix
-        )
-
-        # Plot original perspective and its egopath
         plt.imshow(self.orig_vis)
         orig_W, orig_H = self.orig_vis.size
-        trimmed_orig_egopath = [
-            p for p in orig_egopath
-            if 0 <= p[0] <= orig_W
-            and 0 <= p[1] <= orig_H
-        ]
-        plt.plot(
-            [p[0] for p in trimmed_orig_egopath],
-            [p[1] for p in trimmed_orig_egopath],
-            color = "cyan"
-        )
+
+        assert len(list_pred_xs) == len(list_colors) == len(list_labels), \
+            f"Mismatched lengths: {len(list_pred_xs)}, {len(list_colors)}, {len(list_labels)}"
+        
+        for i in range(len(list_pred_xs)):
+            pred_xs = list_pred_xs[i]
+            color = list_colors[i]
+            label = list_labels[i]
+
+            # Reproject BEV to original perspective
+            reproj_line = self.invTrans(
+                list(zip(
+                    [
+                        pred_xs[0][i] * W
+                        for i in range(len(pred_xs[0]))
+                        if (self.valids[i] > 0.0)
+                    ],
+                    [
+                        self.ys[i] * H
+                        for i in range(len(self.ys))
+                        if (self.valids[i] > 0.0)
+                    ]
+                )),
+                transform_matrix
+            )
+
+            # Plot reproj line (valids only)
+            trimmed_reproj_line = [
+                p for p in reproj_line
+                if 0 <= p[0] <= orig_W
+                and 0 <= p[1] <= orig_H
+            ]
+            plt.plot(
+                [p[0] for p in trimmed_reproj_line],
+                [p[1] for p in trimmed_reproj_line],
+                color = color,
+                label = label
+            )
 
         # Write fig
         if (save_path):
