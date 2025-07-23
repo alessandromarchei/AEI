@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(autoware_pov_scene_seg)
+project(autoware_pov_scene3d)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -49,10 +49,9 @@ if(onnxruntime_USE_CUDA)
     add_definitions(-DUSE_CUDA)
 endif()
 
-
 # --- Core Inference Engine ---
 add_library(${PROJECT_NAME}_engine SHARED
-  src/scene_seg.cpp
+  src/scene3d.cpp
   src/onnx_runtime_backend.cpp
   src/tensorrt_backend.cpp
 )
@@ -70,10 +69,9 @@ target_link_libraries(${PROJECT_NAME}_engine
     ${TENSORRT_ONNXPARSER_LIBRARY}
     ${CUDA_LIBRARIES}
 )
-# ament_target_dependencies(${PROJECT_NAME}_engine rclcpp)
 
 # --- ROS2 Node ---
-add_library(${PROJECT_NAME}_node SHARED src/scene_seg_node.cpp)
+add_library(${PROJECT_NAME}_node SHARED src/scene3d_node.cpp)
 target_link_libraries(${PROJECT_NAME}_node
   PRIVATE
     ${PROJECT_NAME}_engine
@@ -90,7 +88,7 @@ ament_target_dependencies(${PROJECT_NAME}_node
 # --- Register Component ---
 rclcpp_components_register_node(
   ${PROJECT_NAME}_node
-  PLUGIN "autoware_pov::AutoSeg::SceneSeg::SceneSegNode"
+  PLUGIN "autoware_pov::AutoSeg::Scene3D::Scene3DNode"
   EXECUTABLE ${PROJECT_NAME}_node_exe
 )
 

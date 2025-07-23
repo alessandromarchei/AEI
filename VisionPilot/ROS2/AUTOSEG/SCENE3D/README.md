@@ -1,30 +1,31 @@
-# autoware_pov_scene_seg
+# autoware_pov_scene3d
 
-This ROS2 package performs real-time semantic segmentation on camera images using optimized inference backends. It supports both ONNX Runtime and TensorRT backends with various precision modes for maximum performance flexibility.
+This ROS2 package performs real-time monocular depth estimation using optimized inference backends. It supports both ONNX Runtime and TensorRT backends with various precision modes for maximum performance flexibility.
 
 ## Features
 
 - **Dual Backend Support**: Choose between ONNX Runtime and TensorRT
-- **Multiple Precision Modes**: FP32, FP16, and INT8 quantized models
+- **Multiple Precision Modes**: FP32, FP16 for neural network inference
 - **Engine Caching**: TensorRT engines are automatically cached for faster startup
-- **Real-time Performance**: Optimized for high-FPS inference with latency monitoring
+- **Real-time Performance**: Optimized for high-FPS depth estimation with latency monitoring
+- **Depth Visualization**: Viridis colormap for beautiful depth visualization
 - **Flexible Input**: Works with live cameras or video files
 
 ## Architecture
 
 The package contains two main components:
 
-1. **SceneSegNode**: A C++ composable node with pluggable inference backends
+1. **Scene3DNode**: A C++ composable node with pluggable inference backends
 2. **video_publisher.py**: A Python script for testing with video files
 
 ### Inference Backends
 
 #### ONNX Runtime Backend
-- **Best for**: Quantized (INT8) models, rapid prototyping, cross-platform compatibility
+- **Best for**: Rapid prototyping, cross-platform compatibility, CPU fallback
 - **Precision options**: 
   - `"cpu"`: CPU inference
   - `"cuda"`: GPU inference with FP32 precision
-- **Supports**: Asymmetric quantization from PyTorch QAT
+- **Supports**: Standard ONNX models from PyTorch, TensorFlow
 
 #### TensorRT Backend  
 - **Best for**: Maximum performance on NVIDIA GPUs
@@ -34,13 +35,22 @@ The package contains two main components:
 - **Engine Caching**: Automatically creates and reuses optimized engines
 - **File naming**: `model.onnx.{precision}.engine`
 
+## Topics
+
+### Input
+- `~/in/image` (sensor_msgs/Image): RGB input images
+
+### Outputs
+- `~/out/depth` (sensor_msgs/Image): Raw depth map (32-bit float, TYPE_32FC1)
+- `~/out/color_depth` (sensor_msgs/Image): Colorized depth visualization (BGR8)
+
 ## Quick Start
 
 ### 1. Build the Package
 
 ```bash
 # Build with ONNX Runtime and TensorRT support
-colcon build --packages-select autoware_pov_scene_seg \
+colcon build --packages-select autoware_pov_scene3d \
   --cmake-args \
   -DONNXRUNTIME_ROOTDIR=/path/to/your/onnxruntime \
   -DCMAKE_BUILD_TYPE=Release
@@ -56,8 +66,8 @@ source install/setup.bash
 export LD_LIBRARY_PATH=/path/to/onnxruntime/lib:/path/to/tensorrt/lib:$LD_LIBRARY_PATH
 
 # Run test pipeline
-ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
-  model_path:=data/your_model.onnx \
+ros2 launch autoware_pov_scene3d test_pipeline.launch.py \
+  model_path:=data/scene3d_model.onnx \
   video_path:=data/test_video.mp4 \
   backend:=tensorrt \
   precision:=fp16 \
@@ -69,50 +79,51 @@ ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
 ### TensorRT with FP16 (Recommended for Performance)
 
 ```bash
-ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
-  model_path:=data/SceneSeg_FP32.onnx \
+ros2 launch autoware_pov_scene3d test_pipeline.launch.py \
+  model_path:=data/Scene3D_FP32.onnx \
+  video_path:=data/driving_video.mp4 \
   backend:=tensorrt \
   precision:=fp16 \
+  frame_rate:=30.0 \
   measure_latency:=true
 ```
 
 **What happens:**
 1. First run: Builds FP16 engine from FP32 ONNX model (takes 1-2 minutes)
-2. Saves engine as `data/SceneSeg_FP32.onnx.fp16.engine`
+2. Saves engine as `data/Scene3D_FP32.onnx.fp16.engine`
 3. Subsequent runs: Loads pre-built engine instantly
 4. Expected performance: ~2x faster than FP32
 
 ### TensorRT with FP32 (Maximum Accuracy)
 
 ```bash
-ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
-  model_path:=data/SceneSeg_FP32.onnx \
+ros2 launch autoware_pov_scene3d test_pipeline.launch.py \
+  model_path:=data/Scene3D_FP32.onnx \
   backend:=tensorrt \
   precision:=fp32 \
   measure_latency:=true
 ```
 
-**Engine file:** `data/SceneSeg_FP32.onnx.fp32.engine`
+**Engine file:** `data/Scene3D_FP32.onnx.fp32.engine`
 
-### ONNX Runtime with Quantized Model (INT8)
+### ONNX Runtime GPU
 
 ```bash
-ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
-  model_path:=data/SceneSeg_INT8.onnx \
+ros2 launch autoware_pov_scene3d test_pipeline.launch.py \
+  model_path:=data/Scene3D_FP32.onnx \
   backend:=onnxruntime \
   precision:=cuda \
   measure_latency:=true
 ```
 
-**Best for:** Models quantized with PyTorch QAT (Quantization Aware Training)
-
 ### ONNX Runtime CPU Fallback
 
 ```bash
-ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
-  model_path:=data/SceneSeg_FP32.onnx \
+ros2 launch autoware_pov_scene3d test_pipeline.launch.py \
+  model_path:=data/Scene3D_FP32.onnx \
   backend:=onnxruntime \
   precision:=cpu \
+  frame_rate:=10.0 \
   measure_latency:=false
 ```
 
@@ -121,8 +132,8 @@ ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
 For real-world deployment with a live camera:
 
 ```bash
-ros2 launch autoware_pov_scene_seg scene_seg.launch.py \
-  model_path:=/path/to/your/model.onnx \
+ros2 launch autoware_pov_scene3d scene3d.launch.py \
+  model_path:=/path/to/your/depth_model.onnx \
   backend:=tensorrt \
   precision:=fp16 \
   input_image_topic:=/sensing/camera/front/image_raw \
@@ -133,12 +144,13 @@ ros2 launch autoware_pov_scene_seg scene_seg.launch.py \
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `model_path` | - | Path to ONNX model file |
+| `model_path` | - | Path to ONNX depth estimation model |
 | `backend` | `"onnxruntime"` | `"onnxruntime"` or `"tensorrt"` |
 | `precision` | `"cpu"` | See precision options below |
 | `gpu_id` | `0` | GPU device ID for inference |
 | `measure_latency` | `false` | Enable latency monitoring (samples every 200 frames) |
 | `input_image_topic` | `"/image_raw"` | Input camera topic |
+| `frame_rate` | `30.0` | Video publisher frame rate (test only) |
 
 ### Precision Options by Backend
 
@@ -149,6 +161,13 @@ ros2 launch autoware_pov_scene_seg scene_seg.launch.py \
 **TensorRT:**
 - `"fp32"`: Full precision GPU inference
 - `"fp16"`: Half precision GPU inference
+
+## Model Requirements
+
+- **Input**: RGB images (any resolution, automatically resized to 640x320)
+- **Output**: Single-channel depth map [batch, height, width] or [batch, 1, height, width]
+- **Preprocessing**: ImageNet normalization (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+- **Supported formats**: ONNX models exported from PyTorch, TensorFlow, etc.
 
 ## Performance Tips
 
@@ -161,10 +180,10 @@ ros2 launch autoware_pov_scene_seg scene_seg.launch.py \
 - Inference speed is critical
 
 **Use ONNX Runtime when:**
-- Using quantized (INT8) models
 - Need cross-platform compatibility
 - Rapid prototyping and testing
 - CPU inference required
+- Model format compatibility issues
 
 ### Engine Caching (TensorRT)
 
@@ -190,24 +209,37 @@ Each precision gets its own engine file:
 When `measure_latency:=true`, the node samples inference time every 200 frames:
 
 ```
-Frame 200: Inference Latency: 14.34 ms (69.8 FPS)
-Frame 400: Inference Latency: 13.92 ms (71.8 FPS)
+Frame 200: Inference Latency: 8.42 ms (118.8 FPS)
+Frame 400: Inference Latency: 7.91 ms (126.4 FPS)
 ```
 
 ## Visualization
 
-View the segmentation output:
+View the depth estimation output:
 
 ```bash
 # List available topics
 ros2 topic list
 
-# View colorized mask
-rqt_image_view ~/out/color_mask
+# View colorized depth map
+rqt_image_view ~/out/color_depth
 
-# View raw segmentation mask  
-rqt_image_view ~/out/mask
+# View raw depth values (grayscale)
+rqt_image_view ~/out/depth
 ```
+
+## Depth Processing
+
+### Raw Depth Output
+- **Format**: 32-bit float (TYPE_32FC1)
+- **Values**: Model-dependent depth values
+- **Use case**: Further processing, point cloud generation, SLAM
+
+### Colorized Depth Output
+- **Format**: BGR8 color image
+- **Colormap**: Viridis (dark blue = close, bright yellow = far)
+- **Normalization**: Per-frame min-max scaling
+- **Use case**: Visualization, debugging, demonstrations
 
 ## Troubleshooting
 
@@ -222,9 +254,9 @@ export LD_LIBRARY_PATH=/path/to/onnxruntime/lib:/path/to/tensorrt/lib:$LD_LIBRAR
 **"No optimization profile defined":**
 - This happens with dynamic ONNX models. The TensorRT backend automatically handles this.
 
-**"Non-zero zero point not supported":**
-- Use ONNX Runtime backend for asymmetrically quantized models
-- Use TensorRT backend for FP32/FP16 models only
+**"Unexpected output dimensions":**
+- Ensure your model outputs single-channel depth maps
+- Supported shapes: [N,H,W] or [N,1,H,W]
 
 ### Performance Benchmarking
 
@@ -232,22 +264,32 @@ Compare different configurations:
 
 ```bash
 # Benchmark FP32
-ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
+ros2 launch autoware_pov_scene3d test_pipeline.launch.py \
   backend:=tensorrt precision:=fp32 measure_latency:=true
 
 # Benchmark FP16  
-ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
+ros2 launch autoware_pov_scene3d test_pipeline.launch.py \
   backend:=tensorrt precision:=fp16 measure_latency:=true
 
-# Benchmark INT8
-ros2 launch autoware_pov_scene_seg test_pipeline.launch.py \
-  model_path:=data/quantized_model.onnx \
+# Benchmark ONNX Runtime
+ros2 launch autoware_pov_scene3d test_pipeline.launch.py \
   backend:=onnxruntime precision:=cuda measure_latency:=true
 ```
 
-## Model Requirements
+## Integration Example
 
-- **Input**: RGB images (any resolution, automatically resized)
-- **Output**: Segmentation logits [batch, classes, height, width]
-- **Preprocessing**: ImageNet normalization (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-- **Supported formats**: ONNX models exported from PyTorch, TensorFlow, etc.
+```bash
+# Terminal 1: Launch depth estimation
+ros2 launch autoware_pov_scene3d scene3d.launch.py \
+  model_path:=models/midas_v2.onnx \
+  backend:=tensorrt \
+  precision:=fp16 \
+  input_image_topic:=/camera/image_raw
+
+# Terminal 2: Visualize results  
+rqt_image_view ~/out/color_depth
+
+# Terminal 3: Process depth for SLAM/navigation
+ros2 run your_slam_package depth_processor \
+  --ros-args -r depth:=~/out/depth
+``` 

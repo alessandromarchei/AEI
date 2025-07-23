@@ -11,17 +11,18 @@ class EgoPathHead(nn.Module):
 
         # Context - MLP Layers
         self.ego_path_layer_0 = nn.Linear(800, 200)
-        self.ego_path_layer_1 = nn.Linear(200, 33)
+        self.ego_path_layer_1 = nn.Linear(200, 200)
+        self.ego_path_layer_2 = nn.Linear(200, 11)
  
 
-    def forward(self, features):
-        # Pooling and averaging channel layers to get a single vector
-        feature_vector = torch.mean(features, dim = [2,3])
+    def forward(self, feature_vector):
 
         # MLP
         p0 = self.ego_path_layer_0(feature_vector)
         p0 = self.GeLU(p0)
-        ego_path = self.ego_path_layer_1(p0)
+        p1 = self.ego_path_layer_1(p0)
+        p1 = self.GeLU(p1)
+        ego_path = self.ego_path_layer_2(p1)
 
         # Final result
         return ego_path
