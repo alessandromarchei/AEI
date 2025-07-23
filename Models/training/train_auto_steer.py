@@ -544,7 +544,7 @@ def main():
                         msdict[dataset]["val_egoright"]["reproj_score"] = msdict[dataset]["val_egoright"]["reproj_running"] / msdict[dataset]["num_val_samples"]
 
                     # Overall validation metric - total score
-                    msdict["val_overall_total_running"] = sum([
+                    msdict["overall_val_total_running"] = sum([
                         (
                             msdict[dataset]["val_egopath"]["total_score"] + \
                             msdict[dataset]["val_egoleft"]["total_score"] + \
@@ -565,10 +565,6 @@ def main():
                             msdict[dataset]["val_egoleft"]["bev_running"] + \
                             msdict[dataset]["val_egoright"]["bev_running"]
                         ) / 3.0
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["num_val_overall_samples"] = sum([
-                        msdict[dataset]["num_val_samples"]
                         for dataset in VALID_DATASET_LIST
                     ])
                     msdict["overall_val_bev_score"] = msdict["overall_val_bev_running"] / msdict["num_val_overall_samples"]

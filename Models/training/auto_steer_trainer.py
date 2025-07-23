@@ -770,21 +770,39 @@ class AutoSteerTrainer():
     
     # Log val loss to TensorBoard
     def log_validation(self, msdict):
+        
         # Val score for each dataset
-        val_score_payload = {}
-        val_data_score_payload = {}
-        val_smooth_score_payload = {}
         for dataset in self.VALID_DATASET_LIST:
-            val_score_payload[dataset] = msdict[dataset]["val_score"]
-            val_data_score_payload[dataset] = msdict[dataset]["val_data_score"]
-            val_smooth_score_payload[dataset] = msdict[dataset]["val_smooth_score"]
             
+            # Egopath
             self.writer.add_scalars(
-                f"Val Score - {dataset}", 
+                f"Val Scores - EgoPath - {dataset}", 
                 {
-                    "val_score" : val_score_payload[dataset],
-                    "val_data" : val_data_score_payload[dataset],
-                    "val_gradient" : val_smooth_score_payload[dataset]
+                    "val_total" : msdict[dataset]["val_egopath"]["total_score"],
+                    "val_bev" : msdict[dataset]["val_egopath"]["bev_score"],
+                    "val_reproj" : msdict[dataset]["val_egopath"]["reproj_score"]
+                },
+                (msdict["log_counter"])
+            )
+
+            # Egoleft
+            self.writer.add_scalars(
+                f"Val Scores - EgoPath - {dataset}", 
+                {
+                    "val_total" : msdict[dataset]["val_egoleft"]["total_score"],
+                    "val_bev" : msdict[dataset]["val_egoleft"]["bev_score"],
+                    "val_reproj" : msdict[dataset]["val_egoleft"]["reproj_score"]
+                },
+                (msdict["log_counter"])
+            )
+
+            # Egoright
+            self.writer.add_scalars(
+                f"Val Scores - EgoLeft - {dataset}", 
+                {
+                    "val_total" : msdict[dataset]["val_egoright"]["total_score"],
+                    "val_bev" : msdict[dataset]["val_egoright"]["bev_score"],
+                    "val_reproj" : msdict[dataset]["val_egoright"]["reproj_score"]
                 },
                 (msdict["log_counter"])
             )
@@ -793,9 +811,9 @@ class AutoSteerTrainer():
         self.writer.add_scalars(
             "Val Score - Overall",
             {
-                "overall_val_score" : msdict["overall_val_score"],
-                "overall_val_data_score" : msdict["overall_val_data_score"],
-                "overall_val_smooth_score" : msdict["overall_val_smooth_score"]
+                "overall_val_total" : msdict["overall_val_total_score"],
+                "overall_val_bev" : msdict["overall_val_bev_score"],
+                "overall_val_reproj" : msdict["overall_val_reproj_score"]
             },
             (msdict["log_counter"])
         )
