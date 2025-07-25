@@ -16,6 +16,9 @@ The project demonstrates publishing/subscribing images/videos with Zenoh.
     sudo apt install libzenohc-dev
     ```
 
+* **CLI11**: Used for the command line interface.
+  * Ubuntu: `sudo apt install libcli11-dev`
+
 ## Build
 
 * Configure with cmake
@@ -33,8 +36,18 @@ make
 
 ## Usage
 
-* Publish the Zenoh images
+* Publish the Zenoh video
 
 ```shell
 ./video_publisher <path_to_input_video.mp4>
+# Assign the key
+./video_publisher -k scene_segmentation/video/input
+```
+
+* Subscribe the Zenoh video
+
+```shell
+./video_subscriber
+# Assign the key
+./video_subscriber -k scene_segmentation/video/output
 ```

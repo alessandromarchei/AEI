@@ -8,6 +8,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <CLI/CLI.hpp>
 #include <zenoh.h>
 
 using namespace cv; 
@@ -16,12 +17,15 @@ using namespace std;
 #define DEFAULT_KEYEXPR "scene_segmentation/video"
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: ./video_publisher <input_video.mp4>" << std::endl;
-        return -1;
-    }
+    CLI::App app{"Zenoh video publisher example"};
 
-    const std::string input_video_path = argv[1];
+    std::string input_video_path;
+    app.add_option("video_path", input_video_path, "Path to the input video file")->required()->check(CLI::ExistingFile);
+
+    std::string keyexpr = DEFAULT_KEYEXPR;
+    app.add_option("-k,--key", keyexpr, "The key expression to publish to")->default_val(DEFAULT_KEYEXPR);
+
+    CLI11_PARSE(app, argc, argv);
 
     try {
         // Initialize video capture
@@ -31,7 +35,7 @@ int main(int argc, char* argv[]) {
         }
 
         const double fps = cap.get(cv::CAP_PROP_FPS);
-        std::cout << "Frame rate of input video: " << fps << " FPS" << std::endl;
+        std::cout << "Publishing video from '" << input_video_path << "' (" << fps << " FPS) to key '" << keyexpr << "'..." << std::endl;
 
         // Create Zenoh session
         z_owned_config_t config;
@@ -43,9 +47,9 @@ int main(int argc, char* argv[]) {
         // Declare a Zenoh publisher
         z_owned_publisher_t pub;
         z_view_keyexpr_t ke;
-        z_view_keyexpr_from_str(&ke, DEFAULT_KEYEXPR);
+        z_view_keyexpr_from_str(&ke, keyexpr.c_str());
         if (z_declare_publisher(z_loan(s), &pub, z_loan(ke), NULL) < 0) {
-            throw std::runtime_error("Error declaring Zenoh publisher for key expression: " + std::string(DEFAULT_KEYEXPR));
+            throw std::runtime_error("Error declaring Zenoh publisher for key expression: " + keyexpr);
         }
 
         // Display video frames

@@ -8,6 +8,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <CLI/CLI.hpp>
 #include <zenoh.h>
 
 using namespace cv; 
@@ -15,11 +16,13 @@ using namespace std;
 
 #define DEFAULT_KEYEXPR "scene_segmentation/video"
 
-int main(int argc, char**) {
-    if (argc != 1) {
-        std::cerr << "Usage: ./video_subscriber" << std::endl;
-        return -1;
-    }
+int main(int argc, char** argv) {
+    CLI::App app{"Zenoh video subscriber example"};
+
+    std::string keyexpr = DEFAULT_KEYEXPR;
+    app.add_option("-k,--key", keyexpr, "The key expression to subscribe to")->default_val(DEFAULT_KEYEXPR);
+
+    CLI11_PARSE(app, argc, argv);
 
     try {
         // Create Zenoh session
@@ -33,14 +36,15 @@ int main(int argc, char**) {
         // Declare a Zenoh subscriber
         z_owned_subscriber_t sub;
         z_view_keyexpr_t ke;
-        z_view_keyexpr_from_str(&ke, DEFAULT_KEYEXPR);
+         z_view_keyexpr_from_str(&ke, keyexpr.c_str());
         z_owned_fifo_handler_sample_t handler;
         z_owned_closure_sample_t closure;
         z_fifo_channel_sample_new(&closure, &handler, 16);
         if (z_declare_subscriber(z_loan(s), &sub, z_loan(ke), z_move(closure), NULL) < 0) {
-            throw std::runtime_error("Error declaring Zenoh subscriber for key expression: " + std::string(DEFAULT_KEYEXPR));
+            throw std::runtime_error("Error declaring Zenoh subscriber for key expression: " + std::string(keyexpr));
         }
         
+        std::cout << "Subscribing to '" << keyexpr << "'..." << std::endl;
         std::cout << "Processing video... Press ESC to stop." << std::endl;
         z_owned_sample_t sample;
         while (Z_OK == z_recv(z_loan(handler), &sample)) {
