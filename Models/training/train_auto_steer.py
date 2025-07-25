@@ -18,15 +18,15 @@ VALID_DATASET_LITERALS = Literal[
     # "BDD100K",
     # "COMMA2K19",
     # "CULANE",
-    "CURVELANES",
+    # "CURVELANES",
     # "ROADWORK",
-    # "TUSIMPLE"
+    "TUSIMPLE"
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
 BEV_IMG_PATH = "image_bev"
-ORIG_IMG_PATH = "image"
+ORIG_VIS_PATH = "visualization"
 
 
 def main():
@@ -40,6 +40,13 @@ def main():
         dest = "root", 
         required = True,
         help = "root path to folder where data training data is stored")
+    
+    parser.add_argument(
+        "-b", "--backbone_path", 
+        dest = "backbone_path",
+        help = "path to SceneSeg *.pth checkpoint file to load pre-trained backbone " \
+        "if we are training EgoPath from scratch"
+    )
     
     parser.add_argument(
         "-c", "--checkpoint_path", 
@@ -76,7 +83,7 @@ def main():
         msdict[dataset] = {
             "path_labels"   : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
             "path_images"   : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH),
-            "path_orig_image" : os.path.join(ROOT_PATH, dataset, ORIG_IMG_PATH)
+            "path_orig_vis" : os.path.join(ROOT_PATH, dataset, ORIG_VIS_PATH)
         }
 
     # Deal with TEST dataset
@@ -126,19 +133,18 @@ def main():
     # Trainer instance
     trainer = None
 
-    
     CHECKPOINT_PATH = args.checkpoint_path
 
     if (CHECKPOINT_PATH):
-        trainer = AutoSteerTrainer(checkpoint_path = CHECKPOINT_PATH)
+        trainer = AutoSteerTrainer(checkpoint_path = CHECKPOINT_PATH)    
     else:
-      trainer = AutoSteerTrainer()
+        trainer = AutoSteerTrainer()
     
     # Zero gradients
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 50
+    NUM_EPOCHS = 5
     LOGSTEP_LOSS = 250
     LOGSTEP_VIS = 1000
     LOGSTEP_MODEL = 10000
@@ -157,31 +163,18 @@ def main():
     # the loss is not scaled, and any other number applies a simple
     # scaling to increase or decrease the contribution of that specific
     # loss towards the overall loss
-
-    DATA_LOSS_BEV_SCALE_FACTOR = 1.0
-    SMOOTHING_LOSS_BEV_SCALE_FACTOR = 10.0
+    
     DATA_LOSS_SCALE_FACTOR = 1.0
     SMOOTHING_LOSS_SCALE_FACTOR = 10.0
-    EGO_PATH_LOSS_SCALE_FACTOR = 1.0
-    EGO_LANES_LOSS_SCALE_FACTOR = 1.0
 
     # Set training loss term scale factors
     trainer.set_loss_scale_factors(
-        DATA_LOSS_BEV_SCALE_FACTOR,
-        SMOOTHING_LOSS_BEV_SCALE_FACTOR,
         DATA_LOSS_SCALE_FACTOR,
-        SMOOTHING_LOSS_SCALE_FACTOR,
-        EGO_PATH_LOSS_SCALE_FACTOR,
-        EGO_LANES_LOSS_SCALE_FACTOR
-
+        SMOOTHING_LOSS_SCALE_FACTOR
     )
     
-    print(f"DATA_LOSS_BEV_SCALE_FACTOR : {DATA_LOSS_BEV_SCALE_FACTOR}")
-    print(f"SMOOTHING_LOSS_BEV_SCALE_FACTOR : {SMOOTHING_LOSS_BEV_SCALE_FACTOR}")
     print(f"DATA_LOSS_SCALE_FACTOR : {DATA_LOSS_SCALE_FACTOR}")
     print(f"SMOOTHING_LOSS_SCALE_FACTOR : {SMOOTHING_LOSS_SCALE_FACTOR}")
-    print(f"EGO_PATH_LOSS_SCALE_FACTOR : {EGO_PATH_LOSS_SCALE_FACTOR}")
-    print(f"EGO_LANES_LOSS_SCALE_FACTOR : {EGO_LANES_LOSS_SCALE_FACTOR}")
 
     # GRAD_LOSS_TYPE
     # There are two types of gradients loss, and either can be selected.
@@ -208,6 +201,19 @@ def main():
 
     print(f"DATA_SAMPLING_SCHEME : {DATA_SAMPLING_SCHEME}")
 
+    # BATCH_SIZE_SCHEME
+    # There are three type of BATCH_SIZE_SCHEME, the 'CONSTANT' batch size
+    # scheme sets a constant, fixed batch size value of 24 throughout training.
+    # The 'SLOW_DECAY' batch size scheme reduces the batch size during training,
+    # helping the model escape from local minima. The 'FAST_DECAY' batch size
+    # scheme decays the batch size faster, and may help with quicker model
+    # convergence.
+
+    BATCH_SIZE_SCHEME = "FAST_DECAY" # FAST_DECAY or SLOW_DECAY or CONSTANT
+
+    print(f"BATCH_SIZE_SCHEME : {BATCH_SIZE_SCHEME}")
+    
+    # ======================================================================= #
 
     # ========================= Main training loop ========================= #
 
@@ -220,15 +226,24 @@ def main():
 
         print(f"EPOCH : {epoch}")
 
-        # Batch Size Schedule
-        if (epoch == 0):
-            batch_size = 24
-        elif (epoch >= 10 and epoch < 20):
-            batch_size = 12
-        elif (epoch >= 20 and epoch < 30):
-            batch_size = 6
-        elif (epoch >= 30):
+        if (BATCH_SIZE_SCHEME == "CONSTANT"):
             batch_size = 3
+        elif (BATCH_SIZE_SCHEME == "FAST_DECAY"):
+            if (epoch == 0):
+                batch_size = 24
+            else:
+                batch_size = 3
+        elif (BATCH_SIZE_SCHEME == "SLOW_DECAY"):
+            if (epoch == 0):
+                batch_size = 24
+            else:
+                batch_size = 8
+
+        else:
+            raise ValueError(
+                "Please speficy BATCH_SIZE_SCHEME as either " \
+                " CONSTANT or FAST_DECAY or SLOW_DECAY"
+            )
         
         # Learning Rate Schedule
         if ((epoch >= 30) and (epoch < 40)):
@@ -302,35 +317,66 @@ def main():
             # Fetch data from current processed dataset
             
             image = None
-            drivable_path_bev = []
-            drivable_path = []
-            ego_left_lane_bev = []
-            ego_left_lane = []
-            ego_right_lane_bev = []
-            ego_right_lane = []
-            
+            xs_bev_egopath = []
+            xs_reproj_egopath = []
+            xs_bev_egoleft = []
+            xs_reproj_egoleft = []
+            xs_bev_egoright = []
+            xs_reproj_egoright = []
+            ys_bev = []
+            ys_reproj = []
+            flags_egopath = []
+            valids_egopath = []
+            flags_egoleft = []
+            valids_egoleft = []
+            flags_egoright = []
+            valids_egoright = []
+
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            frame_id, image, drivable_path_bev, drivable_path, \
-                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
-                ego_right_lane = msdict[current_dataset]["loader"].getItem(
+            [
+                frame_id, image,
+                xs_bev_egopath, xs_reproj_egopath,
+                xs_bev_egoleft, xs_reproj_egoleft,
+                xs_bev_egoright, xs_reproj_egoright,
+                ys_bev, ys_reproj,
+                flags_egopath, valids_egopath,
+                flags_egoleft, valids_egoleft,
+                flags_egoright, valids_egoright,
+                transform_matrix
+            ] = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
             msdict[current_dataset]["iter"] = current_dataset_iter + 1
 
-            # Also fetch original RGB Image
-            orig_image = Image.open(
+            # Also fetch original visualization
+            orig_vis = Image.open(
                 os.path.join(
-                    msdict[dataset]["path_orig_image"],
-                    f"{frame_id}.png"
+                    msdict[dataset]["path_orig_vis"],
+                    f"{frame_id}.jpg"
                 )
             ).convert("RGB")
 
+            # Start the training on this data
+
             # Assign data
-            trainer.set_data(orig_image, image, drivable_path_bev, drivable_path, \
-                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
-                ego_right_lane)
+
+            trainer.set_data(
+                orig_vis, image, 
+                xs_bev_egopath,
+                xs_reproj_egopath,
+                xs_bev_egoleft,
+                xs_reproj_egoleft,
+                xs_bev_egoright,
+                xs_reproj_egoright,
+                ys_bev,
+                ys_reproj,
+                valids_egopath,
+                valids_egoleft,
+                valids_egoright,
+                transform_matrix
+            )
             
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
@@ -374,9 +420,17 @@ def main():
 
                 # Validation metrics for each dataset
                 for dataset in VALID_DATASET_LIST:
-                    msdict[dataset]["val_running"] = 0
-                    msdict[dataset]["val_data_running"] = 0
-                    msdict[dataset]["val_smooth_running"] = 0
+                    val_dict_schema = {
+                        "total_running" : 0,
+                        "total_score" : 0,
+                        "bev_running" : 0,
+                        "bev_score" : 0,
+                        "reproj_running" : 0,
+                        "reproj_score" : 0
+                    }
+                    msdict[dataset]["val_egopath"] = val_dict_schema
+                    msdict[dataset]["val_egoleft"] = val_dict_schema
+                    msdict[dataset]["val_egoright"] = val_dict_schema
                     msdict[dataset]["num_val_samples"] = 0
 
                 # Temporarily disable gradient computation for backpropagation
@@ -389,7 +443,17 @@ def main():
                         for val_count in range(0, msdict[dataset]["N_vals"]):
 
                             # Fetch data
-                            frame_id, image, xs, ys, _, valids, mat = msdict[dataset]["loader"].getItem(
+                            [
+                                frame_id, image,
+                                xs_bev_egopath, xs_reproj_egopath,
+                                xs_bev_egoleft, xs_reproj_egoleft,
+                                xs_bev_egoright, xs_reproj_egoright,
+                                ys_bev, ys_reproj,
+                                flags_egopath, valids_egopath,
+                                flags_egoleft, valids_egoleft,
+                                flags_egoright, valids_egoright,
+                                transform_matrix
+                            ] = msdict[dataset]["loader"].getItem(
                                 val_count,
                                 is_train = False
                             )
@@ -417,71 +481,117 @@ def main():
                             # Fetch it again, the orig vis
                             orig_vis = Image.open(
                                 os.path.join(
-                                    msdict[dataset]["path_orig_image"],
-                                    f"{frame_id}.png"
+                                    msdict[dataset]["path_orig_vis"],
+                                    f"{frame_id}.jpg"
                                 )
                             ).convert("RGB")
 
                             # Validate
-                            val_metric, val_data, val_smooth = trainer.validate(
+                            [
+                                val_total_loss_egopath, val_bev_loss_egopath, val_reproj_loss_egopath,
+                                val_total_loss_egoleft, val_bev_loss_egoleft, val_reproj_loss_egoleft,
+                                val_total_loss_egoright, val_bev_loss_egoright, val_reproj_loss_egoright
+                            ] = trainer.validate(
                                 orig_vis, image, 
-                                xs, ys, valids, mat,
+                                xs_bev_egopath,
+                                xs_reproj_egopath,
+                                xs_bev_egoleft,
+                                xs_reproj_egoleft,
+                                xs_bev_egoright,
+                                xs_reproj_egoright,
+                                ys_bev,
+                                ys_reproj,
+                                valids_egopath,
+                                valids_egoleft,
+                                valids_egoright,
+                                transform_matrix,
                                 val_save_path
                             )
                             
                             # Log
-                            msdict[dataset]["val_running"] = msdict[dataset]["val_running"] + val_metric
-                            msdict[dataset]["val_data_running"] = msdict[dataset]["val_data_running"] + val_data
-                            msdict[dataset]["val_smooth_running"] = msdict[dataset]["val_smooth_running"] + val_smooth
-                    
+
+                            # Egopath
+                            msdict[dataset]["val_egopath"]["total_running"] += val_total_loss_egopath
+                            msdict[dataset]["val_egopath"]["bev_running"] += val_bev_loss_egopath
+                            msdict[dataset]["val_egopath"]["reproj_running"] += val_reproj_loss_egopath
+
+                            # Egoleft
+                            msdict[dataset]["val_egoleft"]["total_running"] += val_total_loss_egoleft
+                            msdict[dataset]["val_egoleft"]["bev_running"] += val_bev_loss_egoleft
+                            msdict[dataset]["val_egoleft"]["reproj_running"] += val_reproj_loss_egoleft
+
+                            # Egoright
+                            msdict[dataset]["val_egoright"]["total_running"] += val_total_loss_egoright
+                            msdict[dataset]["val_egoright"]["bev_running"] += val_bev_loss_egoright
+                            msdict[dataset]["val_egoright"]["reproj_running"] += val_reproj_loss_egoright
+
                     # Calculate final validation scores for network on each dataset
                     # as well as overall validation score - A lower score is better
                     for dataset in VALID_DATASET_LIST:
-                        msdict[dataset]["val_score"] = msdict[dataset]["val_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_data_score"] = msdict[dataset]["val_data_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_smooth_score"] = msdict[dataset]["val_smooth_running"] / msdict[dataset]["num_val_samples"]
+                        # Egopath
+                        msdict[dataset]["val_egopath"]["total_score"] = msdict[dataset]["val_egopath"]["total_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egopath"]["bev_score"] = msdict[dataset]["val_egopath"]["bev_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egopath"]["reproj_score"] = msdict[dataset]["val_egopath"]["reproj_running"] / msdict[dataset]["num_val_samples"]
 
-                    # Overall validation metric
-                    msdict["val_overall_running"] = sum([
-                        msdict[dataset]["val_running"]
+                        # Egoleft
+                        msdict[dataset]["val_egoleft"]["total_score"] = msdict[dataset]["val_egoleft"]["total_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egoleft"]["bev_score"] = msdict[dataset]["val_egoleft"]["bev_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egoleft"]["reproj_score"] = msdict[dataset]["val_egoleft"]["reproj_running"] / msdict[dataset]["num_val_samples"]
+
+                        # Egoright
+                        msdict[dataset]["val_egoright"]["total_score"] = msdict[dataset]["val_egoright"]["total_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egoright"]["bev_score"] = msdict[dataset]["val_egoright"]["bev_running"] / msdict[dataset]["num_val_samples"]
+                        msdict[dataset]["val_egoright"]["reproj_score"] = msdict[dataset]["val_egoright"]["reproj_running"] / msdict[dataset]["num_val_samples"]
+
+                    # Overall validation metric - total score
+                    msdict["overall_val_total_running"] = sum([
+                        (
+                            msdict[dataset]["val_egopath"]["total_score"] + \
+                            msdict[dataset]["val_egoleft"]["total_score"] + \
+                            msdict[dataset]["val_egoright"]["total_score"]
+                        ) / 3.0
+
                         for dataset in VALID_DATASET_LIST
                     ])
                     msdict["num_val_overall_samples"] = sum([
                         msdict[dataset]["num_val_samples"]
                         for dataset in VALID_DATASET_LIST
                     ])
-                    msdict["overall_val_score"] = msdict["val_overall_running"] / msdict["num_val_overall_samples"]
+                    
+                    msdict["overall_val_total_score"] = msdict["val_overall_running"] / msdict["num_val_overall_samples"]
 
-                    # Overall validation data metric
-                    msdict["val_overall_data_running"] = sum([
-                        msdict[dataset]["val_data_running"]
+                    # Overall validation metric - bev score
+                    msdict["overall_val_bev_running"] = sum([
+                        (
+                            msdict[dataset]["val_egopath"]["bev_running"] + \
+                            msdict[dataset]["val_egoleft"]["bev_running"] + \
+                            msdict[dataset]["val_egoright"]["bev_running"]
+                        ) / 3.0
                         for dataset in VALID_DATASET_LIST
                     ])
-                    msdict["num_val_overall_samples"] = sum([
-                        msdict[dataset]["num_val_samples"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["overall_val_data_score"] = msdict["val_overall_data_running"] / msdict["num_val_overall_samples"]
+                    msdict["overall_val_bev_score"] = msdict["overall_val_bev_running"] / msdict["num_val_overall_samples"]
 
-                    msdict["val_overall_smooth_running"] = sum([
-                        msdict[dataset]["val_smooth_running"]
+                    # Overall validation metric - reproj score
+                    msdict["overall_val_reproj_running"] = sum([
+                        (
+                            msdict[dataset]["val_egopath"]["reproj_running"] + \
+                            msdict[dataset]["val_egoleft"]["reproj_running"] + \
+                            msdict[dataset]["val_egoright"]["reproj_running"]
+                        ) / 3.0
                         for dataset in VALID_DATASET_LIST
                     ])
-                    msdict["num_val_overall_samples"] = sum([
-                        msdict[dataset]["num_val_samples"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["overall_val_smooth_score"] = msdict[dataset]["val_smooth_running"] / msdict["num_val_overall_samples"]
+                    msdict["overall_val_reproj_score"] = msdict["overall_val_reproj_running"] / msdict["num_val_overall_samples"]
                     
                     print("================ Complete - Validation Scores ================")
                     for dataset in VALID_DATASET_LIST:
-                        print(f"\n{dataset} - VAL SCORE : {msdict[dataset]['val_score']}")
-                        print(f"{dataset} - VAL DATA SCORE : {msdict[dataset]['val_data_score']}")
-                        print(f"{dataset} - VAL SMOOTH SCORE : {msdict[dataset]['val_smooth_score']}")
+                        for key in ["egopath", "egoleft", "egoright"]:
+                            print(f"\n{dataset} - {key.upper()} TOTAL SCORE : {msdict[dataset]['val_' + key]['total_score']}")
+                            print(f"{dataset} - {key.upper()} BEV SCORE : {msdict[dataset]['val_' + key]['bev_score']}")
+                            print(f"{dataset} - {key.upper()} REPROJ SCORE : {msdict[dataset]['val_' + key]['reproj_score']}")
                     print("\nOVERALL :")
-                    print(f"VAL SCORE : {msdict['overall_val_score']}")
-                    print(f"VAL DATA SCORE : {msdict['overall_val_data_score']}")
-                    print(f"VAL SMOOTH SCORE : {msdict['overall_val_smooth_score']}\n")
+                    print(f"VAL SCORE : {msdict['overall_val_total_score']}")
+                    print(f"VAL BEV SCORE : {msdict['overall_val_bev_score']}")
+                    print(f"VAL REPROJ SCORE : {msdict['overall_val_reproj_score']}\n")
 
                     # Logging average metrics
                     trainer.log_validation(msdict)

@@ -19,9 +19,11 @@ VALID_DATASET_LITERALS = Literal[
     # "BDD100K",
     # "COMMA2K19",
     # "CULANE",
-    "CURVELANES",
+    # "CURVELANES",
     # "ROADWORK",
-    # "TUSIMPLE"
+    "TUSIMPLE"
+    # "ROADWORK",
+
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
@@ -44,10 +46,12 @@ class LoadDataAutoSteer():
 
         if not (self.dataset_name in VALID_DATASET_LIST):
             raise ValueError("Unknown dataset! Contact our team so we can work on this.")
-        
-        # Load JSON labels, address the diffs of format across datasets
+
+        # Load JSON labels, get homotrans matrix as well
         with open(self.label_filepath, "r") as f:
-            self.labels = json.load(f)
+            json_data = json.load(f)
+            self.homotrans_mat = json_data.pop("standard_homomatrix")
+            self.labels = json_data
 
         self.images = sorted([
             f for f in pathlib.Path(self.image_dirpath).glob("*.png")
@@ -106,28 +110,60 @@ class LoadDataAutoSteer():
     def getItem(self, index, is_train: bool):
         if (is_train):
             img = Image.open(str(self.train_images[index])).convert("RGB")
-            drivable_path_bev = self.train_labels[index]["drivable_path_bev"]
-            ego_left_lane_bev = self.train_labels[index]["ego_left_lane_bev"]
-            ego_right_lane_bev = self.train_labels[index]["ego_right_lane_bev"]
-            drivable_path = self.train_labels[index]["drivable_path"]
-            ego_left_lane = self.train_labels[index]["ego_left_lane"]
-            ego_right_lane = self.train_labels[index]["ego_right_lane"]
             frame_id = self.train_ids[index]
+            bev_egopath = self.train_labels[index]["bev_egopath"]
+            reproj_egopath = self.train_labels[index]["reproj_egopath"]
+            bev_egoleft = self.train_labels[index]["bev_egoleft"]
+            reproj_egoleft = self.train_labels[index]["reproj_egoleft"]
+            bev_egoright = self.train_labels[index]["bev_egoright"]
+            reproj_egoright = self.train_labels[index]["reproj_egoright"]
         else:
             img = Image.open(str(self.val_images[index])).convert("RGB")
-            drivable_path_bev = self.train_labels[index]["drivable_path_bev"]
-            ego_left_lane_bev = self.train_labels[index]["ego_left_lane_bev"]
-            ego_right_lane_bev = self.train_labels[index]["ego_right_lane_bev"]
-            drivable_path = self.train_labels[index]["drivable_path"]
-            ego_left_lane = self.train_labels[index]["ego_left_lane"]
-            ego_right_lane = self.train_labels[index]["ego_right_lane"]
             frame_id = self.val_ids[index]
+            bev_egopath = self.val_labels[index]["bev_egopath"]
+            reproj_egopath = self.val_labels[index]["reproj_egopath"]
+            bev_egoleft = self.val_labels[index]["bev_egoleft"]
+            reproj_egoleft = self.val_labels[index]["reproj_egoleft"]
+            bev_egoright = self.val_labels[index]["bev_egoright"]
+            reproj_egoright = self.val_labels[index]["reproj_egoright"]
+
 
         W, H = img.size
 
         # Convert image to OpenCV/Numpy format for augmentations
         img = np.array(img)
+
+        # Split labels
+        xs_bev_egopath = [lab[0] / W for lab in bev_egopath]
+        xs_reproj_egopath = [lab[0] / W for lab in reproj_egopath]
+
+        xs_bev_egoleft = [lab[0] / W for lab in bev_egoleft]
+        xs_reproj_egoleft = [lab[0] / W for lab in reproj_egoleft]
+
+        xs_bev_egoright = [lab[0] / W for lab in bev_egoright]
+        xs_reproj_egoright = [lab[0] / W for lab in reproj_egoright]
+
+        ys_bev = [lab[1] / H for lab in bev_egopath]
+        ys_reproj = [lab[1] / H for lab in reproj_egopath]
+
+        flags_egopath = [lab[2] for lab in bev_egopath]
+        valids_egopath = [lab[3] for lab in bev_egopath]
+
+        flags_egoleft = [lab[2] for lab in bev_egoleft]
+        valids_egoleft = [lab[3] for lab in bev_egoleft]
         
-        return frame_id, img, drivable_path_bev, drivable_path, \
-                ego_left_lane_bev, ego_left_lane, ego_right_lane_bev, \
-                ego_right_lane
+        flags_egoright = [lab[2] for lab in bev_egoright]
+        valids_egoright = [lab[3] for lab in bev_egoright]
+        
+        return [
+            frame_id, img,
+            self.homotrans_mat,
+            xs_bev_egopath, xs_reproj_egopath,
+            xs_bev_egoleft, xs_reproj_egoleft,
+            xs_bev_egoright, xs_reproj_egoright,
+            ys_bev, ys_reproj,
+            flags_egopath, valids_egopath,
+            flags_egoleft, valids_egoleft,
+            flags_egoright, valids_egoright,
+        ]
+
