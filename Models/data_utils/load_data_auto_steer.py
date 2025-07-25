@@ -22,6 +22,8 @@ VALID_DATASET_LITERALS = Literal[
     # "CURVELANES",
     # "ROADWORK",
     "TUSIMPLE"
+    # "ROADWORK",
+
 ]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
@@ -44,7 +46,7 @@ class LoadDataAutoSteer():
 
         if not (self.dataset_name in VALID_DATASET_LIST):
             raise ValueError("Unknown dataset! Contact our team so we can work on this.")
-        
+
         # Load JSON labels, get homotrans matrix as well
         with open(self.label_filepath, "r") as f:
             json_data = json.load(f)
@@ -125,6 +127,7 @@ class LoadDataAutoSteer():
             bev_egoright = self.val_labels[index]["bev_egoright"]
             reproj_egoright = self.val_labels[index]["reproj_egoright"]
 
+
         W, H = img.size
 
         # Convert image to OpenCV/Numpy format for augmentations
@@ -163,3 +166,4 @@ class LoadDataAutoSteer():
             flags_egoleft, valids_egoleft,
             flags_egoright, valids_egoright,
         ]
+

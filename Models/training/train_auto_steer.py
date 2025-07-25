@@ -163,7 +163,7 @@ def main():
     # the loss is not scaled, and any other number applies a simple
     # scaling to increase or decrease the contribution of that specific
     # loss towards the overall loss
-
+    
     DATA_LOSS_SCALE_FACTOR = 1.0
     SMOOTHING_LOSS_SCALE_FACTOR = 10.0
 
@@ -550,12 +550,14 @@ def main():
                             msdict[dataset]["val_egoleft"]["total_score"] + \
                             msdict[dataset]["val_egoright"]["total_score"]
                         ) / 3.0
+
                         for dataset in VALID_DATASET_LIST
                     ])
                     msdict["num_val_overall_samples"] = sum([
                         msdict[dataset]["num_val_samples"]
                         for dataset in VALID_DATASET_LIST
                     ])
+                    
                     msdict["overall_val_total_score"] = msdict["val_overall_running"] / msdict["num_val_overall_samples"]
 
                     # Overall validation metric - bev score

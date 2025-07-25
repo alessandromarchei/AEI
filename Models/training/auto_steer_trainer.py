@@ -142,7 +142,7 @@ class AutoSteerTrainer():
     # Learning rate adjustment
     def set_learning_rate(self, learning_rate):
         self.learning_rate = learning_rate
-
+        
     # Assign input variables
     def set_data(
         self, 
@@ -167,6 +167,7 @@ class AutoSteerTrainer():
         self.image = image
         self.H = h
         self.W = w
+
         self.xs_bev_egopath = np.array(
             xs_bev_egopath, 
             dtype = "float32"
@@ -849,14 +850,15 @@ class AutoSteerTrainer():
         transform_matrix
     ):
         inv_mat = np.linalg.inv(transform_matrix)
+
         np_line = np.array(
             line, 
             dtype = np.float32
         ).reshape(-1, 1, 2)
         orig_line = cv2.perspectiveTransform(np_line, inv_mat)
         orig_line = [tuple(point[0]) for point in orig_line]
-
         return orig_line
+
 
     # Visualize BEV perspective
     def visualizeBEV(
