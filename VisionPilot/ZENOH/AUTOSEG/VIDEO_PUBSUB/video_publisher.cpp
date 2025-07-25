@@ -17,14 +17,13 @@ using namespace std;
 #define DEFAULT_KEYEXPR "scene_segmentation/video"
 
 int main(int argc, char* argv[]) {
+    // Parse command line arguments
     CLI::App app{"Zenoh video publisher example"};
-
+    // Add options
     std::string input_video_path;
     app.add_option("video_path", input_video_path, "Path to the input video file")->required()->check(CLI::ExistingFile);
-
     std::string keyexpr = DEFAULT_KEYEXPR;
     app.add_option("-k,--key", keyexpr, "The key expression to publish to")->default_val(DEFAULT_KEYEXPR);
-
     CLI11_PARSE(app, argc, argv);
 
     try {
@@ -33,7 +32,6 @@ int main(int argc, char* argv[]) {
         if (!cap.isOpened()) {
             throw std::runtime_error("Error opening video stream or file: " + input_video_path);
         }
-
         const double fps = cap.get(cv::CAP_PROP_FPS);
         std::cout << "Publishing video from '" << input_video_path << "' (" << fps << " FPS) to key '" << keyexpr << "'..." << std::endl;
 

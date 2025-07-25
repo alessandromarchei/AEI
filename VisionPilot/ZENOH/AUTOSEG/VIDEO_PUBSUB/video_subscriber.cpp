@@ -17,11 +17,11 @@ using namespace std;
 #define DEFAULT_KEYEXPR "scene_segmentation/video"
 
 int main(int argc, char** argv) {
+    // Parse command line arguments
     CLI::App app{"Zenoh video subscriber example"};
-
+    // Add options
     std::string keyexpr = DEFAULT_KEYEXPR;
     app.add_option("-k,--key", keyexpr, "The key expression to subscribe to")->default_val(DEFAULT_KEYEXPR);
-
     CLI11_PARSE(app, argc, argv);
 
     try {

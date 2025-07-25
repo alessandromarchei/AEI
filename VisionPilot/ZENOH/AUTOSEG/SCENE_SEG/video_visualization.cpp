@@ -1,13 +1,3 @@
-/*
-**
-FILE:   video_visualization.cpp
-DESC:   C++ Deployment of SceneSeg Network for Video Visualization using ONNX Runtime.
-        This application reads a video file, runs inference on each frame using
-        a pre-trained ONNX model, and saves the output as a new video file with
-        the segmentation mask overlaid.
-**
-*/
-
 #include <iostream>
 #include <vector>
 #include <string>
@@ -109,31 +99,28 @@ cv::Mat make_visualization(const float* prediction_data, int height, int width) 
 }
 
 int main(int argc, char* argv[]) {
+    // Parse command line arguments
     CLI::App app{"Zenoh video scene segmentation visualizer"};
-
     std::string model_path;
+    // Add options
     app.add_option("model_path", model_path, "Path to the ONNX model file")->required()->check(CLI::ExistingFile);
-
     std::string input_keyexpr = VIDEO_INPUT_KEYEXPR;
     app.add_option("-i,--input-key", input_keyexpr, "The key expression to subscribe video from")
         ->default_val(VIDEO_INPUT_KEYEXPR);
-
     std::string output_keyexpr = VIDEO_OUTPUT_KEYEXPR;
     app.add_option("-o,--output-key", output_keyexpr, "The key expression to publish the result to")
         ->default_val(VIDEO_OUTPUT_KEYEXPR);
-
     CLI11_PARSE(app, argc, argv);
 
     try {
-        // --- 1. Initialize ONNX Runtime ---
+        // Initialize ONNX Runtime
         Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "SceneSegVideo");
         Ort::SessionOptions session_options;
-
         // Set default session options
         session_options.SetIntraOpNumThreads(1);
         session_options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
-        
-        // --- Add Execution Providers (Optional: CUDA / DNNL) ---
+
+        // Add Execution Providers (Optional: CUDA / DNNL)
         // These are enabled via compile-time flags (e.g., -DUSE_EP_CUDA=1)
 #if USE_EP_CUDA
         std::cout << "INFO: Attempting to use CUDA Execution Provider." << std::endl;
@@ -152,21 +139,20 @@ int main(int argc, char* argv[]) {
         session_options.AppendExecutionProvider_Dnnl(dnnl_option);
         std::cout << "INFO: DNNL Execution Provider initialized." << std::endl;
 #endif
-
         Ort::Session session(env, model_path.c_str(), session_options);
         Ort::AllocatorWithDefaultOptions allocator;
 
-        // --- 2. Get Model Input/Output Info ---
+        // Get Model Input/Output Info
         auto input_name = session.GetInputNameAllocated(0, allocator);
         auto output_name = session.GetOutputNameAllocated(0, allocator);
         std::vector<const char*> input_names = {input_name.get()};
         std::vector<const char*> output_names = {output_name.get()};
-
+        // Input Info
         Ort::TypeInfo input_type_info = session.GetInputTypeInfo(0);
         auto input_tensor_info = input_type_info.GetTensorTypeAndShapeInfo();
         std::vector<int64_t> input_dims = input_tensor_info.GetShape();
         if (input_dims[0] == -1) input_dims[0] = 1; // Set dynamic batch size to 1
-
+        // Output Info
         Ort::TypeInfo output_type_info = session.GetOutputTypeInfo(0);
         auto output_tensor_info = output_type_info.GetTensorTypeAndShapeInfo();
         std::vector<int64_t> output_dims = output_tensor_info.GetShape();
@@ -174,6 +160,7 @@ int main(int argc, char* argv[]) {
         const int pred_height = output_dims[2];
         const int pred_width = output_dims[3];
 
+        // Zenoh Initialization
         // Create Zenoh session
         z_owned_config_t config;
         z_owned_session_t s;
@@ -181,7 +168,6 @@ int main(int argc, char* argv[]) {
         if (z_open(&s, z_move(config), NULL) < 0) {
             throw std::runtime_error("Error opening Zenoh session");
         }
-
         // Declare a Zenoh subscriber
         z_owned_subscriber_t sub;
         z_view_keyexpr_t in_ke;
@@ -192,7 +178,6 @@ int main(int argc, char* argv[]) {
         if (z_declare_subscriber(z_loan(s), &sub, z_loan(in_ke), z_move(closure), NULL) < 0) {
             throw std::runtime_error("Error declaring Zenoh subscriber for key expression: " + input_keyexpr);
         }
-
         // Declare a Zenoh publisher for the output
         z_owned_publisher_t pub;
         z_view_keyexpr_t out_ke;
@@ -201,19 +186,19 @@ int main(int argc, char* argv[]) {
             throw std::runtime_error("Error declaring Zenoh publisher for key expression: " + output_keyexpr);
         }
 
+        // Subscribe to the input key expression and process frames
         std::cout << "Subscribing to '" << input_keyexpr << "'..." << std::endl;
         std::cout << "Publishing results to '" << output_keyexpr << "'..." << std::endl;
         Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-
         z_owned_sample_t sample;
         while (Z_OK == z_recv(z_loan(handler), &sample)) {
+            // Get the loaned sample and extract the payload
             const z_loaned_sample_t* loaned_sample = z_loan(sample);
             z_owned_slice_t zslice;
             if (Z_OK != z_bytes_to_slice(z_sample_payload(loaned_sample), &zslice)) {
                 throw std::runtime_error("Wrong payload");
             }
             const uint8_t* ptr = z_slice_data(z_loan(zslice));
-
             // Extract the frame information for the attachment
             const z_loaned_bytes_t* attachment = z_sample_attachment(loaned_sample);
             int row, col, type;
@@ -259,17 +244,15 @@ int main(int argc, char* argv[]) {
             cv::Mat final_frame;
             cv::addWeighted(resized_mask, 0.5, frame, 0.5, 0.0, final_frame);
 
-            // --- Publish the processed frame ---
+            // Publish the processed frame via Zenoh
             z_publisher_put_options_t options;
             z_publisher_put_options_default(&options);
-            
             // Create attachment with frame metadata
             z_owned_bytes_t attachment_out;
             int output_bytes_info[] = {final_frame.rows, final_frame.cols, final_frame.type()};
             z_bytes_copy_from_buf(&attachment_out, (const uint8_t*)output_bytes_info, sizeof(output_bytes_info));
             options.attachment = z_move(attachment_out);
-
-            // Create payload with pixel data
+            // Create payload with pixel data and publish
             unsigned char* pixelPtr = final_frame.data;
             size_t dataSize = final_frame.total() * final_frame.elemSize();
             z_owned_bytes_t payload_out;
@@ -277,7 +260,7 @@ int main(int argc, char* argv[]) {
             z_publisher_put(z_loan(pub), z_move(payload_out), &options);
         }
         
-        // --- 5. Cleanup ---
+        // Cleanup
         z_drop(z_move(pub));
         z_drop(z_move(handler));
         z_drop(z_move(sub));
