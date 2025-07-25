@@ -26,6 +26,9 @@ Two applications are built:
     sudo apt install libzenohc-dev
     ```
 
+* **CLI11**: Used for the command line interface.
+  * Ubuntu: `sudo apt install libcli11-dev`
+
 * **SceneSeg Model and Weights**
   * [Link to Download Pytorch Model Weights *.pth](https://drive.google.com/file/d/1vCZMdtd8ZbSyHn1LCZrbNKMK7PQvJHxj/view?usp=sharing)
   * [Link to Download Traced Pytorch Model *.pt](https://drive.google.com/file/d/1G2pKrjEGLGY1ouQdNPh11N-5LlmDI7ES/view?usp=drive_link)
@@ -77,14 +80,15 @@ Processes a single image and produces two output image files.
 
 ### Video Visualization
 
-Processes a video file and produces a new video file with segmentation overlaid.
+Subscribe a video from a Zenoh publisher and then publish it to a Zenoh Subscriber.
 
-**Command:**
+* Usage the video publisher and subscriber
 
 ```bash
-./video_visualization <path_to_model.onnx> <path_to_input_video.mp4>
+# Terminal 1
+./video_publisher -k scene_segmentation/video/input
+# Terminal 2
+./video_visualization <path_to_model.onnx> -i scene_segmentation/video/input -o scene_segmentation/video/output
+# Terminal 3
+./video_subscriber -k scene_segmentation/video/output
 ```
-
-**Output:**
-
-* A new video file named `<input_video_name>_seg.avi` (e.g., `my_video_seg.avi`) in the build directory.

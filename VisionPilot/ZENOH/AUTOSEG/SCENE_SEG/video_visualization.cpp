@@ -20,6 +20,7 @@ DESC:   C++ Deployment of SceneSeg Network for Video Visualization using ONNX Ru
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <CLI/CLI.hpp>
 #include <zenoh.h>
 
 using namespace cv; 
@@ -108,12 +109,20 @@ cv::Mat make_visualization(const float* prediction_data, int height, int width) 
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: ./video_visualization <onnx_model.onnx>" << std::endl;
-        return -1;
-    }
+    CLI::App app{"Zenoh video scene segmentation visualizer"};
 
-    const std::string model_path = argv[1];
+    std::string model_path;
+    app.add_option("model_path", model_path, "Path to the ONNX model file")->required()->check(CLI::ExistingFile);
+
+    std::string input_keyexpr = VIDEO_INPUT_KEYEXPR;
+    app.add_option("-i,--input-key", input_keyexpr, "The key expression to subscribe video from")
+        ->default_val(VIDEO_INPUT_KEYEXPR);
+
+    std::string output_keyexpr = VIDEO_OUTPUT_KEYEXPR;
+    app.add_option("-o,--output-key", output_keyexpr, "The key expression to publish the result to")
+        ->default_val(VIDEO_OUTPUT_KEYEXPR);
+
+    CLI11_PARSE(app, argc, argv);
 
     try {
         // --- 1. Initialize ONNX Runtime ---
@@ -174,21 +183,26 @@ int main(int argc, char* argv[]) {
         }
 
         // Declare a Zenoh subscriber
-        // TODO: Should be input
-        std::string keyexpr = VIDEO_INPUT_KEYEXPR;
         z_owned_subscriber_t sub;
-        z_view_keyexpr_t ke;
-         z_view_keyexpr_from_str(&ke, keyexpr.c_str());
+        z_view_keyexpr_t in_ke;
+        z_view_keyexpr_from_str(&in_ke, input_keyexpr.c_str());
         z_owned_fifo_handler_sample_t handler;
         z_owned_closure_sample_t closure;
         z_fifo_channel_sample_new(&closure, &handler, 16);
-        if (z_declare_subscriber(z_loan(s), &sub, z_loan(ke), z_move(closure), NULL) < 0) {
-            throw std::runtime_error("Error declaring Zenoh subscriber for key expression: " + std::string(keyexpr));
+        if (z_declare_subscriber(z_loan(s), &sub, z_loan(in_ke), z_move(closure), NULL) < 0) {
+            throw std::runtime_error("Error declaring Zenoh subscriber for key expression: " + input_keyexpr);
         }
 
-        std::cout << "Subscribing to '" << keyexpr << "'..." << std::endl;
-        std::cout << "Processing video... Press ESC to stop." << std::endl;
-        //cv::Mat frame;
+        // Declare a Zenoh publisher for the output
+        z_owned_publisher_t pub;
+        z_view_keyexpr_t out_ke;
+        z_view_keyexpr_from_str(&out_ke, output_keyexpr.c_str());
+        if (z_declare_publisher(z_loan(s), &pub, z_loan(out_ke), NULL) < 0) {
+            throw std::runtime_error("Error declaring Zenoh publisher for key expression: " + output_keyexpr);
+        }
+
+        std::cout << "Subscribing to '" << input_keyexpr << "'..." << std::endl;
+        std::cout << "Publishing results to '" << output_keyexpr << "'..." << std::endl;
         Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
 
         z_owned_sample_t sample;
@@ -245,15 +259,26 @@ int main(int argc, char* argv[]) {
             cv::Mat final_frame;
             cv::addWeighted(resized_mask, 0.5, frame, 0.5, 0.0, final_frame);
 
-            // Optionally, display the output
-            cv::imshow("Scene Segmentation", final_frame);
-            if (cv::waitKey(1) == 27) { // Stop if 'ESC' is pressed
-                std::cout << "Processing stopped by user." << std::endl;
-                break;
-            }
+            // --- Publish the processed frame ---
+            z_publisher_put_options_t options;
+            z_publisher_put_options_default(&options);
+            
+            // Create attachment with frame metadata
+            z_owned_bytes_t attachment_out;
+            int output_bytes_info[] = {final_frame.rows, final_frame.cols, final_frame.type()};
+            z_bytes_copy_from_buf(&attachment_out, (const uint8_t*)output_bytes_info, sizeof(output_bytes_info));
+            options.attachment = z_move(attachment_out);
+
+            // Create payload with pixel data
+            unsigned char* pixelPtr = final_frame.data;
+            size_t dataSize = final_frame.total() * final_frame.elemSize();
+            z_owned_bytes_t payload_out;
+            z_bytes_copy_from_buf(&payload_out, pixelPtr, dataSize);
+            z_publisher_put(z_loan(pub), z_move(payload_out), &options);
         }
         
         // --- 5. Cleanup ---
+        z_drop(z_move(pub));
         z_drop(z_move(handler));
         z_drop(z_move(sub));
         z_drop(z_move(s));
