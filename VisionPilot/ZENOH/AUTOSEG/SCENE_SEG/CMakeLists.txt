@@ -54,4 +54,4 @@ add_executable(deploy_onnx_rt main.cpp)
 target_link_libraries(deploy_onnx_rt PRIVATE onnxruntime ${TORCH_LIBRARIES} ${OpenCV_LIBS} opencv_imgcodecs)
 
 add_executable(video_visualization video_visualization.cpp)
-target_link_libraries(video_visualization PRIVATE onnxruntime ${TORCH_LIBRARIES} ${OpenCV_LIBS} opencv_videoio opencv_imgproc opencv_highgui )
+target_link_libraries(video_visualization PRIVATE onnxruntime ${TORCH_LIBRARIES} ${OpenCV_LIBS} opencv_videoio opencv_imgproc opencv_highgui zenohc::lib)

@@ -19,8 +19,14 @@ DESC:   C++ Deployment of SceneSeg Network for Video Visualization using ONNX Ru
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+
+#include <zenoh.h>
+
 using namespace cv; 
 using namespace std; 
+
+#define VIDEO_INPUT_KEYEXPR "scene_segmentation/video/input"
+#define VIDEO_OUTPUT_KEYEXPR "scene_segmentation/video/output"
 
 // Add DNNL provider includes if enabled via compile-time flags
 #if USE_EP_DNNL
@@ -102,32 +108,12 @@ cv::Mat make_visualization(const float* prediction_data, int height, int width) 
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        std::cerr << "Usage: ./video_visualization <onnx_model.onnx> <input_video.mp4>" << std::endl;
+    if (argc != 2) {
+        std::cerr << "Usage: ./video_visualization <onnx_model.onnx>" << std::endl;
         return -1;
     }
 
     const std::string model_path = argv[1];
-    const std::string input_video_path = argv[2];
-
-    // --- Generate a descriptive output filename from the input path ---
-    std::string basename;
-    // Find the last directory separator ('/' or '\')
-    size_t last_slash = input_video_path.find_last_of("/\\");
-    if (std::string::npos != last_slash) {
-        basename = input_video_path.substr(last_slash + 1);
-    } else {
-        basename = input_video_path;
-    }
-
-    // Remove the file extension
-    size_t last_dot = basename.find_last_of(".");
-    if (std::string::npos != last_dot) {
-        basename = basename.substr(0, last_dot);
-    }
-
-    const std::string output_video_path = basename + "_seg.avi";
-    std::cout << "INFO: Output video will be saved as: " << output_video_path << std::endl;
 
     try {
         // --- 1. Initialize ONNX Runtime ---
@@ -179,26 +165,59 @@ int main(int argc, char* argv[]) {
         const int pred_height = output_dims[2];
         const int pred_width = output_dims[3];
 
-        // --- 3. Initialize Video I/O ---
-        cv::VideoCapture cap(input_video_path);
-        if (!cap.isOpened()) {
-            throw std::runtime_error("Error opening video stream or file: " + input_video_path);
+        // Create Zenoh session
+        z_owned_config_t config;
+        z_owned_session_t s;
+        z_config_default(&config);
+        if (z_open(&s, z_move(config), NULL) < 0) {
+            throw std::runtime_error("Error opening Zenoh session");
         }
 
-        const int frame_width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
-        const int frame_height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
-        const double fps = cap.get(cv::CAP_PROP_FPS);
-        cv::VideoWriter writer(output_video_path, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), fps, cv::Size(frame_width, frame_height));
-        if (!writer.isOpened()) {
-            throw std::runtime_error("Error opening video writer for: " + output_video_path);
+        // Declare a Zenoh subscriber
+        // TODO: Should be input
+        std::string keyexpr = VIDEO_INPUT_KEYEXPR;
+        z_owned_subscriber_t sub;
+        z_view_keyexpr_t ke;
+         z_view_keyexpr_from_str(&ke, keyexpr.c_str());
+        z_owned_fifo_handler_sample_t handler;
+        z_owned_closure_sample_t closure;
+        z_fifo_channel_sample_new(&closure, &handler, 16);
+        if (z_declare_subscriber(z_loan(s), &sub, z_loan(ke), z_move(closure), NULL) < 0) {
+            throw std::runtime_error("Error declaring Zenoh subscriber for key expression: " + std::string(keyexpr));
         }
 
+        std::cout << "Subscribing to '" << keyexpr << "'..." << std::endl;
         std::cout << "Processing video... Press ESC to stop." << std::endl;
-        cv::Mat frame;
+        //cv::Mat frame;
         Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
 
-        // --- 4. Main Processing Loop ---
-        while (cap.read(frame)) {
+        z_owned_sample_t sample;
+        while (Z_OK == z_recv(z_loan(handler), &sample)) {
+            const z_loaned_sample_t* loaned_sample = z_loan(sample);
+            z_owned_slice_t zslice;
+            if (Z_OK != z_bytes_to_slice(z_sample_payload(loaned_sample), &zslice)) {
+                throw std::runtime_error("Wrong payload");
+            }
+            const uint8_t* ptr = z_slice_data(z_loan(zslice));
+
+            // Extract the frame information for the attachment
+            const z_loaned_bytes_t* attachment = z_sample_attachment(loaned_sample);
+            int row, col, type;
+            if (attachment != NULL) {
+                z_owned_slice_t output_bytes;
+                int attachment_arg[3];
+                z_bytes_to_slice(attachment, &output_bytes);
+                memcpy(attachment_arg, z_slice_data(z_loan(output_bytes)), z_slice_len(z_loan(output_bytes)));
+                row = attachment_arg[0];
+                col = attachment_arg[1];
+                type = attachment_arg[2];
+                z_drop(z_move(output_bytes));
+            } else {
+                throw std::runtime_error("No attachment");
+            }
+
+            cv::Mat frame(row, col, type, (uint8_t *)ptr);
+
             // Preprocess the frame for the model
             std::vector<float> input_tensor_values = preprocess_frame(frame, input_dims);
 
@@ -226,10 +245,6 @@ int main(int argc, char* argv[]) {
             cv::Mat final_frame;
             cv::addWeighted(resized_mask, 0.5, frame, 0.5, 0.0, final_frame);
 
-            // Write the final BGR frame to the output video.
-            // Most OpenCV video writers and codecs expect the BGR channel order.
-            writer.write(final_frame);
-
             // Optionally, display the output
             cv::imshow("Scene Segmentation", final_frame);
             if (cv::waitKey(1) == 27) { // Stop if 'ESC' is pressed
@@ -239,10 +254,10 @@ int main(int argc, char* argv[]) {
         }
         
         // --- 5. Cleanup ---
-        cap.release();
-        writer.release();
+        z_drop(z_move(handler));
+        z_drop(z_move(sub));
+        z_drop(z_move(s));
         cv::destroyAllWindows();
-        std::cout << "Processing complete. Output video saved to: " << output_video_path << std::endl;
 
     } catch (const Ort::Exception& e) {
         std::cerr << "ONNX Runtime error: " << e.what() << std::endl;
