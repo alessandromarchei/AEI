@@ -43,18 +43,21 @@ class AutoSteerTrainer():
         self.BEV_H = None
         self.BEV_W = None
 
+        # Initializing Tensors
+        self.homotrans_mat_tensor = None
+        self.bev_image_tensor = None
+        self.bev_egopath_tensor = None
+        self.bev_egoleft_tensor = None
+        self.bev_egoright_tensor = None
+        self.reproj_egopath_tensor = None
+        self.reproj_egoleft_tensor = None
+        self.reproj_egoright_tensor = None
+
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
 
         # Currently limiting to available datasets only. Will unlock eventually
-        self.VALID_DATASET_LITERALS = Literal[
-            # "BDD100K",
-            # "COMMA2K19",
-            # "CULANE",
-            # "CURVELANES",
-            # "ROADWORK",
-            "TUSIMPLE"
-        ]
+        self.VALID_DATASET_LITERALS = Literal["TUSIMPLE"]
         self.VALID_DATASET_LIST = list(get_args(self.VALID_DATASET_LITERALS))
 
         # Checking devices (GPU vs CPU)
@@ -124,7 +127,6 @@ class AutoSteerTrainer():
         self.perspective_H, self.perspective_W, _ = self.perspective_image.shape
         self.BEV_H, self.BEV_W, _ = self.bev_image.shape
 
-
     # Image agumentations
     def apply_augmentations(self, is_train):
         # Augmenting data for train or val/test
@@ -132,62 +134,58 @@ class AutoSteerTrainer():
             is_train = is_train, 
             data_type = "KEYPOINTS"
         )
-        aug.setImage(self.image)
-        self.image = aug.applyTransformKeypoint(self.image)
+        aug.setImage(self.bev_image)
+        self.bev_image = aug.applyTransformKeypoint(self.bev_image)
 
     # Load data as Pytorch tensors
     def load_data(self):
-        # Converting image to Pytorch tensor
-        image_tensor = self.image_loader(self.image)
-        image_tensor = image_tensor.unsqueeze(0)
-        self.image_tensor = image_tensor.to(self.device)
 
-        # Converting gt lists to Pytorch Tensor
+        # BEV to Image matrix
+        homotrans_mat = self.image_loader(self.homotrans_mat)
+        homotrans_mat_tensor = homotrans_mat.unsqueeze(0)
+        homotrans_mat_tensor = homotrans_mat_tensor.type(torch.FloatTensor)
+        self.homotrans_mat_tensor = homotrans_mat_tensor.to(self.device)
 
-        # Xs of bev egopath
-        xs_tensor_bev_egopath = torch.from_numpy(self.xs_bev_egopath)
-        xs_tensor_bev_egopath = xs_tensor_bev_egopath.unsqueeze(0)
-        self.xs_tensor_bev_egopath = xs_tensor_bev_egopath.to(self.device)
+        # BEV Image
+        bev_image_tensor = self.image_loader(self.bev_image)
+        bev_image_tensor = bev_image_tensor.unsqueeze(0)
+        self.bev_image_tensor = bev_image_tensor.to(self.device)
+
+        # BEV Egopath
+        bev_egopath = torch.from_numpy(self.bev_egopath)
+        bev_egopath_tensor = bev_egopath.unsqueeze(0)
+        bev_egopath_tensor = bev_egopath_tensor.type(torch.FloatTensor)
+        self.bev_egopath_tensor = bev_egopath_tensor.to(self.device)
+
+        # BEV Egoleft Lane
+        bev_egoright = torch.from_numpy(self.bev_egoright)
+        bev_egoright_tensor = bev_egoright.unsqueeze(0)
+        bev_egoright_tensor = bev_egoright_tensor.type(torch.FloatTensor)
+        self.bev_egoright_tensor = bev_egoright_tensor.to(self.device)
+
+        # BEV Egoright Lane
+        bev_egopath = torch.from_numpy(self.bev_egopath)
+        bev_egopath_tensor = bev_egopath.unsqueeze(0)
+        bev_egopath_tensor = bev_egopath_tensor.type(torch.FloatTensor)
+        self.bev_egopath_tensor = bev_egopath_tensor.to(self.device)
         
-        # Xs of reproj egopath
-        xs_tensor_reproj_egopath = torch.from_numpy(self.xs_reproj_egopath)
-        xs_tensor_reproj_egopath = xs_tensor_reproj_egopath.unsqueeze(0)
-        self.xs_tensor_reproj_egopath = xs_tensor_reproj_egopath.to(self.device)
+        # Reprojected Egopath
+        reproj_egopath = torch.from_numpy(self.reproj_egopath)
+        reproj_egopath_tensor = reproj_egopath.unsqueeze(0)
+        reproj_egopath_tensor = reproj_egopath_tensor.type(torch.FloatTensor)
+        self.reproj_egopath_tensor = reproj_egopath_tensor.to(self.device)
 
-        # Xs of bev egoleft
-        xs_tensor_bev_egoleft = torch.from_numpy(self.xs_bev_egoleft)
-        xs_tensor_bev_egoleft = xs_tensor_bev_egoleft.unsqueeze(0)
-        self.xs_tensor_bev_egoleft = xs_tensor_bev_egoleft.to(self.device)
+        # Reprojected Egoleft Lane
+        reproj_egoleft = torch.from_numpy(self.reproj_egoleft)
+        reproj_egoleft_tensor = reproj_egoleft.unsqueeze(0)
+        reproj_egoleft_tensor = reproj_egoleft_tensor.type(torch.FloatTensor)
+        self.reproj_egoleft_tensor = reproj_egoleft_tensor.to(self.device)
 
-        # Xs of reproj egoleft
-        xs_tensor_reproj_egoleft = torch.from_numpy(self.xs_reproj_egoleft)
-        xs_tensor_reproj_egoleft = xs_tensor_reproj_egoleft.unsqueeze(0)
-        self.xs_tensor_reproj_egoleft = xs_tensor_reproj_egoleft.to(self.device)
-
-        # Xs of bev egoright
-        xs_tensor_bev_egoright = torch.from_numpy(self.xs_bev_egoright)
-        xs_tensor_bev_egoright = xs_tensor_bev_egoright.unsqueeze(0)
-        self.xs_tensor_bev_egoright = xs_tensor_bev_egoright.to(self.device)
-
-        # Xs of reproj egoright
-        xs_tensor_reproj_egoright = torch.from_numpy(self.xs_reproj_egoright)
-        xs_tensor_reproj_egoright = xs_tensor_reproj_egoright.unsqueeze(0)
-        self.xs_tensor_reproj_egoright = xs_tensor_reproj_egoright.to(self.device)
-
-        # Valids of egopath
-        valids_tensor_egopath = torch.from_numpy(self.valids_egopath)
-        valids_tensor_egopath = valids_tensor_egopath.unsqueeze(0)
-        self.valids_tensor_egopath = valids_tensor_egopath.to(self.device)
-
-        # Valids of egoleft
-        valids_tensor_egoleft = torch.from_numpy(self.valids_egoleft)
-        valids_tensor_egoleft = valids_tensor_egoleft.unsqueeze(0)
-        self.valids_tensor_egoleft = valids_tensor_egoleft.to(self.device)
-
-        # Valids of egoright
-        valids_tensor_egoright = torch.from_numpy(self.valids_egoright)
-        valids_tensor_egoright = valids_tensor_egoright.unsqueeze(0)
-        self.valids_tensor_egoright = valids_tensor_egoright.to(self.device)
+        # Reprojected Egoright Lane
+        reproj_egoright = torch.from_numpy(self.reproj_egoright)
+        reproj_egoright_tensor = reproj_egoright.unsqueeze(0)
+        reproj_egoright_tensor = reproj_egoright_tensor.type(torch.FloatTensor)
+        self.reproj_egoright_tensor = reproj_egoright_tensor.to(self.device)
     
     # Run Model
     def run_model(self):

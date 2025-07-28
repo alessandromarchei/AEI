@@ -12,14 +12,7 @@ from Models.data_utils.load_data_auto_steer import LoadDataAutoSteer
 from Models.training.auto_steer_trainer import AutoSteerTrainer
 
 # Currently limiting to available datasets only. Will unlock eventually
-VALID_DATASET_LITERALS = Literal[
-    # "BDD100K",
-    # "COMMA2K19",
-    # "CULANE",
-    # "CURVELANES",
-    # "ROADWORK",
-    "TUSIMPLE"
-]
+VALID_DATASET_LITERALS = Literal["TUSIMPLE"]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
@@ -349,10 +342,10 @@ def main():
             
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
-            '''
+            
             # Converting to tensor and loading
             trainer.load_data()
-
+            '''
             # Run model and get loss
             trainer.run_model()
             
