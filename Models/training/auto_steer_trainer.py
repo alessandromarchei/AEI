@@ -28,6 +28,21 @@ class AutoSteerTrainer():
         self.perspective_gradient_scale = 1.0
         self.overall_scale = 1.0
 
+        # Initializing Data
+        self.homotrans_mat = None
+        self.bev_image = None
+        self.perspective_image = None
+        self.bev_egopath = None
+        self.bev_egoleft = None
+        self.bev_egoright = None
+        self.reproj_egopath = None
+        self.reproj_egoleft = None
+        self.reproj_egoright = None
+        self.perspective_H = None
+        self.perspective_W = None
+        self.BEV_H = None
+        self.BEV_W = None
+
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
 
@@ -76,7 +91,6 @@ class AutoSteerTrainer():
             ]
         )
 
-    
     # Zero gradient
     def zero_grad(self):
         self.optimizer.zero_grad()
@@ -94,78 +108,22 @@ class AutoSteerTrainer():
         self.learning_rate = learning_rate
         
     # Assign input variables
-    def set_data(
-        self, 
-        orig_vis, image, 
-        xs_bev_egopath,
-        xs_reproj_egopath,
-        xs_bev_egoleft,
-        xs_reproj_egoleft,
-        xs_bev_egoright,
-        xs_reproj_egoright,
-        ys_bev,
-        ys_reproj,
-        valids_egopath,
-        valids_egoleft,
-        valids_egoright,
-        mat
-    ):
-        
-        # Parse all data
-        self.orig_vis = orig_vis
-        h, w, _ = image.shape
-        self.image = image
-        self.H = h
-        self.W = w
+    def set_data(self, homotrans_mat, bev_image, perspective_image, \
+                bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
+                reproj_egoleft, reproj_egoright):
 
-        self.xs_bev_egopath = np.array(
-            xs_bev_egopath, 
-            dtype = "float32"
-        )
-        self.xs_reproj_egopath = np.array(
-            xs_reproj_egopath, 
-            dtype = "float32"
-        )
-        self.xs_bev_egoleft = np.array(
-            xs_bev_egoleft, 
-            dtype = "float32"
-        )
-        self.xs_reproj_egoleft = np.array(
-            xs_reproj_egoleft, 
-            dtype = "float32"
-        )
-        self.xs_bev_egoright = np.array(
-            xs_bev_egoright, 
-            dtype = "float32"
-        )
-        self.xs_reproj_egoright = np.array(
-            xs_reproj_egoright, 
-            dtype = "float32"
-        )
-        self.ys_bev = np.array(
-            ys_bev, 
-            dtype = "float32"
-        )
-        self.ys_reproj = np.array(
-            ys_reproj, 
-            dtype = "float32"
-        )
-        self.valids_egopath = np.array(
-            valids_egopath, 
-            dtype = "float32"
-        )
-        self.valids_egoleft = np.array(
-            valids_egoleft, 
-            dtype = "float32"
-        )
-        self.valids_egoright = np.array(
-            valids_egoright, 
-            dtype = "float32"
-        )
-        self.mat = np.array(
-            mat, 
-            dtype = "float32"
-        )
+        self.homotrans_mat = np.array(homotrans_mat, dtype = "float32")
+        self.bev_image = np.array(bev_image)
+        self.perspective_image = np.array(perspective_image)
+        self.bev_egopath = np.array(bev_egopath, dtype = "float32")
+        self.bev_egoleft = np.array(bev_egoleft, dtype = "float32")
+        self.bev_egoright = np.array(bev_egoright, dtype = "float32")
+        self.reproj_egopath = np.array(reproj_egopath, dtype = "float32")
+        self.reproj_egoleft = np.array(reproj_egoleft, dtype = "float32")
+        self.reproj_egoright = np.array(reproj_egoright, dtype = "float32")
+        self.perspective_H, self.perspective_W, _ = self.perspective_image.shape
+        self.BEV_H, self.BEV_W, _ = self.bev_image.shape
+
 
     # Image agumentations
     def apply_augmentations(self, is_train):

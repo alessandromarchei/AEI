@@ -252,7 +252,7 @@ def main():
 
             # Fetch data from current processed dataset
             frame_id = 0
-            bev_img = None
+            bev_image = None
             homotrans_mat = []
             bev_egopath = []
             reproj_egopath = []
@@ -263,7 +263,7 @@ def main():
            
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            [   frame_id, bev_img,
+            [   frame_id, bev_image,
                 homotrans_mat,
                 bev_egopath, reproj_egopath,
                 bev_egoleft, reproj_egoleft,
@@ -328,7 +328,7 @@ def main():
 
             # BEV Image and Visualization
             plt.figure()
-            plt.imshow(bev_img)
+            plt.imshow(bev_image)
             plt.figure()
             plt.imshow(bev_vis)
    
@@ -343,23 +343,10 @@ def main():
             print('Homography Transform Matrix:', homotrans_mat)
 
             # Assign data
+            trainer.set_data(homotrans_mat, bev_image, perspective_image, \
+                bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
+                reproj_egoleft, reproj_egoright)
             '''
-            trainer.set_data(
-                orig_vis, image, 
-                xs_bev_egopath,
-                xs_reproj_egopath,
-                xs_bev_egoleft,
-                xs_reproj_egoleft,
-                xs_bev_egoright,
-                xs_reproj_egoright,
-                ys_bev,
-                ys_reproj,
-                valids_egopath,
-                valids_egoleft,
-                valids_egoright,
-                transform_matrix
-            )
-            
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
             
