@@ -50,7 +50,8 @@ class LoadDataAutoSteer():
         # Load JSON labels, get homotrans matrix as well
         with open(self.label_filepath, "r") as f:
             json_data = json.load(f)
-            self.homotrans_mat = json_data.pop("standard_homomatrix")
+            homotrans_mat = json_data.pop("standard_homomatrix")
+            self.BEV_to_image_transform = np.linalg.inv(homotrans_mat)
             self.labels = json_data
 
         self.images = sorted([
@@ -177,7 +178,7 @@ class LoadDataAutoSteer():
         
         return [
             frame_id, bev_img,
-            self.homotrans_mat,
+            self.BEV_to_image_transform,
             bev_egopath, reproj_egopath,
             bev_egoleft, reproj_egoleft,
             bev_egoright, reproj_egoright,
