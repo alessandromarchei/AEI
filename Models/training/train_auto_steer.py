@@ -5,7 +5,7 @@ import torch
 import random
 import pathlib
 from PIL import Image
-from argparse import ArgumentParser
+#from argparse import ArgumentParser
 from typing import Literal, get_args
 from matplotlib import pyplot as plt
 import sys
@@ -32,7 +32,7 @@ ORIG_VIS_PATH = "visualization"
 def main():
 
     # ====================== Parsing input arguments ====================== #
-    
+    '''
     parser = ArgumentParser()
 
     parser.add_argument(
@@ -68,14 +68,14 @@ def main():
     )
 
     args = parser.parse_args()
-
+    '''
     # ====================== Loading datasets ====================== #
 
     # Root
-    ROOT_PATH = args.root
+    ROOT_PATH = '/home/zain/Autoware/Data/AutoSteer/'#args.root
 
     # Model save root path
-    MODEL_SAVE_ROOT_PATH = args.model_save_root_path
+    MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/' args.model_save_root_path
 
     # Init metadata for datasets
     msdict = {}
@@ -87,15 +87,15 @@ def main():
         }
 
     # Deal with TEST dataset
-    if (args.test_images_save_root_path):
-        msdict["TEST"] = {
-            "list_images" : sorted([
-                f for f in pathlib.Path(
-                    os.path.join(ROOT_PATH, "TEST")
-                ).glob("*.png")
-            ]),
-            "path_test_save" : args.test_images_save_root_path
-        }
+    #if (args.test_images_save_root_path):
+    #    msdict["TEST"] = {
+    #        "list_images" : sorted([
+    #            f for f in pathlib.Path(
+    #                os.path.join(ROOT_PATH, "TEST")
+    #            ).glob("*.png")
+    #        ]),
+    #        "path_test_save" : args.test_images_save_root_path
+    #    }
 
     # Load datasets
     for dataset in VALID_DATASET_LIST:
@@ -133,7 +133,7 @@ def main():
     # Trainer instance
     trainer = None
 
-    CHECKPOINT_PATH = args.checkpoint_path
+    CHECKPOINT_PATH = None #args.checkpoint_path
 
     if (CHECKPOINT_PATH):
         trainer = AutoSteerTrainer(checkpoint_path = CHECKPOINT_PATH)    
@@ -144,17 +144,14 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 5
+    NUM_EPOCHS = 1
     LOGSTEP_LOSS = 250
     LOGSTEP_VIS = 1000
-    LOGSTEP_MODEL = 10000
+    LOGSTEP_MODEL = 5000
 
     # Val visualization param
     N_VALVIS = 50
 
-    # MODIFIABLE PARAMETERS
-    # You can adjust the SCALE FACTORS, GRAD_LOSS_TYPE, DATA_SAMPLING_SCHEME 
-    # and BATCH_SIZE_DECAY during training
 
     # SCALE FACTORS
     # These scale factors impact the relative weight of different
@@ -164,61 +161,27 @@ def main():
     # scaling to increase or decrease the contribution of that specific
     # loss towards the overall loss
     
-    DATA_LOSS_SCALE_FACTOR = 1.0
-    SMOOTHING_LOSS_SCALE_FACTOR = 10.0
+    BEV_GRADIENT_SCALE = 1.0
+    PERSPECTIVE_GRADIENT_SCALE = 1.0
+    OVERALL_SCALE = 1.0
+
 
     # Set training loss term scale factors
     trainer.set_loss_scale_factors(
-        DATA_LOSS_SCALE_FACTOR,
-        SMOOTHING_LOSS_SCALE_FACTOR
+        BEV_GRADIENT_SCALE,
+        PERSPECTIVE_GRADIENT_SCALE,
+        OVERALL_SCALE
     )
     
-    print(f"DATA_LOSS_SCALE_FACTOR : {DATA_LOSS_SCALE_FACTOR}")
-    print(f"SMOOTHING_LOSS_SCALE_FACTOR : {SMOOTHING_LOSS_SCALE_FACTOR}")
+    print(f"BEV_GRADIENT_SCALE : {BEV_GRADIENT_SCALE}")
+    print(f"PERSPECTIVE_GRADIENT_SCALE : {PERSPECTIVE_GRADIENT_SCALE}")
+    print(f"OVERALL_SCALE : {OVERALL_SCALE}")
 
-    # GRAD_LOSS_TYPE
-    # There are two types of gradients loss, and either can be selected.
-    # One option is 'NUMERICAL' which calculates the gradient through
-    # the tangent angle between consecutive pairs of points along the
-    # curve. The second option is 'ANALYTICAL' which uses the equation
-    # of the curve to calculate the true mathematical gradient from
-    # the curve's partial dervivatives
-
-    GRAD_LOSS_TYPE = "NUMERICAL" # NUMERICAL or ANALYTICAL
-    trainer.set_gradient_loss_type(GRAD_LOSS_TYPE)
-
-    print(f"GRAD_LOSS_TYPE : {GRAD_LOSS_TYPE}")
-
-    # DATA_SAMPLING_SCHEME
-    # There are two data sampling schemes. The 'EQUAL' data sampling scheme
-    # ensures that in each batch, we have an equal representation of samples
-    # from each specific dataset. This schemes over-fits the network on 
-    # smaller and underepresented datasets. The second sampling scheme is
-    # 'CONCATENATE', in which the data is sampled randomly and the network
-    # only sees each image from each dataset once in an epoch
-
-    DATA_SAMPLING_SCHEME = "EQUAL" # EQUAL or CONCATENATE
-
-    print(f"DATA_SAMPLING_SCHEME : {DATA_SAMPLING_SCHEME}")
-
-    # BATCH_SIZE_SCHEME
-    # There are three type of BATCH_SIZE_SCHEME, the 'CONSTANT' batch size
-    # scheme sets a constant, fixed batch size value of 24 throughout training.
-    # The 'SLOW_DECAY' batch size scheme reduces the batch size during training,
-    # helping the model escape from local minima. The 'FAST_DECAY' batch size
-    # scheme decays the batch size faster, and may help with quicker model
-    # convergence.
-
-    BATCH_SIZE_SCHEME = "FAST_DECAY" # FAST_DECAY or SLOW_DECAY or CONSTANT
-
-    print(f"BATCH_SIZE_SCHEME : {BATCH_SIZE_SCHEME}")
     
-    # ======================================================================= #
-
     # ========================= Main training loop ========================= #
 
-    # Batchsize
-    batch_size = 0
+    # Batch Size
+    batch_size = 32
 
     data_list = VALID_DATASET_LIST.copy()
 
@@ -226,30 +189,21 @@ def main():
 
         print(f"EPOCH : {epoch}")
 
-        if (BATCH_SIZE_SCHEME == "CONSTANT"):
-            batch_size = 3
-        elif (BATCH_SIZE_SCHEME == "FAST_DECAY"):
-            if (epoch == 0):
-                batch_size = 24
-            else:
-                batch_size = 3
-        elif (BATCH_SIZE_SCHEME == "SLOW_DECAY"):
-            if (epoch == 0):
-                batch_size = 24
-            else:
-                batch_size = 8
-
-        else:
-            raise ValueError(
-                "Please speficy BATCH_SIZE_SCHEME as either " \
-                " CONSTANT or FAST_DECAY or SLOW_DECAY"
-            )
-        
+        # Batch Size Schedule
+        if (epoch > 10 and epoch <= 20):
+            batch_size = 16
+        elif (epoch > 20 and epoch <= 30):
+            batch_size = 8
+        elif (epoch > 30):
+            batch_size = 4
+      
         # Learning Rate Schedule
-        if ((epoch >= 30) and (epoch < 40)):
+        if(epoch < 30):
+            trainer.set_learning_rate(0.0005)
+        elif (epoch >= 30 and epoch < 40):
             trainer.set_learning_rate(0.0001)
         elif (epoch >= 40):
-            trainer.set_learning_rate(0.00005)
+            trainer.set_learning_rate(0.000025)
 
         # Augmentation Schedule
         apply_augmentation = False
@@ -266,16 +220,6 @@ def main():
             msdict[dataset]["iter"] = 0
             msdict[dataset]["completed"] = False
 
-        # Checking data sampling scheme
-        if(
-            (DATA_SAMPLING_SCHEME != "EQUAL") and 
-            (DATA_SAMPLING_SCHEME != "CONCATENATE")
-        ):
-            raise ValueError(
-                "Please speficy DATA_SAMPLING_SCHEME as either " \
-                " EQUAL or CONCATENATE"
-            )
-        
         # Loop through data
         while (True):
 
@@ -291,16 +235,8 @@ def main():
             for dataset in VALID_DATASET_LIST:
                 N_trains = msdict[dataset]["N_trains"]
                 if (msdict[dataset]["iter"] == N_trains):
-                    if (DATA_SAMPLING_SCHEME == "EQUAL"):
-                        msdict[dataset]["iter"] = 0
-
-                        msdict[dataset]["sample_list"] = random.sample(list(range(0, N_trains)), N_trains)
-                    elif (
-                        (DATA_SAMPLING_SCHEME == "CONCATENATE") and 
-                        (msdict[dataset]["completed"] == False)
-                    ):
+                    if ((msdict[dataset]["completed"] == False)):
                         data_list.remove(dataset)
-
                     msdict[dataset]["completed"] = True
 
             # If we have looped through each dataset at least once - restart the epoch

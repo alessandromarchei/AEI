@@ -23,68 +23,10 @@ class AutoSteerTrainer():
         checkpoint_path = ""
     ):
         
-        # Images and gts
-        self.orig_vis = None
-        self.image = None
-
-        self.H = None
-        self.W = None
-
-        self.xs_bev_egopath = []
-        self.xs_reproj_egopath = []
-        self.xs_bev_egoleft = []
-        self.xs_reproj_egoleft = []
-        self.xs_bev_egoright = []
-        self.xs_reproj_egoright = []
-
-        self.ys_bev = []
-        self.ys_reproj = []
-
-        self.valids_egopath = []
-        self.valids_egoleft = []
-        self.valids_egoright = []
-
-        self.mat = []
-
-        # Tensors
-        self.image_tensor = None
-
-        self.xs_tensor_bev_egopath = []
-        self.xs_tensor_reproj_egopath = []
-        self.xs_tensor_bev_egoleft = []
-        self.xs_tensor_reproj_egoleft = []
-        self.xs_tensor_bev_egoright = []
-        self.xs_tensor_reproj_egoright = []
-
-        self.valids_tensor_egopath = []
-        self.valids_tensor_egoleft = []
-        self.valids_tensor_egoright = []
-
-        # Model and preds
-        self.model = None
-        self.pred_xs_egopath = None
-        self.pred_xs_egoleft = None
-        self.pred_xs_egoright = None
-
-        # Losses
-        self.bev_loss_egopath = 0
-        self.bev_loss_egoleft = 0
-        self.bev_loss_egoright = 0
-
-        self.reproj_loss_egopath = 0
-        self.reproj_loss_egoleft = 0
-        self.reproj_loss_egoright = 0
-
-        self.total_loss_egopath = 0
-        self.total_loss_egoleft = 0
-        self.total_loss_egoright = 0
-        
-        self.gradient_type = "NUMERICAL"
-
         # Loss scale factors
-        self.alpha = 1.0        # Scale factor of bev_gradient_loss
-        self.beta = 1.0         # Scale factor of reproj_gradient_loss
-        self.gamma = 1.0        # Scale factor of reproj_loss
+        self.bev_gradient_scale = 1.0
+        self.perspective_gradient_scale = 1.0
+        self.overall_scale = 1.0
 
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
@@ -138,6 +80,14 @@ class AutoSteerTrainer():
     # Zero gradient
     def zero_grad(self):
         self.optimizer.zero_grad()
+
+        # Set scale factors for losses
+    def set_loss_scale_factors(self, bev_gradient_scale, \
+        perspective_gradient_scale, overall_scale):
+        
+        self.bev_gradient_scale = bev_gradient_scale
+        self.perspective_gradient_scale = perspective_gradient_scale
+        self.overall_scale = overall_scale
 
     # Learning rate adjustment
     def set_learning_rate(self, learning_rate):
@@ -415,27 +365,6 @@ class AutoSteerTrainer():
         total_loss = bev_loss + reproj_loss * self.gamma
         return total_loss
     
-    # ================================================================================ #
-
-    # Set scale factors for losses
-    def set_loss_scale_factors(
-        self,
-        alpha,      # Scale factor of bev_gradient_loss
-        beta,       # Scale factor of reproj_gradient_loss
-        gamma,      # Scale factor of total_loss
-    ):
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
-
-    # Define whether we are using a NUMERICAL vs ANALYTICAL gradient loss
-    def set_gradient_loss_type(self, type):
-        if (type == "NUMERICAL"):
-            self.gradient_type = "NUMERICAL"
-        elif(type == "ANALYTICAL"):
-            self.gradient_type = "ANALYTICAL"
-        else:
-            raise ValueError("Please specify either NUMERICAL or ANALYTICAL gradient loss as a string")
     
     # Loss backward pass
     def loss_backward(self):
