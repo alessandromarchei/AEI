@@ -128,42 +128,14 @@ class LoadDataAutoSteer():
             reproj_egoright = self.val_labels[index]["reproj_egoright"]
 
 
-        W, H = img.size
-
         # Convert image to OpenCV/Numpy format for augmentations
         img = np.array(img)
-
-        # Split labels
-        xs_bev_egopath = [lab[0] / W for lab in bev_egopath]
-        xs_reproj_egopath = [lab[0] / W for lab in reproj_egopath]
-
-        xs_bev_egoleft = [lab[0] / W for lab in bev_egoleft]
-        xs_reproj_egoleft = [lab[0] / W for lab in reproj_egoleft]
-
-        xs_bev_egoright = [lab[0] / W for lab in bev_egoright]
-        xs_reproj_egoright = [lab[0] / W for lab in reproj_egoright]
-
-        ys_bev = [lab[1] / H for lab in bev_egopath]
-        ys_reproj = [lab[1] / H for lab in reproj_egopath]
-
-        flags_egopath = [lab[2] for lab in bev_egopath]
-        valids_egopath = [lab[3] for lab in bev_egopath]
-
-        flags_egoleft = [lab[2] for lab in bev_egoleft]
-        valids_egoleft = [lab[3] for lab in bev_egoleft]
-        
-        flags_egoright = [lab[2] for lab in bev_egoright]
-        valids_egoright = [lab[3] for lab in bev_egoright]
         
         return [
             frame_id, img,
             self.homotrans_mat,
-            xs_bev_egopath, xs_reproj_egopath,
-            xs_bev_egoleft, xs_reproj_egoleft,
-            xs_bev_egoright, xs_reproj_egoright,
-            ys_bev, ys_reproj,
-            flags_egopath, valids_egopath,
-            flags_egoleft, valids_egoleft,
-            flags_egoright, valids_egoright,
+            bev_egopath, reproj_egopath,
+            bev_egoleft, reproj_egoleft,
+            bev_egoright, reproj_egoright,
         ]
 
