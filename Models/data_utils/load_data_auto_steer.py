@@ -109,30 +109,74 @@ class LoadDataAutoSteer():
     # Get item at index ith, returning img and EgoPath
     def getItem(self, index, is_train: bool):
         if (is_train):
-            img = Image.open(str(self.train_images[index])).convert("RGB")
-            frame_id = self.train_ids[index]
-            bev_egopath = self.train_labels[index]["bev_egopath"]
-            reproj_egopath = self.train_labels[index]["reproj_egopath"]
-            bev_egoleft = self.train_labels[index]["bev_egoleft"]
-            reproj_egoleft = self.train_labels[index]["reproj_egoleft"]
-            bev_egoright = self.train_labels[index]["bev_egoright"]
-            reproj_egoright = self.train_labels[index]["reproj_egoright"]
-        else:
-            img = Image.open(str(self.val_images[index])).convert("RGB")
-            frame_id = self.val_ids[index]
-            bev_egopath = self.val_labels[index]["bev_egopath"]
-            reproj_egopath = self.val_labels[index]["reproj_egopath"]
-            bev_egoleft = self.val_labels[index]["bev_egoleft"]
-            reproj_egoleft = self.val_labels[index]["reproj_egoleft"]
-            bev_egoright = self.val_labels[index]["bev_egoright"]
-            reproj_egoright = self.val_labels[index]["reproj_egoright"]
 
+            # BEV Image
+            bev_img = Image.open(str(self.train_images[index])).convert("RGB")
+
+            # Frame ID
+            frame_id = self.train_ids[index]
+
+            # BEV EgoPath
+            bev_egopath = self.train_labels[index]["bev_egopath"]
+            bev_egopath = [lab[0:2] for lab in bev_egopath]
+
+            # Reprojected EgoPath
+            reproj_egopath = self.train_labels[index]["reproj_egopath"]
+            reproj_egopath = [lab[0:2] for lab in reproj_egopath]
+
+            # BEV EgoLeft Lane
+            bev_egoleft = self.train_labels[index]["bev_egoleft"]
+            bev_egoleft = [lab[0:2] for lab in bev_egoleft]
+
+            # Reprojected EgoLeft Lane
+            reproj_egoleft = self.train_labels[index]["reproj_egoleft"]
+            reproj_egoleft = [lab[0:2] for lab in reproj_egoleft]
+
+            # BEV EgoRight Lane
+            bev_egoright = self.train_labels[index]["bev_egoright"]
+            bev_egoright = [lab[0:2] for lab in bev_egoright]
+
+            # Reprojected EgoRight Lane
+            reproj_egoright = self.train_labels[index]["reproj_egoright"]
+            reproj_egoright = [lab[0:2] for lab in reproj_egoright]
+
+        else:
+
+            # BEV Image
+            bev_img = Image.open(str(self.val_images[index])).convert("RGB")
+
+            # Frame ID
+            frame_id = self.val_ids[index]
+            
+            # BEV EgoPath
+            bev_egopath = self.val_labels[index]["bev_egopath"]
+            bev_egopath = [lab[0:2] for lab in bev_egopath]
+
+            # Reprojected EgoPath
+            reproj_egopath = self.val_labels[index]["reproj_egopath"]
+            reproj_egopath = [lab[0:2] for lab in reproj_egopath]
+
+            # BEV EgoLeft Lane
+            bev_egoleft = self.val_labels[index]["bev_egoleft"]
+            bev_egoleft = [lab[0:2] for lab in bev_egoleft]
+
+            # Reprojected EgoLeft Lane
+            reproj_egoleft = self.val_labels[index]["reproj_egoleft"]
+            reproj_egoleft = [lab[0:2] for lab in reproj_egoleft]
+
+            # BEV EgoRight Lane
+            bev_egoright = self.val_labels[index]["bev_egoright"]
+            bev_egoright = [lab[0:2] for lab in bev_egoright]
+            
+            # Reprojected EgoRight Lane
+            reproj_egoright = self.val_labels[index]["reproj_egoright"]
+            reproj_egoright = [lab[0:2] for lab in reproj_egoright]
 
         # Convert image to OpenCV/Numpy format for augmentations
-        img = np.array(img)
+        bev_img = np.array(bev_img)
         
         return [
-            frame_id, img,
+            frame_id, bev_img,
             self.homotrans_mat,
             bev_egopath, reproj_egopath,
             bev_egoleft, reproj_egoleft,
