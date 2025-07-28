@@ -1,11 +1,9 @@
+#%%
 #! /usr/bin/env python3
 
 import os
-import torch
 import random
-import pathlib
 from PIL import Image
-#from argparse import ArgumentParser
 from typing import Literal, get_args
 from matplotlib import pyplot as plt
 import sys
@@ -26,56 +24,22 @@ VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
 BEV_IMG_PATH = "image_bev"
-ORIG_VIS_PATH = "visualization"
+BEV_VIS_PATH = "visualization_bev"
+PERSPECTIVE_IMG_PATH = "image"
+PERSPECTIVE_VIS_PATH = "visualization"
+
 
 
 def main():
 
-    # ====================== Parsing input arguments ====================== #
-    '''
-    parser = ArgumentParser()
-
-    parser.add_argument(
-        "-r", "--root", 
-        dest = "root", 
-        required = True,
-        help = "root path to folder where data training data is stored")
-    
-    parser.add_argument(
-        "-b", "--backbone_path", 
-        dest = "backbone_path",
-        help = "path to SceneSeg *.pth checkpoint file to load pre-trained backbone " \
-        "if we are training EgoPath from scratch"
-    )
-    
-    parser.add_argument(
-        "-c", "--checkpoint_path", 
-        dest = "checkpoint_path",
-        help = "path to saved EgoPath *.pth checkpoint file for training from saved checkpoint"
-    )
-
-    parser.add_argument(
-        "-s", "--model_save_root_path", 
-        dest = "model_save_root_path",
-        help = "root path where pytorch checkpoint file should be saved"
-    )
-    
-    parser.add_argument(
-        "-t", "--test_images_save_root_path", 
-        required = False,
-        dest = "test_images_save_root_path",
-        help = "root path where test images should be saved"
-    )
-
-    args = parser.parse_args()
-    '''
+   
     # ====================== Loading datasets ====================== #
 
     # Root
     ROOT_PATH = '/home/zain/Autoware/Data/AutoSteer/'#args.root
 
     # Model save root path
-    MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/' args.model_save_root_path
+    MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/' #args.model_save_root_path
 
     # Init metadata for datasets
     msdict = {}
@@ -83,7 +47,9 @@ def main():
         msdict[dataset] = {
             "path_labels"   : os.path.join(ROOT_PATH, dataset, BEV_JSON_PATH),
             "path_images"   : os.path.join(ROOT_PATH, dataset, BEV_IMG_PATH),
-            "path_orig_vis" : os.path.join(ROOT_PATH, dataset, ORIG_VIS_PATH)
+            "path_perspective_vis" : os.path.join(ROOT_PATH, dataset, PERSPECTIVE_VIS_PATH),
+            "path_perspective_image": os.path.join(ROOT_PATH, dataset, PERSPECTIVE_IMG_PATH),
+            "path_bev_vis" : os.path.join(ROOT_PATH, dataset, BEV_VIS_PATH)
         }
 
     # Deal with TEST dataset
@@ -115,7 +81,6 @@ def main():
         print(f"LOADED: {dataset} with {N_trains} train samples, {N_vals} val samples.")
 
     # All datasets - stats
-
     msdict["Nsum_trains"] = sum([
         msdict[dataset]["N_trains"]
         for dataset in VALID_DATASET_LIST
@@ -221,7 +186,8 @@ def main():
             msdict[dataset]["completed"] = False
 
         # Loop through data
-        while (True):
+        #while (True):
+        for i in range (1):
 
             # Log count
             msdict["sample_counter"] = msdict["sample_counter"] + 1
@@ -251,50 +217,73 @@ def main():
                 msdict["data_list_count"] = 0
 
             # Fetch data from current processed dataset
-            
-            image = None
-            xs_bev_egopath = []
-            xs_reproj_egopath = []
-            xs_bev_egoleft = []
-            xs_reproj_egoleft = []
-            xs_bev_egoright = []
-            xs_reproj_egoright = []
-            ys_bev = []
-            ys_reproj = []
-            flags_egopath = []
-            valids_egopath = []
-            flags_egoleft = []
-            valids_egoleft = []
-            flags_egoright = []
-            valids_egoright = []
-
+            frame_id = 0
+            bev_img = None
+            homotrans_mat = []
+            bev_egopath = []
+            reproj_egopath = []
+            bev_egoleft = []
+            reproj_egoleft = []
+            bev_egoright = []
+            reproj_egoright = []
+           
             current_dataset = data_list[msdict["data_list_count"]]
             current_dataset_iter = msdict[current_dataset]["iter"]
-            [
-                frame_id, image,
-                xs_bev_egopath, xs_reproj_egopath,
-                xs_bev_egoleft, xs_reproj_egoleft,
-                xs_bev_egoright, xs_reproj_egoright,
-                ys_bev, ys_reproj,
-                flags_egopath, valids_egopath,
-                flags_egoleft, valids_egoleft,
-                flags_egoright, valids_egoright,
-                transform_matrix
+            [   frame_id, bev_img,
+                homotrans_mat,
+                bev_egopath, reproj_egopath,
+                bev_egoleft, reproj_egoleft,
+                bev_egoright, reproj_egoright,
             ] = msdict[current_dataset]["loader"].getItem(
                 msdict[current_dataset]["sample_list"][current_dataset_iter],
                 is_train = True
             )
             msdict[current_dataset]["iter"] = current_dataset_iter + 1
 
-            # Also fetch original visualization
-            orig_vis = Image.open(
+            # Perspective image
+            perspective_image = Image.open(
                 os.path.join(
-                    msdict[dataset]["path_orig_vis"],
+                    msdict[dataset]["path_perspective_image"],
+                    f"{frame_id}.png"
+                )
+            ).convert("RGB")
+           
+            # Perspective visualization
+            perspective_vis = Image.open(
+                os.path.join(
+                    msdict[dataset]["path_perspective_vis"],
                     f"{frame_id}.jpg"
                 )
             ).convert("RGB")
 
-            # Start the training on this data
+            # Original visualization
+            bev_vis = Image.open(
+                os.path.join(
+                    msdict[dataset]["path_bev_vis"],
+                    f"{frame_id}.jpg"
+                )
+            ).convert("RGB")
+
+            # Show plots
+            plt.figure()
+            plt.imshow(bev_img)
+            plt.figure()
+            plt.imshow(bev_vis)
+            plt.figure()
+            plt.imshow(perspective_image)
+            plt.figure()
+            plt.imshow(perspective_vis)
+
+            # Print data
+            print('BEV EgoPath:', bev_egopath)
+            print('Reprojected EgoPath:', reproj_egopath)
+            print('BEV EgoLeft Lane:', bev_egoleft)
+            print('Reprojected EgoLeft Lane:', reproj_egoleft)
+            print('BEV EgoRight Lane:', bev_egoright)
+            print('Reprojected EgoRight Lane:', reproj_egoright)
+
+
+            '''
 
             # Assign data
 
@@ -537,7 +526,8 @@ def main():
                 trainer.set_train_mode()
             
             msdict["data_list_count"] = msdict["data_list_count"] + 1
-
+            '''
 
 if (__name__ == "__main__"):
     main()
+#%%
