@@ -346,10 +346,10 @@ def main():
             trainer.set_data(homotrans_mat, bev_image, perspective_image, \
                 bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
                 reproj_egoleft, reproj_egoright)
-            '''
+            
             # Augment image
             trainer.apply_augmentations(apply_augmentation)
-            
+            '''
             # Converting to tensor and loading
             trainer.load_data()
 
