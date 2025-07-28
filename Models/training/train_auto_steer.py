@@ -28,6 +28,39 @@ BEV_VIS_PATH = "visualization_bev"
 PERSPECTIVE_IMG_PATH = "image"
 PERSPECTIVE_VIS_PATH = "visualization"
 
+def projectBEVtoImage(homotrans_mat, bev):
+
+    BEV_W = 640
+    BEV_H = 1280
+    IMG_H = 720
+    IMG_W = 1280
+
+    perspective_image_points = []
+    perspective_image_points_normalized = []
+
+    for i in range(0, len(bev)):
+        
+        bev_homogenous_point = []
+        bev_homogenous_point.append(bev[i][0])
+        bev_homogenous_point.append(bev[i][1])
+        bev_homogenous_point.append(1.0)
+
+        image_homogenous_point_x = BEV_W*bev[i][0]*homotrans_mat[0][0] + \
+            BEV_H*bev[i][1]*homotrans_mat[0][1] + homotrans_mat[0][2]
+        
+        image_homogenous_point_y = BEV_W*bev[i][0]*homotrans_mat[1][0] + \
+            BEV_H*bev[i][1]*homotrans_mat[1][1] + homotrans_mat[1][2]
+        
+        image_homogenous_point_scale_factor = BEV_W*bev[i][0]*homotrans_mat[2][0] + \
+            BEV_H*bev[i][1]*homotrans_mat[2][1] + homotrans_mat[2][2]
+        
+        image_point = [(image_homogenous_point_x/image_homogenous_point_scale_factor), \
+            (image_homogenous_point_y/image_homogenous_point_scale_factor)]
+        
+        image_point_normalized = [image_point[0]/IMG_W, image_point[1]/IMG_H]
+
+        perspective_image_points.append(image_point)
+        perspective_image_points_normalized.append(image_point_normalized)
 
 
 def main():
@@ -276,17 +309,17 @@ def main():
 
             # Print data
             print('BEV EgoPath:', bev_egopath)
+
+            projectBEVtoImage(homotrans_mat, bev_egopath)
             print('Reprojected EgoPath:', reproj_egopath)
             print('BEV EgoLeft Lane:', bev_egoleft)
             print('Reprojected EgoLeft Lane:', reproj_egoleft)
             print('BEV EgoRight Lane:', bev_egoright)
             print('Reprojected EgoRight Lane:', reproj_egoright)
-
-
-            '''
+            print('Homography Transform Matrix:', homotrans_mat)
 
             # Assign data
-
+            '''
             trainer.set_data(
                 orig_vis, image, 
                 xs_bev_egopath,
