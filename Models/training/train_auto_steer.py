@@ -62,6 +62,7 @@ def projectBEVtoImage(homotrans_mat, bev):
         perspective_image_points.append(image_point)
         perspective_image_points_normalized.append(image_point_normalized)
 
+    return perspective_image_points, perspective_image_points_normalized
 
 def main():
 
@@ -297,20 +298,43 @@ def main():
                 )
             ).convert("RGB")
 
-            # Show plots
+            # BEV to Image projection
+            plt.figure()
+            plt.imshow(perspective_image)
+            for i in range (0, 3):
+
+                if(i == 0):
+                    perspective_image_points, perspective_image_points_normalized = \
+                    projectBEVtoImage(homotrans_mat, bev_egopath)
+                    color = 'yellow'
+                if(i == 1):
+                    perspective_image_points, perspective_image_points_normalized = \
+                    projectBEVtoImage(homotrans_mat, bev_egoleft)
+                    color = 'green'
+                if(i == 2):
+                    perspective_image_points, perspective_image_points_normalized = \
+                    projectBEVtoImage(homotrans_mat, bev_egoright)
+                    color = 'cyan'
+                
+                perspective_x_points = [point[0] for point in perspective_image_points]
+                perspective_y_points = [point[1] for point in perspective_image_points]
+                print(perspective_image_points)
+
+                plt.plot(perspective_x_points, perspective_y_points, color)
+            
+            # Original perspective visualization
+            plt.figure()
+            plt.imshow(perspective_vis)
+
+            # BEV Image and Visualization
             plt.figure()
             plt.imshow(bev_img)
             plt.figure()
             plt.imshow(bev_vis)
-            plt.figure()
-            plt.imshow(perspective_image)
-            plt.figure()
-            plt.imshow(perspective_vis)
+   
 
             # Print data
-            print('BEV EgoPath:', bev_egopath)
-
-            projectBEVtoImage(homotrans_mat, bev_egopath)
+            print('BEV EgoPath:', bev_egopath)            
             print('Reprojected EgoPath:', reproj_egopath)
             print('BEV EgoLeft Lane:', bev_egoleft)
             print('Reprojected EgoLeft Lane:', reproj_egoleft)
