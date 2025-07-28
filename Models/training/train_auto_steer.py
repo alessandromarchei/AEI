@@ -345,10 +345,10 @@ def main():
             
             # Converting to tensor and loading
             trainer.load_data()
-            '''
+            
             # Run model and get loss
             trainer.run_model()
-            
+            '''
             # Gradient accumulation
             trainer.loss_backward()
 
