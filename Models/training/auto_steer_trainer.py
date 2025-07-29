@@ -66,6 +66,7 @@ class AutoSteerTrainer():
         self.BEV_data_loss_driving_corridor = None
         self.BEV_gradient_loss_driving_corridor = None
         self.reprojected_data_loss_driving_corridor = None
+        self.total_loss = None
 
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
@@ -199,19 +200,22 @@ class AutoSteerTrainer():
         self.pred_bev_ego_path_tensor, self.pred_bev_egoleft_lane_tensor, \
             self.pred_bev_egoright_lane_tensor = self.model(self.bev_image_tensor)
 
-        # BEV Loss Terms
+        # BEV Loss
         self.BEV_data_loss_driving_corridor = self.calc_BEV_data_loss_driving_corridor()
-        print(self.BEV_data_loss_driving_corridor)
-
         self.BEV_gradient_loss_driving_corridor = self.calc_BEV_gradient_loss_driving_corridor()
-        print(self.BEV_gradient_loss_driving_corridor)
 
-        self.BEV_loss = self.BEV_data_loss_driving_corridor + self.BEV_gradient_loss_driving_corridor
-        print(self.BEV_loss)
-
+        self.BEV_loss = self.BEV_data_loss_driving_corridor + \
+            self.BEV_gradient_loss_driving_corridor
+   
+        # Reprojected Loss
         self.reprojected_data_loss_driving_corridor = self.calc_reprojected_data_loss_driving_corridor()
-        print(self.reprojected_data_loss_driving_corridor)
+        self.reprojected_gradient_loss_driving_corridor = self.calc_reprojected_gradient_loss_driving_corridor()
 
+        self.reprojected_loss = self.reprojected_data_loss_driving_corridor + \
+            self.reprojected_gradient_loss_driving_corridor
+
+        # Total Loss
+        self.total_loss = self.BEV_loss + self.reprojected_loss
 
     # BEV Data Loss for the entire driving corridor
     def calc_BEV_data_loss_driving_corridor(self):
@@ -252,7 +256,7 @@ class AutoSteerTrainer():
         
         return BEV_gradient_loss_driving_corridor
     
-    # BEV Data Loss for the entire driving corridor
+    # Reprojected Data Loss for the entire driving corridor
     def calc_reprojected_data_loss_driving_corridor(self):
 
         reprojected_ego_path_data_loss =  \
@@ -274,6 +278,29 @@ class AutoSteerTrainer():
             reprojected_egoleft_lane_data_loss + reprojected_egoright_lane_data_loss
         
         return reprojected_data_loss_driving_corridor
+    
+    # Reprojected Gradient Loss for the entire driving corridor
+    def calc_reprojected_gradient_loss_driving_corridor(self):
+
+        reprojected_ego_path_gradient_loss =  \
+            self.calc_reprojected_gradient_loss(self.gt_reproj_egopath_tensor, 
+                                            self.gt_bev_egopath_tensor, 
+                                            self.pred_bev_ego_path_tensor)
+        
+        reprojected_egoleft_lane_gradient_loss =  \
+            self.calc_reprojected_gradient_loss(self.gt_reproj_egoleft_lane_tensor, 
+                                            self.gt_bev_egoleft_lane_tensor, 
+                                            self.pred_bev_egoleft_lane_tensor)
+        
+        reprojected_egoright_lane_gradient_loss =  \
+            self.calc_reprojected_gradient_loss(self.gt_reproj_egoright_lane_tensor, 
+                                            self.gt_bev_egoright_lane_tensor, 
+                                            self.pred_bev_egoright_lane_tensor)
+
+        reprojected_gradient_loss_driving_corridor = reprojected_ego_path_gradient_loss + \
+            reprojected_egoleft_lane_gradient_loss + reprojected_egoright_lane_gradient_loss
+        
+        return reprojected_gradient_loss_driving_corridor
     
     # BEV Data Loss for a single lane/path element
     # Mean absolute error on predictions
@@ -318,6 +345,8 @@ class AutoSteerTrainer():
 
         return bev_gradient_loss
     
+    # Reprojected Data Loss for a single lane/path element
+    # Mean absolute error on predictions
     def calc_reprojected_data_loss(self, gt_reprojected_tesnor, gt_tensor, pred_tensor):
 
         prediction_reprojected, _ = \
@@ -349,6 +378,33 @@ class AutoSteerTrainer():
 
         reprojected_data_loss = data_error_sum/num_valid_samples
         return reprojected_data_loss
+    
+    # Reprojected points gradient loss for a single lane/path element
+    # Sum of finite difference gradients
+    def calc_reprojected_gradient_loss(self, gt_reprojected_tesnor, gt_tensor, pred_tensor):
+
+        prediction_reprojected, _ = \
+            self.getPerspectivePointsFromBEV(gt_tensor, pred_tensor)
+        
+        gt_tensor_x_vals = gt_tensor[0,:]
+        gt_reprojected_tensor_x_vals = gt_reprojected_tesnor[0,:]
+
+        reprojected_gradient_loss = 0
+
+        for i in range(0, len(gt_tensor_x_vals)-1):
+
+            if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
+
+                gt_reprojected_gradient = gt_reprojected_tensor_x_vals[i+1] \
+                    - gt_reprojected_tensor_x_vals[i]
+                
+                prediction_reprojected_gradient = prediction_reprojected[i+1][0] \
+                    - prediction_reprojected[i][0]
+                
+                error = torch.abs(gt_reprojected_gradient - prediction_reprojected_gradient)
+                reprojected_gradient_loss = reprojected_gradient_loss + error
+
+        return reprojected_gradient_loss
 
     # Get the list of reprojected points from X,Y BEV coordinates
     def getPerspectivePointsFromBEV(self, gt_tensor, pred_tensor):
