@@ -136,7 +136,7 @@ def main():
     
     # Training loop parameters
     NUM_EPOCHS = 1
-    LOGSTEP_LOSS = 250
+    LOGSTEP_LOSS = 25
     LOGSTEP_VIS = 1000
     LOGSTEP_MODEL = 5000
 
@@ -145,6 +145,7 @@ def main():
 
     
     # ========================= Main training loop ========================= #
+    print('Beginning Training')
 
     # Batch Size
     batch_size = 32
@@ -188,7 +189,7 @@ def main():
 
         # Loop through data
         #while (True):
-        for i in range (1):
+        for i in range (3000):
 
             # Log count
             msdict["sample_counter"] = msdict["sample_counter"] + 1
@@ -248,7 +249,7 @@ def main():
                     f"{frame_id}.png"
                 )
             ).convert("RGB")
-           
+            '''
             # Perspective visualization
             perspective_vis = Image.open(
                 os.path.join(
@@ -297,7 +298,7 @@ def main():
             plt.imshow(bev_image)
             plt.figure()
             plt.imshow(bev_vis)
-
+            '''
             # Assign data
             trainer.set_data(homotrans_mat, bev_image, perspective_image, \
                 bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
