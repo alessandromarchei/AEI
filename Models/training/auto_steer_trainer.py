@@ -43,20 +43,27 @@ class AutoSteerTrainer():
         self.BEV_H = None
         self.BEV_W = None
 
-        # Initializing Tensors
+        # Initializing BEV to Image transformation matrix
         self.homotrans_mat_tensor = None
+
+        # Initializing BEV Image tensor
         self.bev_image_tensor = None
-        self.bev_egopath_tensor = None
-        self.bev_egoleft_tensor = None
-        self.bev_egoright_tensor = None
-        self.reproj_egopath_tensor = None
-        self.reproj_egoleft_tensor = None
-        self.reproj_egoright_tensor = None
+
+        # Initializing Ground Truth Tensors
+        self.gt_bev_egopath_tensor = None
+        self.gt_bev_egoleft_lane_tensor = None
+        self.gt_bev_egoright_lane_tensor = None
+        self.gt_reproj_egopath_tensor = None
+        self.gt_reproj_egoleft_lane_tensor = None
+        self.gt_reproj_egoright_lane_tensor = None
 
         # Model predictions
-        self.pred_ego_path = None
-        self.pred_egoleft_lane = None
-        self.pred_egoright_lane = None
+        self.pred_bev_ego_path_tensor = None
+        self.pred_bev_egoleft_lane_tensor = None
+        self.pred_bev_egoright_lane_tensor = None
+
+        # Losses
+        self.BEV_data_loss_driving_corridor = None
 
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
@@ -74,11 +81,11 @@ class AutoSteerTrainer():
 
         # Instantiate model
         self.model = AutoSteerNetwork()
-            
-        if(len(checkpoint_path) > 0):
-            self.model.load_state_dict(torch.load \
-                (checkpoint_path, weights_only = True))
+        
+        if(checkpoint_path):
             print("Loading trained AutoSteer model from checkpoint")
+            self.model.load_state_dict(torch.load \
+                (checkpoint_path, weights_only = True))  
         else:
             print("Loading vanilla AutoSteer model for training")
             
@@ -123,12 +130,12 @@ class AutoSteerTrainer():
         self.homotrans_mat = np.array(homotrans_mat, dtype = "float32")
         self.bev_image = np.array(bev_image)
         self.perspective_image = np.array(perspective_image)
-        self.bev_egopath = np.array(bev_egopath, dtype = "float32")
-        self.bev_egoleft = np.array(bev_egoleft, dtype = "float32")
-        self.bev_egoright = np.array(bev_egoright, dtype = "float32")
-        self.reproj_egopath = np.array(reproj_egopath, dtype = "float32")
-        self.reproj_egoleft = np.array(reproj_egoleft, dtype = "float32")
-        self.reproj_egoright = np.array(reproj_egoright, dtype = "float32")
+        self.bev_egopath = np.array(bev_egopath, dtype = "float32").transpose()
+        self.bev_egoleft = np.array(bev_egoleft, dtype = "float32").transpose()
+        self.bev_egoright = np.array(bev_egoright, dtype = "float32").transpose()
+        self.reproj_egopath = np.array(reproj_egopath, dtype = "float32").transpose()
+        self.reproj_egoleft = np.array(reproj_egoleft, dtype = "float32").transpose()
+        self.reproj_egoright = np.array(reproj_egoright, dtype = "float32").transpose()
         self.perspective_H, self.perspective_W, _ = self.perspective_image.shape
         self.BEV_H, self.BEV_W, _ = self.bev_image.shape
 
@@ -146,8 +153,7 @@ class AutoSteerTrainer():
     def load_data(self):
 
         # BEV to Image matrix
-        homotrans_mat = self.image_loader(self.homotrans_mat)
-        homotrans_mat_tensor = homotrans_mat.unsqueeze(0)
+        homotrans_mat_tensor = torch.from_numpy(self.homotrans_mat)
         homotrans_mat_tensor = homotrans_mat_tensor.type(torch.FloatTensor)
         self.homotrans_mat_tensor = homotrans_mat_tensor.to(self.device)
 
@@ -157,45 +163,81 @@ class AutoSteerTrainer():
         self.bev_image_tensor = bev_image_tensor.to(self.device)
 
         # BEV Egopath
-        bev_egopath = torch.from_numpy(self.bev_egopath)
-        bev_egopath_tensor = bev_egopath.unsqueeze(0)
+        bev_egopath_tensor = torch.from_numpy(self.bev_egopath)
         bev_egopath_tensor = bev_egopath_tensor.type(torch.FloatTensor)
-        self.bev_egopath_tensor = bev_egopath_tensor.to(self.device)
+        self.gt_bev_egopath_tensor = bev_egopath_tensor.to(self.device)
 
         # BEV Egoleft Lane
-        bev_egoright = torch.from_numpy(self.bev_egoright)
-        bev_egoright_tensor = bev_egoright.unsqueeze(0)
-        bev_egoright_tensor = bev_egoright_tensor.type(torch.FloatTensor)
-        self.bev_egoright_tensor = bev_egoright_tensor.to(self.device)
+        bev_egoleft_lane_tensor = torch.from_numpy(self.bev_egoleft)
+        bev_egoleft_lane_tensor = bev_egoleft_lane_tensor.type(torch.FloatTensor)
+        self.gt_bev_egoleft_lane_tensor = bev_egoleft_lane_tensor.to(self.device)
 
         # BEV Egoright Lane
-        bev_egopath = torch.from_numpy(self.bev_egopath)
-        bev_egopath_tensor = bev_egopath.unsqueeze(0)
-        bev_egopath_tensor = bev_egopath_tensor.type(torch.FloatTensor)
-        self.bev_egopath_tensor = bev_egopath_tensor.to(self.device)
+        bev_egoright_lane_tensor = torch.from_numpy(self.bev_egoright)
+        bev_egoright_lane_tensor = bev_egoright_lane_tensor.type(torch.FloatTensor)
+        self.gt_bev_egoright_lane_tensor = bev_egoright_lane_tensor.to(self.device)
         
         # Reprojected Egopath
-        reproj_egopath = torch.from_numpy(self.reproj_egopath)
-        reproj_egopath_tensor = reproj_egopath.unsqueeze(0)
+        reproj_egopath_tensor = torch.from_numpy(self.reproj_egopath)
         reproj_egopath_tensor = reproj_egopath_tensor.type(torch.FloatTensor)
-        self.reproj_egopath_tensor = reproj_egopath_tensor.to(self.device)
+        self.gt_reproj_egopath_tensor = reproj_egopath_tensor.to(self.device)
 
         # Reprojected Egoleft Lane
-        reproj_egoleft = torch.from_numpy(self.reproj_egoleft)
-        reproj_egoleft_tensor = reproj_egoleft.unsqueeze(0)
-        reproj_egoleft_tensor = reproj_egoleft_tensor.type(torch.FloatTensor)
-        self.reproj_egoleft_tensor = reproj_egoleft_tensor.to(self.device)
+        reproj_egoleft_lane_tensor = torch.from_numpy(self.reproj_egoleft)
+        reproj_egoleft_lane_tensor = reproj_egoleft_lane_tensor.type(torch.FloatTensor)
+        self.gt_reproj_egoleft_lane_tensor = reproj_egoleft_lane_tensor.to(self.device)
 
         # Reprojected Egoright Lane
-        reproj_egoright = torch.from_numpy(self.reproj_egoright)
-        reproj_egoright_tensor = reproj_egoright.unsqueeze(0)
-        reproj_egoright_tensor = reproj_egoright_tensor.type(torch.FloatTensor)
-        self.reproj_egoright_tensor = reproj_egoright_tensor.to(self.device)
+        reproj_egoright_lane_tensor = torch.from_numpy(self.reproj_egoright)
+        reproj_egoright_lane_tensor = reproj_egoright_lane_tensor.type(torch.FloatTensor)
+        self.gt_reproj_egoright_lane_tensor = reproj_egoright_lane_tensor.to(self.device)
     
     # Run Model
     def run_model(self):
-        self.pred_ego_path, self.pred_egoleft_lane, \
-            self.pred_egoright_lane = self.model(self.bev_image_tensor)
+        self.pred_bev_ego_path_tensor, self.pred_bev_egoleft_lane_tensor, \
+            self.pred_bev_egoright_lane_tensor = self.model(self.bev_image_tensor)
+
+        self.BEV_data_loss_driving_corridor = self.calc_BEV_data_loss_driving_corridor()
+        print(self.BEV_data_loss_driving_corridor)
+
+    # BEV Data Loss for the entire driving corridor
+    def calc_BEV_data_loss_driving_corridor(self):
+
+        BEV_egopath_data_loss = \
+            self.calc_BEV_data_loss(self.gt_bev_egopath_tensor, self.pred_bev_ego_path_tensor)
+
+        BEV_egoleft_lane_data_loss = \
+            self.calc_BEV_data_loss(self.gt_bev_egoleft_lane_tensor, self.pred_bev_egoleft_lane_tensor)
+   
+        BEV_egoright_lane_data_loss = \
+            self.calc_BEV_data_loss(self.gt_bev_egoright_lane_tensor, self.pred_bev_egoright_lane_tensor)
+
+
+        BEV_data_loss_driving_corridor = BEV_egopath_data_loss +  \
+            BEV_egoleft_lane_data_loss + BEV_egoright_lane_data_loss
+        
+        return BEV_data_loss_driving_corridor
+    
+    # BEV Data Loss for a single lane/path element
+    def calc_BEV_data_loss(self, gt_tensor, pred_tensor):
+
+        gt_tensor_x_vals = gt_tensor[0,:]
+        pred_x_vals = pred_tensor[0]
+
+        data_error_sum = 0
+        num_valid_samples = 0
+
+        for i in range(0, len(gt_tensor_x_vals)):
+
+            if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
+                
+                error = torch.abs(gt_tensor_x_vals[i] - pred_x_vals[i])
+                data_error_sum = data_error_sum + error
+                num_valid_samples = num_valid_samples + 1
+
+        bev_data_loss = data_error_sum/num_valid_samples
+
+        return bev_data_loss
 
     # =============================== FUNCS TO CALCULATE LOSSES =============================== #
     
