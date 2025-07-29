@@ -143,31 +143,6 @@ def main():
     # Val visualization param
     N_VALVIS = 50
 
-
-    # SCALE FACTORS
-    # These scale factors impact the relative weight of different
-    # loss terms in calculating the overall loss. A scale factor
-    # value of 0.0 means that this loss is ignored, 1.0 means that
-    # the loss is not scaled, and any other number applies a simple
-    # scaling to increase or decrease the contribution of that specific
-    # loss towards the overall loss
-    
-    BEV_GRADIENT_SCALE = 1.0
-    PERSPECTIVE_GRADIENT_SCALE = 1.0
-    OVERALL_SCALE = 1.0
-
-
-    # Set training loss term scale factors
-    trainer.set_loss_scale_factors(
-        BEV_GRADIENT_SCALE,
-        PERSPECTIVE_GRADIENT_SCALE,
-        OVERALL_SCALE
-    )
-    
-    print(f"BEV_GRADIENT_SCALE : {BEV_GRADIENT_SCALE}")
-    print(f"PERSPECTIVE_GRADIENT_SCALE : {PERSPECTIVE_GRADIENT_SCALE}")
-    print(f"OVERALL_SCALE : {OVERALL_SCALE}")
-
     
     # ========================= Main training loop ========================= #
 

@@ -23,11 +23,6 @@ class AutoSteerTrainer():
         checkpoint_path = ""
     ):
         
-        # Loss scale factors
-        self.bev_gradient_scale = 1.0
-        self.perspective_gradient_scale = 1.0
-        self.overall_scale = 1.0
-
         # Initializing Data
         self.homotrans_mat = None
         self.bev_image = None
@@ -111,14 +106,6 @@ class AutoSteerTrainer():
     # Zero gradient
     def zero_grad(self):
         self.optimizer.zero_grad()
-
-        # Set scale factors for losses
-    def set_loss_scale_factors(self, bev_gradient_scale, \
-        perspective_gradient_scale, overall_scale):
-        
-        self.bev_gradient_scale = bev_gradient_scale
-        self.perspective_gradient_scale = perspective_gradient_scale
-        self.overall_scale = overall_scale
 
     # Learning rate adjustment
     def set_learning_rate(self, learning_rate):
