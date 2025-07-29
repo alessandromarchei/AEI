@@ -23,22 +23,22 @@ Assume the path to the folder with the original Mapillary Vistas validation imag
 Assume the processed labels will be stored in a folder named "label", this is assigned to -lbs in the python code
 Assume the processed images will be stored in a folder named "image", this is assigned to -ims in the python code
 
-Assume the overlapping image and label will be stored in a folder named "visualization", this is assigned to -vis in the python code,
+Assume the visualization (super imposed label on image) will be stored in a folder named "visualization", this is assigned to -vis in the python code
 
 
 
-Then execute the code
+Then execute the code below
 
-&nbsp;
 
-```bash
 python process\_mapillary\_vistas.py -trlb ../../../../Data/Data\_May\_5th\_2025/Mapillary\_Vistas/training/v2.0/labels/ -trim ../../../../Data/Data\_May\_5th\_2025/Mapillary\_Vistas/training/images/  -valb ../../../../Data/Data\_May\_5th\_2025/Mapillary\_Vistas/validation/v2.0/labels/ -vaim ../../../../Data/Data\_May\_5th\_2025/Mapillary\_Vistas/validation/images/ -lbs label -ims image -vis visualization
 
-```
+
 
 
 
 A processed version of the data can be found in the Kaggle link https://www.kaggle.com/datasets/austinosas/mapillary-vistas-road-work-processed-data/data
+
+
 
 
 
