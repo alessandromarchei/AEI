@@ -65,6 +65,7 @@ class AutoSteerTrainer():
         # Losses
         self.BEV_data_loss_driving_corridor = None
         self.BEV_gradient_loss_driving_corridor = None
+        self.reprojected_data_loss_driving_corridor = None
 
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
@@ -207,7 +208,10 @@ class AutoSteerTrainer():
 
         self.BEV_loss = self.BEV_data_loss_driving_corridor + self.BEV_gradient_loss_driving_corridor
         print(self.BEV_loss)
-       
+
+        self.reprojected_data_loss_driving_corridor = self.calc_reprojected_data_loss_driving_corridor()
+        print(self.reprojected_data_loss_driving_corridor)
+
 
     # BEV Data Loss for the entire driving corridor
     def calc_BEV_data_loss_driving_corridor(self):
@@ -231,13 +235,16 @@ class AutoSteerTrainer():
     def calc_BEV_gradient_loss_driving_corridor(self):
 
         BEV_egopath_gradient_loss = \
-            self.calc_BEV_graient_loss(self.gt_bev_egopath_tensor, self.pred_bev_ego_path_tensor)
+            self.calc_BEV_graient_loss(self.gt_bev_egopath_tensor, 
+                                       self.pred_bev_ego_path_tensor)
 
         BEV_egoleft_lane_gradient_loss = \
-            self.calc_BEV_graient_loss(self.gt_bev_egoleft_lane_tensor, self.pred_bev_egoleft_lane_tensor)
+            self.calc_BEV_graient_loss(self.gt_bev_egoleft_lane_tensor, 
+                                       self.pred_bev_egoleft_lane_tensor)
    
         BEV_egoright_lane_gradient_loss = \
-            self.calc_BEV_graient_loss(self.gt_bev_egoright_lane_tensor, self.pred_bev_egoright_lane_tensor)
+            self.calc_BEV_graient_loss(self.gt_bev_egoright_lane_tensor, 
+                                       self.pred_bev_egoright_lane_tensor)
 
 
         BEV_gradient_loss_driving_corridor = BEV_egopath_gradient_loss +  \
@@ -245,12 +252,35 @@ class AutoSteerTrainer():
         
         return BEV_gradient_loss_driving_corridor
     
+    # BEV Data Loss for the entire driving corridor
+    def calc_reprojected_data_loss_driving_corridor(self):
+
+        reprojected_ego_path_data_loss =  \
+            self.calc_reprojected_data_loss(self.gt_reproj_egopath_tensor, 
+                                            self.gt_bev_egopath_tensor, 
+                                            self.pred_bev_ego_path_tensor)
+        
+        reprojected_egoleft_lane_data_loss =  \
+            self.calc_reprojected_data_loss(self.gt_reproj_egoleft_lane_tensor, 
+                                            self.gt_bev_egoleft_lane_tensor, 
+                                            self.pred_bev_egoleft_lane_tensor)
+        
+        reprojected_egoright_lane_data_loss =  \
+            self.calc_reprojected_data_loss(self.gt_reproj_egoright_lane_tensor, 
+                                            self.gt_bev_egoright_lane_tensor, 
+                                            self.pred_bev_egoright_lane_tensor)
+
+        reprojected_data_loss_driving_corridor = reprojected_ego_path_data_loss + \
+            reprojected_egoleft_lane_data_loss + reprojected_egoright_lane_data_loss
+        
+        return reprojected_data_loss_driving_corridor
+    
     # BEV Data Loss for a single lane/path element
     # Mean absolute error on predictions
     def calc_BEV_data_loss(self, gt_tensor, pred_tensor):
 
         gt_tensor_x_vals = gt_tensor[0,:]
-        pred_x_vals = pred_tensor[0]
+        pred_tensor_x_vals = pred_tensor[0]
 
         data_error_sum = 0
         num_valid_samples = 0
@@ -259,7 +289,7 @@ class AutoSteerTrainer():
 
             if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
                 
-                error = torch.abs(gt_tensor_x_vals[i] - pred_x_vals[i])
+                error = torch.abs(gt_tensor_x_vals[i] - pred_tensor_x_vals[i])
                 data_error_sum = data_error_sum + error
                 num_valid_samples = num_valid_samples + 1
 
@@ -272,7 +302,7 @@ class AutoSteerTrainer():
     def calc_BEV_graient_loss(self, gt_tensor, pred_tensor):
 
         gt_tensor_x_vals = gt_tensor[0,:]
-        pred_x_vals = pred_tensor[0]
+        pred_tensor_x_vals = pred_tensor[0]
 
         bev_gradient_loss = 0
 
@@ -281,12 +311,81 @@ class AutoSteerTrainer():
             if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
 
                 gt_gradient = gt_tensor_x_vals[i+1] - gt_tensor_x_vals[i]
-                pred_gradient = pred_x_vals[i+1] - pred_x_vals[i]
+                pred_gradient = pred_tensor_x_vals[i+1] - pred_tensor_x_vals[i]
 
                 error = torch.abs(gt_gradient - pred_gradient)
                 bev_gradient_loss = bev_gradient_loss + error
 
         return bev_gradient_loss
+    
+    def calc_reprojected_data_loss(self, gt_reprojected_tesnor, gt_tensor, pred_tensor):
+
+        prediction_reprojected, _ = \
+            self.getPerspectivePointsFromBEV(gt_tensor, pred_tensor)
+        
+        gt_tensor_x_vals = gt_tensor[0,:]
+        gt_reprojected_tensor_x_vals = gt_reprojected_tesnor[0,:]
+        gt_reprojected_tensor_y_vals = gt_reprojected_tesnor[1,:]
+
+        data_error_sum = 0
+        num_valid_samples = 0
+
+        for i in range(0, len(gt_tensor_x_vals)):
+
+            if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
+
+                gt_reprojected_x = gt_reprojected_tensor_x_vals[i]
+                prediction_reprojected_x = prediction_reprojected[i][0]
+                
+                gt_reprojected_y = gt_reprojected_tensor_y_vals[i]
+                prediction_reprojected_y = prediction_reprojected[i][1]
+                
+                x_error = torch.abs(gt_reprojected_x - prediction_reprojected_x)
+                y_error = torch.abs(gt_reprojected_y - prediction_reprojected_y)
+                L1_error = x_error + y_error
+
+                data_error_sum = data_error_sum + L1_error
+                num_valid_samples = num_valid_samples + 1
+
+        reprojected_data_loss = data_error_sum/num_valid_samples
+        return reprojected_data_loss
+
+    # Get the list of reprojected points from X,Y BEV coordinates
+    def getPerspectivePointsFromBEV(self, gt_tensor, pred_tensor):
+        gt_tensor_y_vals = gt_tensor[1,:]
+        pred_tensor_x_vals = pred_tensor[0]
+
+        perspective_image_points, perspective_image_points_normalized = \
+            self.projectBEVtoImage(pred_tensor_x_vals, gt_tensor_y_vals)
+
+        return perspective_image_points_normalized, perspective_image_points
+
+    # Reproject BEV points to perspective image
+    def projectBEVtoImage(self, bev_x_points, bev_y_points):
+
+        perspective_image_points = []
+        perspective_image_points_normalized = []
+
+        for i in range(0, len(bev_x_points)):
+            
+            image_homogenous_point_x = self.BEV_W*bev_x_points[i]*self.homotrans_mat_tensor[0][0] + \
+                self.BEV_H*bev_y_points[i]*self.homotrans_mat_tensor[0][1] + self.homotrans_mat_tensor[0][2]
+            
+            image_homogenous_point_y = self.BEV_W*bev_x_points[i]*self.homotrans_mat_tensor[1][0] + \
+                self.BEV_H*bev_y_points[i]*self.homotrans_mat_tensor[1][1] + self.homotrans_mat_tensor[1][2]
+            
+            image_homogenous_point_scale_factor = self.BEV_W*bev_x_points[i]*self.homotrans_mat_tensor[2][0] + \
+                self.BEV_H*bev_y_points[i]*self.homotrans_mat_tensor[2][1] + self.homotrans_mat_tensor[2][2]
+            
+            image_point = [(image_homogenous_point_x/image_homogenous_point_scale_factor), \
+                (image_homogenous_point_y/image_homogenous_point_scale_factor)]
+            
+            image_point_normalized = [image_point[0]/self.perspective_W, image_point[1]/self.perspective_H]
+
+            perspective_image_points.append(image_point)
+            perspective_image_points_normalized.append(image_point_normalized)
+
+        return perspective_image_points, perspective_image_points_normalized
 
     # =============================== FUNCS TO CALCULATE LOSSES =============================== #
     
