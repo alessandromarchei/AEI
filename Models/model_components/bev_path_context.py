@@ -9,7 +9,7 @@ class BEVPathContext(nn.Module):
         self.GeLU = nn.GELU()
         self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(p=0.25)
-        self.avg_pool = nn.AvgPool2d(3, stride=1)
+        self.avg_pool = nn.AvgPool2d(2, stride=2)
 
         # Feature convolution
         self.feature_conv = nn.Conv2d(1280, 1280, 3, 1, 1)
@@ -34,9 +34,9 @@ class BEVPathContext(nn.Module):
 
         bev_features = self.avg_pool(features)
         bev_features = self.feature_conv(bev_features)
-
+        
         # Pooling and averaging channel layers to get a single vector
-        feature_vector = torch.mean(features, dim = [2,3])
+        feature_vector = torch.mean(bev_features, dim = [2,3])
 
         # MLP
         c0 = self.context_layer_0(feature_vector)
@@ -65,7 +65,7 @@ class BEVPathContext(nn.Module):
         context = self.GeLU(c7)
 
         # Attention
-        context = context*features + features
+        context = context*bev_features + bev_features
 
         # Context feature vector
         context_feature_vector = torch.max(context, dim = [2,3])
