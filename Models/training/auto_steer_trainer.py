@@ -63,9 +63,8 @@ class AutoSteerTrainer():
         self.pred_bev_egoright_lane_tensor = None
 
         # Losses
-        self.BEV_data_loss_driving_corridor = None
-        self.BEV_gradient_loss_driving_corridor = None
-        self.reprojected_data_loss_driving_corridor = None
+        self.BEV_loss = None
+        self.reprojected_loss = None
         self.total_loss = None
 
         self.BEV_FIGSIZE = (4, 8)
@@ -201,18 +200,18 @@ class AutoSteerTrainer():
             self.pred_bev_egoright_lane_tensor = self.model(self.bev_image_tensor)
 
         # BEV Loss
-        self.BEV_data_loss_driving_corridor = self.calc_BEV_data_loss_driving_corridor()
-        self.BEV_gradient_loss_driving_corridor = self.calc_BEV_gradient_loss_driving_corridor()
+        BEV_data_loss_driving_corridor = self.calc_BEV_data_loss_driving_corridor()
+        BEV_gradient_loss_driving_corridor = self.calc_BEV_gradient_loss_driving_corridor()
 
-        self.BEV_loss = self.BEV_data_loss_driving_corridor + \
-            self.BEV_gradient_loss_driving_corridor
+        self.BEV_loss = BEV_data_loss_driving_corridor + \
+            BEV_gradient_loss_driving_corridor
    
         # Reprojected Loss
-        self.reprojected_data_loss_driving_corridor = self.calc_reprojected_data_loss_driving_corridor()
-        self.reprojected_gradient_loss_driving_corridor = self.calc_reprojected_gradient_loss_driving_corridor()
+        reprojected_data_loss_driving_corridor = self.calc_reprojected_data_loss_driving_corridor()
+        reprojected_gradient_loss_driving_corridor = self.calc_reprojected_gradient_loss_driving_corridor()
 
-        self.reprojected_loss = self.reprojected_data_loss_driving_corridor + \
-            self.reprojected_gradient_loss_driving_corridor
+        self.reprojected_loss = reprojected_data_loss_driving_corridor + \
+            reprojected_gradient_loss_driving_corridor
 
         # Total Loss
         self.total_loss = self.BEV_loss + self.reprojected_loss
@@ -443,64 +442,27 @@ class AutoSteerTrainer():
 
         return perspective_image_points, perspective_image_points_normalized
 
-
     # Loss backward pass
     def loss_backward(self):
         self.total_loss.backward()
 
     # Get total loss values
-    def get_total_loss_egopath(self):
-        return self.total_loss_egopath.item()
+    def get_total_loss(self):
+        return self.total_loss.item()
     
-    def get_total_loss_egoleft(self):
-        return self.total_loss_egoleft.item()
+    def get_bev_loss(self):
+        return self.BEV_loss.item()
     
-    def get_total_loss_egoright(self):
-        return self.total_loss_egoright.item()
+    def get_reprojected_loss(self):
+        return self.reprojected_loss.item()
 
-    # Get bev loss values
-    def get_bev_loss_egopath(self):
-        return self.bev_loss_egopath.item()
-    
-    def get_bev_loss_egoleft(self):
-        return self.bev_loss_egoleft.item()
-    
-    def get_bev_loss_egoright(self):
-        return self.bev_loss_egoright.item()
-    
-    # Get reproj loss values
-    def get_reproj_loss_egopath(self):
-        return self.reproj_loss_egopath.item()
-
-    def get_reproj_loss_egoleft(self):
-        return self.reproj_loss_egoleft.item()
-
-    def get_reproj_loss_egoright(self):
-        return self.reproj_loss_egoright.item()
-
-    # Logging losses - bev, reproj, total
+    # Logging losses - Total, BEV, Reprojected
     def log_loss(self, log_count):
         self.writer.add_scalars(
             "Train_EgoPath", {
-                "total_loss_egopath" : self.get_total_loss_egopath(),
-                "bev_loss_egopath" : self.get_bev_loss_egopath(),
-                "reproj_loss_egopath" : self.get_reproj_loss_egopath()
-            },
-            (log_count)
-        )
-        self.writer.add_scalars(
-            "Train_EgoLeft", {
-                "total_loss_egoleft" : self.get_total_loss_egoleft(),
-                "bev_loss_egoleft" : self.get_bev_loss_egoleft(),
-                "reproj_loss_egoleft" : self.get_reproj_loss_egoleft()
-            },
-            (log_count)
-        )
-        self.writer.add_scalars(
-            "Train_EgoRight", {
-                "total_loss_egoright" : self.get_total_loss_egoright(),
-                "bev_loss_egoright" : self.get_bev_loss_egoright(),
-                "reproj_loss_egoright" : self.get_reproj_loss_egoright()
+                "Total_loss" : self.get_total_loss(),
+                "BEV_loss" : self.get_bev_loss(),
+                "Reprojected_loss" : self.get_reprojected_loss()
             },
             (log_count)
         )

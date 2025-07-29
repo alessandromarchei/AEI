@@ -339,7 +339,7 @@ def main():
             
             # Gradient accumulation
             trainer.loss_backward()
-            '''
+            
             # Simulating batch size through gradient accumulation
             if ((msdict["sample_counter"] + 1) % batch_size == 0):
                 trainer.run_optimizer()
@@ -347,7 +347,7 @@ def main():
             # Logging loss to Tensor Board
             if ((msdict["sample_counter"] + 1) % LOGSTEP_LOSS == 0):
                 trainer.log_loss(msdict["log_counter"] + 1)
-            
+            '''
             # Logging Visualization to Tensor Board
             if((msdict["sample_counter"] + 1) % LOGSTEP_VIS == 0):  
                 trainer.save_visualization(msdict["log_counter"] + 1, orig_vis)
