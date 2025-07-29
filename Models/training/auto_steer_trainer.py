@@ -443,94 +443,10 @@ class AutoSteerTrainer():
 
         return perspective_image_points, perspective_image_points_normalized
 
-    # =============================== FUNCS TO CALCULATE LOSSES =============================== #
-    
-    # Data loss - MAE between x-point GTs and preds
-    def calc_data_loss(self, pred_xs, gt_xs, valids):
-        num_valids = torch.sum(valids)
-        loss = torch.sum(
-            torch.abs(pred_xs * valids - gt_xs * valids)
-        ) / num_valids
-        return loss
-
-    # Smoothing loss - MAE between gradient angle (tangent angle) of point pairs between GTs and preds
-    def calc_smoothing_loss(self, pred_xs, gt_xs, valids):
-        pred_xs_valids = pred_xs * valids
-        gt_xs_valids = gt_xs * valids
-        pred_gradients = pred_xs_valids[0][1 : ] - pred_xs_valids[0][ : -1]
-        gt_gradients = gt_xs_valids[0][1 : ] - gt_xs_valids[0][ : -1]
-
-        num_valids = torch.sum(valids)
-        loss = torch.sum(torch.abs(pred_gradients - gt_gradients)) / num_valids
-
-        return loss
-    
-    # BEV loss - MAE between BEV GTs and preds
-    def calc_bev_loss(self, pred_xs, gt_xs, valids):
-        # Data loss
-        bev_data_loss = self.calc_data_loss(
-            pred_xs,
-            gt_xs,
-            valids
-        )
-        # Gradient loss
-        bev_gradient_loss = self.calc_smoothing_loss(
-            pred_xs,
-            gt_xs,
-            valids
-        )
-
-        # BEV loss
-        bev_loss = bev_data_loss + bev_gradient_loss * self.alpha
-
-        return bev_loss
-    
-    # Aux func: reproject line from BEV to orig space
-    def reproject_line(self, line, homotrans_mat):
-        np_line = np.array(
-            line, 
-            dtype = np.float32
-        ).reshape(-1, 1, 2)
-        reproj_line = cv2.perspectiveTransform(np_line, homotrans_mat)
-        reproj_line = [tuple(point[0]) for point in reproj_line]
-
-        return reproj_line
-    
-    # Reprojection loss - MAE between reproj GTs and preds
-    def calc_reproj_loss(self, pred_xs, gt_xs, valids):
-        # Reproj of preds
-        pred_xs_reproj = self.reproject_line(pred_xs, self.mat)
-
-        # Data loss
-        reproj_data_loss = self.calc_data_loss(
-            pred_xs_reproj,
-            gt_xs,
-            valids
-        )
-
-        # Gradient loss
-        reproj_gradient_loss = self.calc_smoothing_loss(
-            pred_xs_reproj,
-            gt_xs,
-            valids
-        )
-
-        # Reproj loss
-        reproj_loss = reproj_data_loss + reproj_gradient_loss * self.beta
-
-        return reproj_loss
-    
-    # Total loss - BEV + reproj
-    def calc_total_loss(self, bev_loss, reproj_loss):
-        total_loss = bev_loss + reproj_loss * self.gamma
-        return total_loss
-    
     
     # Loss backward pass
     def loss_backward(self):
-        self.total_loss_egopath.backward()
-        self.total_loss_egoleft.backward()
-        self.total_loss_egoright.backward()
+        self.total_loss.backward()
 
     # Get total loss values
     def get_total_loss_egopath(self):
