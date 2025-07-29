@@ -64,6 +64,7 @@ class AutoSteerTrainer():
 
         # Losses
         self.BEV_data_loss_driving_corridor = None
+        self.BEV_gradient_loss_driving_corridor = None
 
         self.BEV_FIGSIZE = (4, 8)
         self.ORIG_FIGSIZE = (8, 4)
@@ -197,8 +198,16 @@ class AutoSteerTrainer():
         self.pred_bev_ego_path_tensor, self.pred_bev_egoleft_lane_tensor, \
             self.pred_bev_egoright_lane_tensor = self.model(self.bev_image_tensor)
 
+        # BEV Loss Terms
         self.BEV_data_loss_driving_corridor = self.calc_BEV_data_loss_driving_corridor()
         print(self.BEV_data_loss_driving_corridor)
+
+        self.BEV_gradient_loss_driving_corridor = self.calc_BEV_gradient_loss_driving_corridor()
+        print(self.BEV_gradient_loss_driving_corridor)
+
+        self.BEV_loss = self.BEV_data_loss_driving_corridor + self.BEV_gradient_loss_driving_corridor
+        print(self.BEV_loss)
+       
 
     # BEV Data Loss for the entire driving corridor
     def calc_BEV_data_loss_driving_corridor(self):
@@ -218,7 +227,26 @@ class AutoSteerTrainer():
         
         return BEV_data_loss_driving_corridor
     
+    # BEV Gradient Loss for the entire driving corridor
+    def calc_BEV_gradient_loss_driving_corridor(self):
+
+        BEV_egopath_gradient_loss = \
+            self.calc_BEV_graient_loss(self.gt_bev_egopath_tensor, self.pred_bev_ego_path_tensor)
+
+        BEV_egoleft_lane_gradient_loss = \
+            self.calc_BEV_graient_loss(self.gt_bev_egoleft_lane_tensor, self.pred_bev_egoleft_lane_tensor)
+   
+        BEV_egoright_lane_gradient_loss = \
+            self.calc_BEV_graient_loss(self.gt_bev_egoright_lane_tensor, self.pred_bev_egoright_lane_tensor)
+
+
+        BEV_gradient_loss_driving_corridor = BEV_egopath_gradient_loss +  \
+            BEV_egoleft_lane_gradient_loss + BEV_egoright_lane_gradient_loss
+        
+        return BEV_gradient_loss_driving_corridor
+    
     # BEV Data Loss for a single lane/path element
+    # Mean absolute error on predictions
     def calc_BEV_data_loss(self, gt_tensor, pred_tensor):
 
         gt_tensor_x_vals = gt_tensor[0,:]
@@ -238,6 +266,27 @@ class AutoSteerTrainer():
         bev_data_loss = data_error_sum/num_valid_samples
 
         return bev_data_loss
+    
+    # BEV gradient loss for a single lane/path element
+    # Sum of finite difference gradients
+    def calc_BEV_graient_loss(self, gt_tensor, pred_tensor):
+
+        gt_tensor_x_vals = gt_tensor[0,:]
+        pred_x_vals = pred_tensor[0]
+
+        bev_gradient_loss = 0
+
+        for i in range(0, len(gt_tensor_x_vals) - 1):
+
+            if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
+
+                gt_gradient = gt_tensor_x_vals[i+1] - gt_tensor_x_vals[i]
+                pred_gradient = pred_x_vals[i+1] - pred_x_vals[i]
+
+                error = torch.abs(gt_gradient - pred_gradient)
+                bev_gradient_loss = bev_gradient_loss + error
+
+        return bev_gradient_loss
 
     # =============================== FUNCS TO CALCULATE LOSSES =============================== #
     
