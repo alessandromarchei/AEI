@@ -443,7 +443,7 @@ class AutoSteerTrainer():
 
         return perspective_image_points, perspective_image_points_normalized
 
-    
+
     # Loss backward pass
     def loss_backward(self):
         self.total_loss.backward()

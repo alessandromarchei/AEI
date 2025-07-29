@@ -126,8 +126,7 @@ def main():
     trainer = None
 
     CHECKPOINT_PATH = None #args.checkpoint_path
-
-    if (CHECKPOINT_PATH):
+    if (CHECKPOINT_PATH != None):
         trainer = AutoSteerTrainer(checkpoint_path = CHECKPOINT_PATH)    
     else:
         trainer = AutoSteerTrainer()
@@ -311,8 +310,7 @@ def main():
                 
                 perspective_x_points = [point[0] for point in perspective_image_points]
                 perspective_y_points = [point[1] for point in perspective_image_points]
-                print(perspective_image_points)
-
+            
                 plt.plot(perspective_x_points, perspective_y_points, color)
             
             # Original perspective visualization
@@ -324,16 +322,6 @@ def main():
             plt.imshow(bev_image)
             plt.figure()
             plt.imshow(bev_vis)
-   
-
-            # Print data
-            print('BEV EgoPath:', bev_egopath)            
-            print('Reprojected EgoPath:', reproj_egopath)
-            print('BEV EgoLeft Lane:', bev_egoleft)
-            print('Reprojected EgoLeft Lane:', reproj_egoleft)
-            print('BEV EgoRight Lane:', bev_egoright)
-            print('Reprojected EgoRight Lane:', reproj_egoright)
-            print('Homography Transform Matrix:', homotrans_mat)
 
             # Assign data
             trainer.set_data(homotrans_mat, bev_image, perspective_image, \
@@ -348,10 +336,10 @@ def main():
             
             # Run model and get loss
             trainer.run_model()
-            '''
+            
             # Gradient accumulation
             trainer.loss_backward()
-
+            '''
             # Simulating batch size through gradient accumulation
             if ((msdict["sample_counter"] + 1) % batch_size == 0):
                 trainer.run_optimizer()
