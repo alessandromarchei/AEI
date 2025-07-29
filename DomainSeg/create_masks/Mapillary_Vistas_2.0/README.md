@@ -27,7 +27,10 @@ Assume the visualization (super imposed label on image) will be stored in a fold
 
 
 
+
+
 Then execute the code below
+
 
 
 python process\_mapillary\_vistas.py -trlb ../../../../Data/Data\_May\_5th\_2025/Mapillary\_Vistas/training/v2.0/labels/ -trim ../../../../Data/Data\_May\_5th\_2025/Mapillary\_Vistas/training/images/  -valb ../../../../Data/Data\_May\_5th\_2025/Mapillary\_Vistas/validation/v2.0/labels/ -vaim ../../../../Data/Data\_May\_5th\_2025/Mapillary\_Vistas/validation/images/ -lbs label -ims image -vis visualization
@@ -37,8 +40,4 @@ python process\_mapillary\_vistas.py -trlb ../../../../Data/Data\_May\_5th\_2025
 
 
 A processed version of the data can be found in the Kaggle link https://www.kaggle.com/datasets/austinosas/mapillary-vistas-road-work-processed-data/data
-
-
-
-
 
