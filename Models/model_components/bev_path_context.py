@@ -68,7 +68,7 @@ class BEVPathContext(nn.Module):
         context = context*bev_features + bev_features
 
         # Context feature vector
-        context_feature_vector = torch.max(context, dim = [2,3])
+        context_feature_vector = torch.mean(context, dim = [2,3])
 
         # Decoding driving path related features
         path_features = self.context_layer_7(context_feature_vector)
