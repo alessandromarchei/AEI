@@ -480,102 +480,71 @@ class AutoSteerTrainer():
         print("Finished training")
 
     # Save predicted visualization
-    def save_visualization(self, log_count, orig_vis):
+    def save_visualization(self, log_count, bev_vis, perspective_vis):
 
-        # Get pred/gt tensors and detach em
-        pred_xs_bev_egopath = self.pred_xs_egopath.cpu().detach().numpy()
-        pred_xs_bev_egoleft = self.pred_xs_egoleft.cpu().detach().numpy()
-        pred_xs_bev_egoright = self.pred_xs_egoright.cpu().detach().numpy()
+        # Predicted Egopath (BEV)
+        pred_bev_ego_path = self.pred_bev_ego_path_tensor.cpu().detach().numpy()
+        
+        # Predicted Egopath (Reprojected)
+        _, pred_reprojected_ego_path_tensor = \
+                self.getPerspectivePointsFromBEV(self.gt_bev_egopath_tensor, 
+                                            self.pred_bev_ego_path_tensor)
+        pred_reprojected_ego_path = pred_reprojected_ego_path_tensor.cpu().detach.numpy()
+        pred_reprojected_ego_path_x_vals = [point[0] for point in pred_reprojected_ego_path]
+        pred_reprojected_ego_path_y_vals = [point[1] for point in pred_reprojected_ego_path]
 
-        gt_xs_bev_egopath = self.xs_tensor_bev_egopath.cpu().detach().numpy()
-        gt_xs_bev_egoleft = self.xs_tensor_bev_egoleft.cpu().detach().numpy()
-        gt_xs_bev_egoright = self.xs_tensor_bev_egoright.cpu().detach().numpy()
+        # Predicted Egoleft Lane (BEV)
+        prev_bev_egoleft_lane = self.pred_bev_egoleft_lane_tensor.cpu().detach().numpy()
 
-        # BEV GROUNDTRUTH
+        # Predicted Egoleft Lane (Reprojected)
+        _, pred_reprojected_egoleft_lane_tensor = \
+                self.getPerspectivePointsFromBEV(self.gt_bev_egoleft_lane_tensor, 
+                                            self.pred_bev_egoleft_lane_tensor)
+        pred_reprojected_egoleft_lane = pred_reprojected_egoleft_lane_tensor.cpu().detach.numpy()
+        pred_reprojected_egoleft_lane_x_vals = [point[0] for point in pred_reprojected_egoleft_lane]
+        pred_reprojected_egoleft_lane_y_vals = [point[1] for point in pred_reprojected_egoleft_lane]
 
-        # Plot fig
-        fig_gt_bev = self.visualizeBEV(
-            list_pred_xs = [
-                gt_xs_bev_egopath, 
-                gt_xs_bev_egoleft, 
-                gt_xs_bev_egoright
-            ],
-            list_labels = [
-                "Groundtruth_EgoPath",
-                "Groundtruth_EgoLeft",
-                "Groundtruth_EgoRight"
-            ],
-            list_colors = [
-                "yellow",
-                "green",
-                "cyan"
-            ]
-        )
+        # Predicted Egoright Lane (BEV)
+        pred_bev_egoright_lane = self.pred_bev_egoright_lane_tensor.cpu().detach().numpy()
 
-        # Write fig
-        self.writer.add_figure(
-            "BEV - Groundtruth",
-            fig_gt_bev,
-            global_step = (log_count)
-        )
+        # Predicted Egoright Lane (Reprojected)
+        _, pred_reprojected_egoright_lane_tensor = \
+                self.getPerspectivePointsFromBEV(self.gt_bev_egoright_lane_tensor, 
+                                            self.pred_bev_egoright_lane_tensor)
+        pred_reprojected_egoright_lane = pred_reprojected_egoright_lane_tensor.cpu().detach.numpy()
+        pred_reprojected_egoright_lane_x_vals = [point[0] for point in pred_reprojected_egoright_lane]
+        pred_reprojected_egoright_lane_y_vals = [point[1] for point in pred_reprojected_egoright_lane]
 
-        # BEV PREDICTION
+        # BEV fixed y-values of anchors
+        bev_y_vals = self.gt_bev_egopath_tensor[1,:].cpu().detach().numpy()*self.BEV_H
 
-        # Plot fig
-        fig_pred_bev = self.visualizeBEV(
-            list_pred_xs = [
-                pred_xs_bev_egopath, 
-                pred_xs_bev_egoleft, 
-                pred_xs_bev_egoright
-            ],
-            list_labels = [
-                "Predicted_EgoPath",
-                "Predicted_EgoLeft",
-                "Predicted_EgoRight"
-            ],
-            list_colors = [
-                "yellow",
-                "green",
-                "cyan"
-            ]
-        )
+        # Visualize Predictions - BEV
+        fig_pred_bev = plt.figure(figsize=(8, 4))
+        plt.imshow(self.bev_image)
+        plt.plot(pred_bev_ego_path*self.BEV_W, bev_y_vals, 'yellow')
+        plt.plot(prev_bev_egoleft_lane*self.BEV_W, bev_y_vals, 'green')
+        plt.plot(pred_bev_egoright_lane*self.BEV_W, bev_y_vals, 'cyan')
+        self.writer.add_figure("Prediction (BEV)", fig_pred_bev, global_step = (log_count))
+        
+        # Visualize Ground Truth - BEV
+        fig_gt_bev = plt.figure(figsize=(8, 4))
+        plt.imshow(bev_vis)
+        self.writer.add_figure("Ground Truth (BEV)", fig_gt_bev, global_step = (log_count))
 
-        # Write fig
-        self.writer.add_figure(
-            "BEV - Prediction",
-            fig_pred_bev,
-            global_step = (log_count)
-        )
+        # Visualize Predictions - Perspective
+        fig_pred_perspective = plt.figure(figsize=(4, 8))
+        plt.imshow(self.perspective_image)
+        plt.plot(pred_reprojected_ego_path_x_vals, pred_reprojected_ego_path_y_vals, 'yellow')
+        plt.plot(pred_reprojected_egoleft_lane_x_vals, pred_reprojected_egoleft_lane_y_vals, 'green')
+        plt.plot(pred_reprojected_egoright_lane_x_vals, pred_reprojected_egoright_lane_y_vals, 'cyan')
+        self.writer.add_figure("Prediction (Perspective)", fig_pred_perspective, global_step = (log_count))
 
-        # ORIGINAL GROUNDTRUTH (basically just slap the visualization img)
-
-        # Prep image tensor
-        fig_orig = self.visualizeOriginal(
-            list_pred_xs = [
-                pred_xs_bev_egopath,
-                pred_xs_bev_egoleft,
-                pred_xs_bev_egoright
-            ],
-            list_labels = [
-                "Predicted_EgoPath_reprojected",
-                "Predicted_EgoLeft_reprojected",
-                "Predicted_EgoRight_reprojected"
-            ],
-            list_colors = [
-                "yellow",
-                "green",
-                "cyan"
-            ],
-            transform_matrix = self.mat,
-        )
-
-        # Write image
-        self.writer.add_figure(
-            "Original perspective - Groundtruth vs Prediction",
-            fig_orig,
-            global_step = (log_count)
-        )
-
+        # Visualize Ground Truth - Perspective
+        fig_gt_perspective = plt.figure(figsize=(4, 8))
+        plt.imshow(perspective_vis)
+        self.writer.add_figure("Ground Truth (Perspective)", fig_gt_perspective, global_step = (log_count))
+      
+        
     # Run validation with metrics
     def validate(
         self,
