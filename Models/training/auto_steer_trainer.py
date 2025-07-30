@@ -521,9 +521,18 @@ class AutoSteerTrainer():
         # Visualize Predictions - BEV
         fig_pred_bev = plt.figure(figsize=(8, 4))
         plt.imshow(self.bev_image)
-        plt.plot(pred_bev_ego_path*self.BEV_W, bev_y_vals, 'yellow')
-        plt.plot(prev_bev_egoleft_lane*self.BEV_W, bev_y_vals, 'green')
-        plt.plot(pred_bev_egoright_lane*self.BEV_W, bev_y_vals, 'cyan')
+        for i in range(0, len(pred_bev_ego_path)):
+            
+            # Checking to make sure we only visualize valid BEV predictions
+            if(pred_bev_ego_path[i] >=0 and pred_bev_ego_path[i] < 1):
+                plt.plot(pred_bev_ego_path[i]*self.BEV_W, bev_y_vals[i], 'yellow')
+
+            if(prev_bev_egoleft_lane[i] >=0 and prev_bev_egoleft_lane[i] < 1):
+                plt.plot(prev_bev_egoleft_lane[i]*self.BEV_W, bev_y_vals[i], 'green')
+
+            if(pred_bev_egoright_lane[i] >=0 and pred_bev_egoright_lane[i] < 1):
+                plt.plot(pred_bev_egoright_lane[i]*self.BEV_W, bev_y_vals[i], 'cyan')
+                
         self.writer.add_figure("Prediction (BEV)", fig_pred_bev, global_step = (log_count))
         
         # Visualize Ground Truth - BEV
