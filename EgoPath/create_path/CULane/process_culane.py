@@ -470,7 +470,6 @@ if __name__ == "__main__":
                         anno_raw_file = os.path.join(dataset_dir, img_path),
                         raw_dir = os.path.join(output_dir, "image"),
                         visualization_dir = os.path.join(output_dir, "visualization"),
-                        mask_dir = os.path.join(output_dir, "segmentation"),
                         img_height = img_height,
                         img_width = img_width,
                         crop = crop
@@ -478,11 +477,12 @@ if __name__ == "__main__":
 
                     # Save as 6-digit incremental index
                     img_index = str(str(img_id_counter).zfill(6))
-                    data_master[img_index] = {}
-                    data_master[img_index]["drivable_path"] = this_data["drivable_path"]
-                    data_master[img_index]["img_height"] = img_height
-                    data_master[img_index]["img_width"] = img_width
-                    
+                    data_master[img_index] = {
+                        "drivable_path": this_data["drivable_path"],
+                        "egoleft_lane": this_data["egoleft_lane"],
+                        "egoright_lane": this_data["egoright_lane"],
+                    }
+
                     # Early stopping, it defined
                     if (early_stopping and img_id_counter >= early_stopping - 1):
                         break
