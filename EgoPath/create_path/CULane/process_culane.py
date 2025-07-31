@@ -17,6 +17,17 @@ warnings.formatwarning = custom_warning_format
 
 # ============================== Helper functions ============================== #
 
+def roundLineFloats(line, ndigits = 4):
+    line = list(line)
+    for i in range(len(line)):
+        line[i] = [
+            round(line[i][0], ndigits),
+            round(line[i][1], ndigits)
+        ]
+    line = tuple(line)
+    return line
+
+
 def normalizeCoords(lane, width, height):
     """
     Normalize the coords of lane points.
@@ -130,7 +141,7 @@ def getDrivablePath(left_ego, right_ego):
 
 def annotateGT(
         anno_entry, anno_raw_file, 
-        raw_dir, visualization_dir, mask_dir,
+        raw_dir, visualization_dir,
         img_width, img_height,
         normalized = True,
         crop = None
@@ -194,12 +205,6 @@ def annotateGT(
     # Save visualization img, same format with raw, just different dir
     raw_img.save(os.path.join(visualization_dir, save_name))
 
-    # Working on binary mask
-    mask = Image.new("L", (img_width, img_height), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
-    mask.save(os.path.join(mask_dir, save_name))
-
 
 def parseAnnotations(anno_path, crop = None):
     """
@@ -258,11 +263,38 @@ def parseAnnotations(anno_path, crop = None):
 
             # Parse processed data, all coords normalized
             anno_data = {
-                "lanes" : [normalizeCoords(lane, img_width, img_height) for lane in lanes],
+                "lanes" : [
+                    roundLineFloats(
+                        normalizeCoords(
+                            lane,
+                            img_width, 
+                            img_height
+                        )
+                    )
+                    for lane in lanes
+                ],
                 "ego_indexes" : ego_indexes,
-                "drivable_path" : normalizeCoords(drivable_path, img_width, img_height),
-                "img_width" : img_width,
-                "img_height" : img_height,
+                "drivable_path" : roundLineFloats(
+                    normalizeCoords(
+                        drivable_path, 
+                        img_width, 
+                        img_height
+                    )
+                ),
+                "egoleft_lane" : roundLineFloats(
+                    normalizeCoords(
+                        left_ego, 
+                        img_width, 
+                        img_height
+                    )
+                ),
+                "egoright_lane" : roundLineFloats(
+                    normalizeCoords(
+                        right_ego, 
+                        img_width, 
+                        img_height
+                    )
+                ),
             }
 
             return anno_data
@@ -374,12 +406,11 @@ if __name__ == "__main__":
     """
     --output_dir
         |----image
-        |----segmentation
         |----visualization
         |----drivable_path.json
     """
     list_splits = ["train", "val", "test"]
-    list_subdirs = ["image", "segmentation", "visualization"]
+    list_subdirs = ["image", "visualization"]
     if (os.path.exists(output_dir)):
         warnings.warn(f"Output directory {output_dir} already exists. Purged")
         shutil.rmtree(output_dir)
