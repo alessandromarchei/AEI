@@ -536,39 +536,46 @@ class AutoSteerTrainer():
 
         # BEV fixed y-values of anchors
         bev_y_vals = self.gt_bev_egopath_tensor[1,:].cpu().detach().numpy()*self.BEV_H
+   
+        # Visualize Ground Truth and Predictions (BEV)
+        fig_bev, axs = plt.subplots(1,2, figsize=(8, 8))
 
-        # Visualize Predictions - BEV
-        fig_pred_bev = plt.figure(figsize=(4, 8))
-        plt.imshow(self.bev_image)
+        # Prediction
+        axs[0].set_title('Prediction',fontweight ="bold") 
+        axs[0].set_xlim(0, self.BEV_W - 1)
+        axs[0].set_ylim(self.BEV_H - 1, 0)
+        axs[0].imshow(self.bev_image)
 
-        # Get values
         pred_bev_ego_path_vals = pred_bev_ego_path[0]*self.BEV_W
         prev_bev_egoleft_lane_vals = prev_bev_egoleft_lane[0]*self.BEV_W
         pred_bev_egoright_lane_vals = pred_bev_egoright_lane[0]*self.BEV_W
 
-        plt.plot(pred_bev_ego_path_vals, bev_y_vals, 'yellow')
-        plt.plot(prev_bev_egoleft_lane_vals, bev_y_vals, 'green')
-        plt.plot(pred_bev_egoright_lane_vals, bev_y_vals, 'cyan')
+        axs[0].plot(pred_bev_ego_path_vals, bev_y_vals, 'yellow')
+        axs[0].plot(prev_bev_egoleft_lane_vals, bev_y_vals, 'green')
+        axs[0].plot(pred_bev_egoright_lane_vals, bev_y_vals, 'cyan')
 
-        self.writer.add_figure("Prediction (BEV)", fig_pred_bev, global_step = (log_count))
-        
-        # Visualize Ground Truth - BEV
-        fig_gt_bev = plt.figure(figsize=(4, 8))
-        plt.imshow(bev_vis)
-        self.writer.add_figure("Ground Truth (BEV)", fig_gt_bev, global_step = (log_count))
+        # Ground Truth
+        axs[1].set_title('Ground Truth',fontweight ="bold") 
+        axs[1].imshow(bev_vis)
+        self.writer.add_figure("BEV", fig_bev, global_step = (log_count))
 
-        # Visualize Predictions - Perspective
-        fig_pred_perspective = plt.figure(figsize=(8, 4))
-        plt.imshow(self.perspective_image)
-        plt.plot(pred_reprojected_ego_path_x_vals, pred_reprojected_ego_path_y_vals, 'yellow')
-        plt.plot(pred_reprojected_egoleft_lane_x_vals, pred_reprojected_egoleft_lane_y_vals, 'green')
-        plt.plot(pred_reprojected_egoright_lane_x_vals, pred_reprojected_egoright_lane_y_vals, 'cyan')
-        self.writer.add_figure("Prediction (Perspective)", fig_pred_perspective, global_step = (log_count))
+        # Visualize Ground Truth and Predictions (Perspective)
+        fig_perspective, axs = plt.subplots(2,1, figsize=(8, 8))
+
+        # Prediction
+        axs[0].set_title('Prediction',fontweight ="bold") 
+        axs[0].set_xlim(0, self.perspective_W - 1)
+        axs[0].set_ylim(self.perspective_H - 1 - 1, 0)
+        axs[0].imshow(self.perspective_image)
+
+        axs[0].plot(pred_reprojected_ego_path_x_vals, pred_reprojected_ego_path_y_vals, 'yellow')
+        axs[0].plot(pred_reprojected_egoleft_lane_x_vals, pred_reprojected_egoleft_lane_y_vals, 'green')
+        axs[0].plot(pred_reprojected_egoright_lane_x_vals, pred_reprojected_egoright_lane_y_vals, 'cyan')
 
         # Visualize Ground Truth - Perspective
-        fig_gt_perspective = plt.figure(figsize=(8, 4))
-        plt.imshow(perspective_vis)
-        self.writer.add_figure("Ground Truth (Perspective)", fig_gt_perspective, global_step = (log_count))
+        axs[1].set_title('Ground Truth',fontweight ="bold") 
+        axs[1].imshow(perspective_vis)
+        self.writer.add_figure("Ground Truth (Perspective)", fig_perspective, global_step = (log_count))
       
         
     # Run validation with metrics
