@@ -299,12 +299,10 @@ class AutoSteerTrainer():
         num_valid_samples = 0
 
         for i in range(0, len(gt_tensor_x_vals)):
-
-            if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
                 
-                error = torch.abs(gt_tensor_x_vals[i] - pred_tensor_x_vals[i])
-                data_error_sum = data_error_sum + error
-                num_valid_samples = num_valid_samples + 1
+            error = torch.abs(gt_tensor_x_vals[i] - pred_tensor_x_vals[i])
+            data_error_sum = data_error_sum + error
+            num_valid_samples = num_valid_samples + 1
 
         bev_data_loss = data_error_sum/num_valid_samples
 
@@ -321,13 +319,11 @@ class AutoSteerTrainer():
 
         for i in range(0, len(gt_tensor_x_vals) - 1):
 
-            if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
+            gt_gradient = gt_tensor_x_vals[i+1] - gt_tensor_x_vals[i]
+            pred_gradient = pred_tensor_x_vals[i+1] - pred_tensor_x_vals[i]
 
-                gt_gradient = gt_tensor_x_vals[i+1] - gt_tensor_x_vals[i]
-                pred_gradient = pred_tensor_x_vals[i+1] - pred_tensor_x_vals[i]
-
-                error = torch.abs(gt_gradient - pred_gradient)
-                bev_gradient_loss = bev_gradient_loss + error
+            error = torch.abs(gt_gradient - pred_gradient)
+            bev_gradient_loss = bev_gradient_loss + error
 
         return bev_gradient_loss
     
@@ -347,20 +343,18 @@ class AutoSteerTrainer():
 
         for i in range(0, len(gt_tensor_x_vals)):
 
-            if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
+            gt_reprojected_x = gt_reprojected_tensor_x_vals[i]
+            prediction_reprojected_x = prediction_reprojected[i][0]
+            
+            gt_reprojected_y = gt_reprojected_tensor_y_vals[i]
+            prediction_reprojected_y = prediction_reprojected[i][1]
+            
+            x_error = torch.abs(gt_reprojected_x - prediction_reprojected_x)
+            y_error = torch.abs(gt_reprojected_y - prediction_reprojected_y)
+            L1_error = x_error + y_error
 
-                gt_reprojected_x = gt_reprojected_tensor_x_vals[i]
-                prediction_reprojected_x = prediction_reprojected[i][0]
-                
-                gt_reprojected_y = gt_reprojected_tensor_y_vals[i]
-                prediction_reprojected_y = prediction_reprojected[i][1]
-                
-                x_error = torch.abs(gt_reprojected_x - prediction_reprojected_x)
-                y_error = torch.abs(gt_reprojected_y - prediction_reprojected_y)
-                L1_error = x_error + y_error
-
-                data_error_sum = data_error_sum + L1_error
-                num_valid_samples = num_valid_samples + 1
+            data_error_sum = data_error_sum + L1_error
+            num_valid_samples = num_valid_samples + 1
 
         reprojected_data_loss = data_error_sum/num_valid_samples
         return reprojected_data_loss
@@ -379,16 +373,14 @@ class AutoSteerTrainer():
 
         for i in range(0, len(gt_tensor_x_vals)-1):
 
-            if(gt_tensor_x_vals[i] >=0 and gt_tensor_x_vals[i] < 1):
-
-                gt_reprojected_gradient = gt_reprojected_tensor_x_vals[i+1] \
-                    - gt_reprojected_tensor_x_vals[i]
-                
-                prediction_reprojected_gradient = prediction_reprojected[i+1][0] \
-                    - prediction_reprojected[i][0]
-                
-                error = torch.abs(gt_reprojected_gradient - prediction_reprojected_gradient)
-                reprojected_gradient_loss = reprojected_gradient_loss + error
+            gt_reprojected_gradient = gt_reprojected_tensor_x_vals[i+1] \
+                - gt_reprojected_tensor_x_vals[i]
+            
+            prediction_reprojected_gradient = prediction_reprojected[i+1][0] \
+                - prediction_reprojected[i][0]
+            
+            error = torch.abs(gt_reprojected_gradient - prediction_reprojected_gradient)
+            reprojected_gradient_loss = reprojected_gradient_loss + error
 
         return reprojected_gradient_loss
 
@@ -480,7 +472,7 @@ class AutoSteerTrainer():
         print("Finished training")
 
     # Save predicted visualization
-    def save_visualization(self, log_count, bev_vis, perspective_vis):
+    def save_visualization(self, log_count, bev_vis):
 
         # Predicted Egopath (BEV)
         pred_bev_ego_path = self.pred_bev_ego_path_tensor.cpu().detach().numpy()
@@ -565,16 +557,29 @@ class AutoSteerTrainer():
         # Prediction
         axs[0].set_title('Prediction',fontweight ="bold") 
         axs[0].set_xlim(0, self.perspective_W - 1)
-        axs[0].set_ylim(self.perspective_H - 1 - 1, 0)
+        axs[0].set_ylim(self.perspective_H - 1, 0)
         axs[0].imshow(self.perspective_image)
 
         axs[0].plot(pred_reprojected_ego_path_x_vals, pred_reprojected_ego_path_y_vals, 'yellow')
-        axs[0].plot(pred_reprojected_egoleft_lane_x_vals, pred_reprojected_egoleft_lane_y_vals, 'green')
+        axs[0].plot(pred_reprojected_egoleft_lane_x_vals, pred_reprojected_egoleft_lane_y_vals, 'chartreuse')
         axs[0].plot(pred_reprojected_egoright_lane_x_vals, pred_reprojected_egoright_lane_y_vals, 'cyan')
 
         # Visualize Ground Truth - Perspective
         axs[1].set_title('Ground Truth',fontweight ="bold") 
-        axs[1].imshow(perspective_vis)
+        axs[1].imshow(self.perspective_image)
+        axs[1].set_xlim(0, self.perspective_W - 1)
+        axs[1].set_ylim(self.perspective_H - 1, 0)
+
+        gt_reprojected_ego_path_x_vals = self.reproj_egopath[0,:]*self.perspective_W
+        gt_reprojected_ego_path_y_vals = self.reproj_egopath[1,:]*self.perspective_H
+        gt_reprojected_egoleft_lane_x_vals = self.reproj_egoleft[0,:]*self.perspective_W
+        gt_reprojected_egoleft_lane_y_vals = self.reproj_egoleft[1,:]*self.perspective_H
+        gt_reprojected_egoright_lane_x_vals = self.reproj_egoright[0,:]*self.perspective_W
+        gt_reprojected_egoright_lane_y_vals = self.reproj_egoright[1,:]*self.perspective_H
+        
+        axs[1].plot(gt_reprojected_ego_path_x_vals, gt_reprojected_ego_path_y_vals, 'yellow')
+        axs[1].plot(gt_reprojected_egoleft_lane_x_vals, gt_reprojected_egoleft_lane_y_vals, 'chartreuse')
+        axs[1].plot(gt_reprojected_egoright_lane_x_vals, gt_reprojected_egoright_lane_y_vals,'cyan')
         self.writer.add_figure("Ground Truth (Perspective)", fig_perspective, global_step = (log_count))
       
         

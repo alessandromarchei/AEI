@@ -137,7 +137,7 @@ def main():
     # Training loop parameters
     NUM_EPOCHS = 1
     LOGSTEP_LOSS = 25
-    LOGSTEP_VIS = 1000
+    LOGSTEP_VIS = 25
     LOGSTEP_MODEL = 5000
 
     # Val visualization param
@@ -249,23 +249,23 @@ def main():
                     f"{frame_id}.png"
                 )
             ).convert("RGB")
-            '''
+            
             # Perspective visualization
-            perspective_vis = Image.open(
-                os.path.join(
-                    msdict[dataset]["path_perspective_vis"],
-                    f"{frame_id}.jpg"
-                )
-            ).convert("RGB")
+            #perspective_vis = Image.open(
+            #    os.path.join(
+            #        msdict[dataset]["path_perspective_vis"],
+            #        f"{frame_id}.jpg"
+            #    )
+            #).convert("RGB")
 
-            # Original visualization
+            # BEV visualization
             bev_vis = Image.open(
                 os.path.join(
                     msdict[dataset]["path_bev_vis"],
                     f"{frame_id}.jpg"
                 )
             ).convert("RGB")
-
+            '''
             # BEV to Image projection
             plt.figure()
             plt.imshow(perspective_image)
@@ -323,11 +323,11 @@ def main():
             # Logging loss to Tensor Board
             if ((msdict["sample_counter"] + 1) % LOGSTEP_LOSS == 0):
                 trainer.log_loss(msdict["log_counter"] + 1)
-            '''
+            
             # Logging Visualization to Tensor Board
             if((msdict["sample_counter"] + 1) % LOGSTEP_VIS == 0):  
-                trainer.save_visualization(msdict["log_counter"] + 1, orig_vis)
-            
+                trainer.save_visualization(msdict["log_counter"] + 1, bev_vis)
+            '''
             # Save model and run Validation on entire validation dataset
             if ((msdict["sample_counter"] + 1) % LOGSTEP_MODEL == 0):
                 
