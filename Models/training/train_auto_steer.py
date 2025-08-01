@@ -135,7 +135,7 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 1
+    NUM_EPOCHS = 3
     LOGSTEP_LOSS = 25
     LOGSTEP_VIS = 25
     LOGSTEP_MODEL = 5000
@@ -188,8 +188,7 @@ def main():
             msdict[dataset]["completed"] = False
 
         # Loop through data
-        #while (True):
-        for i in range (3000):
+        while (True):
 
             # Log count
             msdict["sample_counter"] = msdict["sample_counter"] + 1

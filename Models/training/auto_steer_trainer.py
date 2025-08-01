@@ -580,7 +580,7 @@ class AutoSteerTrainer():
         axs[1].plot(gt_reprojected_ego_path_x_vals, gt_reprojected_ego_path_y_vals, 'yellow')
         axs[1].plot(gt_reprojected_egoleft_lane_x_vals, gt_reprojected_egoleft_lane_y_vals, 'chartreuse')
         axs[1].plot(gt_reprojected_egoright_lane_x_vals, gt_reprojected_egoright_lane_y_vals,'cyan')
-        self.writer.add_figure("Ground Truth (Perspective)", fig_perspective, global_step = (log_count))
+        self.writer.add_figure("Perspective", fig_perspective, global_step = (log_count))
       
         
     # Run validation with metrics
