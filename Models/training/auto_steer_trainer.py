@@ -489,9 +489,15 @@ class AutoSteerTrainer():
         _, pred_reprojected_ego_path_tensor = \
                 self.getPerspectivePointsFromBEV(self.gt_bev_egopath_tensor, 
                                             self.pred_bev_ego_path_tensor)
-        pred_reprojected_ego_path = pred_reprojected_ego_path_tensor.cpu().detach.numpy()
-        pred_reprojected_ego_path_x_vals = [point[0] for point in pred_reprojected_ego_path]
-        pred_reprojected_ego_path_y_vals = [point[1] for point in pred_reprojected_ego_path]
+        pred_reprojected_ego_path_x_vals = []
+        pred_reprojected_ego_path_y_vals = []
+
+        for i in range(0, len(pred_reprojected_ego_path_tensor)):
+            pred_reprojected_ego_path_x_val = pred_reprojected_ego_path_tensor[i][0].cpu().detach().numpy()
+            pred_reprojected_ego_path_y_val = pred_reprojected_ego_path_tensor[i][1].cpu().detach().numpy()
+
+            pred_reprojected_ego_path_x_vals.append(pred_reprojected_ego_path_x_val)
+            pred_reprojected_ego_path_y_vals.append(pred_reprojected_ego_path_y_val)
 
         # Predicted Egoleft Lane (BEV)
         prev_bev_egoleft_lane = self.pred_bev_egoleft_lane_tensor.cpu().detach().numpy()
@@ -500,9 +506,15 @@ class AutoSteerTrainer():
         _, pred_reprojected_egoleft_lane_tensor = \
                 self.getPerspectivePointsFromBEV(self.gt_bev_egoleft_lane_tensor, 
                                             self.pred_bev_egoleft_lane_tensor)
-        pred_reprojected_egoleft_lane = pred_reprojected_egoleft_lane_tensor.cpu().detach.numpy()
-        pred_reprojected_egoleft_lane_x_vals = [point[0] for point in pred_reprojected_egoleft_lane]
-        pred_reprojected_egoleft_lane_y_vals = [point[1] for point in pred_reprojected_egoleft_lane]
+        pred_reprojected_egoleft_lane_x_vals = []
+        pred_reprojected_egoleft_lane_y_vals = []
+
+        for i in range(0, len(pred_reprojected_egoleft_lane_tensor)):
+            pred_reprojected_egoleft_lane_x_val = pred_reprojected_egoleft_lane_tensor[i][0].cpu().detach().numpy()
+            pred_reprojected_egoleft_lane_y_val = pred_reprojected_egoleft_lane_tensor[i][1].cpu().detach().numpy()
+
+            pred_reprojected_egoleft_lane_x_vals.append(pred_reprojected_egoleft_lane_x_val)
+            pred_reprojected_egoleft_lane_y_vals.append(pred_reprojected_egoleft_lane_y_val)
 
         # Predicted Egoright Lane (BEV)
         pred_bev_egoright_lane = self.pred_bev_egoright_lane_tensor.cpu().detach().numpy()
@@ -511,37 +523,42 @@ class AutoSteerTrainer():
         _, pred_reprojected_egoright_lane_tensor = \
                 self.getPerspectivePointsFromBEV(self.gt_bev_egoright_lane_tensor, 
                                             self.pred_bev_egoright_lane_tensor)
-        pred_reprojected_egoright_lane = pred_reprojected_egoright_lane_tensor.cpu().detach.numpy()
-        pred_reprojected_egoright_lane_x_vals = [point[0] for point in pred_reprojected_egoright_lane]
-        pred_reprojected_egoright_lane_y_vals = [point[1] for point in pred_reprojected_egoright_lane]
+
+        pred_reprojected_egoright_lane_x_vals = []
+        pred_reprojected_egoright_lane_y_vals = []
+
+        for i in range(0, len(pred_reprojected_egoright_lane_tensor)):
+            pred_reprojected_egoright_lane_x_val = pred_reprojected_egoright_lane_tensor[i][0].cpu().detach().numpy()
+            pred_reprojected_egoright_lane_y_val = pred_reprojected_egoright_lane_tensor[i][1].cpu().detach().numpy()
+
+            pred_reprojected_egoright_lane_x_vals.append(pred_reprojected_egoright_lane_x_val)
+            pred_reprojected_egoright_lane_y_vals.append(pred_reprojected_egoright_lane_y_val)
 
         # BEV fixed y-values of anchors
         bev_y_vals = self.gt_bev_egopath_tensor[1,:].cpu().detach().numpy()*self.BEV_H
 
         # Visualize Predictions - BEV
-        fig_pred_bev = plt.figure(figsize=(8, 4))
+        fig_pred_bev = plt.figure(figsize=(4, 8))
         plt.imshow(self.bev_image)
-        for i in range(0, len(pred_bev_ego_path)):
-            
-            # Checking to make sure we only visualize valid BEV predictions
-            if(pred_bev_ego_path[i] >=0 and pred_bev_ego_path[i] < 1):
-                plt.plot(pred_bev_ego_path[i]*self.BEV_W, bev_y_vals[i], 'yellow')
 
-            if(prev_bev_egoleft_lane[i] >=0 and prev_bev_egoleft_lane[i] < 1):
-                plt.plot(prev_bev_egoleft_lane[i]*self.BEV_W, bev_y_vals[i], 'green')
+        # Get values
+        pred_bev_ego_path_vals = pred_bev_ego_path[0]*self.BEV_W
+        prev_bev_egoleft_lane_vals = prev_bev_egoleft_lane[0]*self.BEV_W
+        pred_bev_egoright_lane_vals = pred_bev_egoright_lane[0]*self.BEV_W
 
-            if(pred_bev_egoright_lane[i] >=0 and pred_bev_egoright_lane[i] < 1):
-                plt.plot(pred_bev_egoright_lane[i]*self.BEV_W, bev_y_vals[i], 'cyan')
-                
+        plt.plot(pred_bev_ego_path_vals, bev_y_vals, 'yellow')
+        plt.plot(prev_bev_egoleft_lane_vals, bev_y_vals, 'green')
+        plt.plot(pred_bev_egoright_lane_vals, bev_y_vals, 'cyan')
+
         self.writer.add_figure("Prediction (BEV)", fig_pred_bev, global_step = (log_count))
         
         # Visualize Ground Truth - BEV
-        fig_gt_bev = plt.figure(figsize=(8, 4))
+        fig_gt_bev = plt.figure(figsize=(4, 8))
         plt.imshow(bev_vis)
         self.writer.add_figure("Ground Truth (BEV)", fig_gt_bev, global_step = (log_count))
 
         # Visualize Predictions - Perspective
-        fig_pred_perspective = plt.figure(figsize=(4, 8))
+        fig_pred_perspective = plt.figure(figsize=(8, 4))
         plt.imshow(self.perspective_image)
         plt.plot(pred_reprojected_ego_path_x_vals, pred_reprojected_ego_path_y_vals, 'yellow')
         plt.plot(pred_reprojected_egoleft_lane_x_vals, pred_reprojected_egoleft_lane_y_vals, 'green')
@@ -549,7 +566,7 @@ class AutoSteerTrainer():
         self.writer.add_figure("Prediction (Perspective)", fig_pred_perspective, global_step = (log_count))
 
         # Visualize Ground Truth - Perspective
-        fig_gt_perspective = plt.figure(figsize=(4, 8))
+        fig_gt_perspective = plt.figure(figsize=(8, 4))
         plt.imshow(perspective_vis)
         self.writer.add_figure("Ground Truth (Perspective)", fig_gt_perspective, global_step = (log_count))
       
