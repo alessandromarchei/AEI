@@ -552,9 +552,9 @@ class AutoSteerTrainer():
         
         # Save figure to Tensorboard
         if(is_train):
-            self.writer.add_figure("BEV (Train)", fig_bev, global_step = (log_count))
+            self.writer.add_figure("Train (BEV)", fig_bev, global_step = (log_count))
         else:
-            self.writer.add_figure("BEV (Validation)", fig_bev, global_step = (log_count))
+            self.writer.add_figure("Validation (BEV)", fig_bev, global_step = (log_count))
 
         # Visualize Ground Truth and Predictions (Perspective)
         fig_perspective, axs = plt.subplots(2,1, figsize=(8, 8))
@@ -588,9 +588,9 @@ class AutoSteerTrainer():
 
         # Save figure to Tensorboard
         if(is_train):
-            self.writer.add_figure("Perspective (Train)", fig_perspective, global_step = (log_count))
+            self.writer.add_figure("Train (Perspective)", fig_perspective, global_step = (log_count))
         else:
-            self.writer.add_figure("Perspective (Validation)", fig_perspective, global_step = (log_count))
+            self.writer.add_figure("Validation (Perspective)", fig_perspective, global_step = (log_count))
       
     
     # Log validation loss for each dataset to TensorBoard
