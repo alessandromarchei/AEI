@@ -92,7 +92,7 @@ class AutoSteerTrainer():
         self.writer = SummaryWriter()
 
         # Learning rate and optimizer
-        self.learning_rate = 0.0005
+        self.learning_rate = 0.0001
         self.optimizer = optim.AdamW(self.model.parameters(), self.learning_rate)
 
         # Loaders
