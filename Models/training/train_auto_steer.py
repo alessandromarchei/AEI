@@ -167,11 +167,11 @@ def main():
             # based on data sampling scheme
             for dataset in VALID_DATASET_LIST:
                 N_trains = msdict[dataset]["N_trains"]
-                if (msdict[dataset]["iter"] == N_trains):
+                if (msdict[dataset]["iter"] == N_trains-1):
                     if ((msdict[dataset]["completed"] == False)):
                         data_list.remove(dataset)
                     msdict[dataset]["completed"] = True
-
+            
             # If we have looped through each dataset at least once - restart the epoch
             if (all([
                 msdict[dataset]["completed"]
