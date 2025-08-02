@@ -438,7 +438,7 @@ class AutoSteerTrainer():
     # Logging losses - Total, BEV, Reprojected
     def log_loss(self, log_count):
         self.writer.add_scalars(
-            "Train_EgoPath", {
+            "Training Loss", {
                 "Total_loss" : self.get_total_loss(),
                 "BEV_loss" : self.get_bev_loss(),
                 "Reprojected_loss" : self.get_reprojected_loss()
