@@ -7,7 +7,7 @@ class EgoPathHead(nn.Module):
         super(EgoPathHead, self).__init__()
         # Standard
         self.GeLU = nn.GELU()
-        self.dropout = nn.Dropout(p=0.25)
+        self.dropout = nn.Dropout(p=0.5)
 
         # Context - MLP Layers
         self.ego_path_layer_0 = nn.Linear(800, 200)
@@ -19,8 +19,10 @@ class EgoPathHead(nn.Module):
 
         # MLP
         p0 = self.ego_path_layer_0(feature_vector)
+        p0 = self.dropout(p0)
         p0 = self.GeLU(p0)
         p1 = self.ego_path_layer_1(p0)
+        p1 = self.dropout(p1)
         p1 = self.GeLU(p1)
         ego_path = self.ego_path_layer_2(p1)
 
