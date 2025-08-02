@@ -22,41 +22,6 @@ BEV_VIS_PATH = "visualization_bev"
 PERSPECTIVE_IMG_PATH = "image"
 PERSPECTIVE_VIS_PATH = "visualization"
 
-def projectBEVtoImage(homotrans_mat, bev):
-
-    BEV_W = 640
-    BEV_H = 1280
-    IMG_H = 720
-    IMG_W = 1280
-
-    perspective_image_points = []
-    perspective_image_points_normalized = []
-
-    for i in range(0, len(bev)):
-        
-        bev_homogenous_point = []
-        bev_homogenous_point.append(bev[i][0])
-        bev_homogenous_point.append(bev[i][1])
-        bev_homogenous_point.append(1.0)
-
-        image_homogenous_point_x = BEV_W*bev[i][0]*homotrans_mat[0][0] + \
-            BEV_H*bev[i][1]*homotrans_mat[0][1] + homotrans_mat[0][2]
-        
-        image_homogenous_point_y = BEV_W*bev[i][0]*homotrans_mat[1][0] + \
-            BEV_H*bev[i][1]*homotrans_mat[1][1] + homotrans_mat[1][2]
-        
-        image_homogenous_point_scale_factor = BEV_W*bev[i][0]*homotrans_mat[2][0] + \
-            BEV_H*bev[i][1]*homotrans_mat[2][1] + homotrans_mat[2][2]
-        
-        image_point = [(image_homogenous_point_x/image_homogenous_point_scale_factor), \
-            (image_homogenous_point_y/image_homogenous_point_scale_factor)]
-        
-        image_point_normalized = [image_point[0]/IMG_W, image_point[1]/IMG_H]
-
-        perspective_image_points.append(image_point)
-        perspective_image_points_normalized.append(image_point_normalized)
-
-    return perspective_image_points, perspective_image_points_normalized
 
 def main():
 
@@ -136,10 +101,10 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 3
-    LOGSTEP_LOSS = 25
-    LOGSTEP_VIS = 25
-    LOGSTEP_MODEL = 5000
+    NUM_EPOCHS = 50
+    LOGSTEP_LOSS = 250
+    LOGSTEP_VIS = 500
+    LOGSTEP_MODEL = 5700
 
     # Val visualization param
     N_VALVIS = 15
@@ -307,6 +272,7 @@ def main():
                 for dataset in VALID_DATASET_LIST:
 
                     msdict[dataset]["num_val_samples"] = 0
+                    msdict[dataset]["total_running"] = 0
 
                 # Temporarily disable gradient computation for backpropagation
                 with torch.no_grad():
@@ -328,7 +294,7 @@ def main():
                                 is_train = False
                             )
                             msdict[dataset]["num_val_samples"] = msdict[dataset]["num_val_samples"] + 1
-
+                            
                             # BEV
                             perspective_image = Image.open(
                                 os.path.join(
@@ -380,30 +346,26 @@ def main():
 
                             # Save visualization to Tensorboard
                             if(val_count < N_VALVIS):  
-                                trainer.save_visualization(msdict["log_counter"] + 1, bev_vis, is_train=False)
+                                trainer.save_visualization(msdict["log_counter"] + 1 + val_count, bev_vis, is_train=False)
 
 
                     # Calculate final validation scores for network on each dataset
                     # as well as overall validation score - A lower score is better
 
+                    # Overall validation score across datasets
                     overall_val_score = 0
 
+                    # Calculating dataset specific validation metrics
                     for dataset in VALID_DATASET_LIST:
 
                         validation_loss_dataset_total =  msdict[dataset]["total_running"] / msdict[dataset]["num_val_samples"]
-                        validation_loss_dataset_bev =  msdict[dataset]["bev_running"] / msdict[dataset]["num_val_samples"]
-                        validation_loss_dataset_reprojected =  msdict[dataset]["reprojected_running"] / msdict[dataset]["num_val_samples"]
                         overall_val_score += validation_loss_dataset_total
                 
                         print("DATASET :", dataset)
                         print("VAL TOTAL SCORE : ", validation_loss_dataset_total)
-                        print("VAL BEV SCORE : ", validation_loss_dataset_bev)
-                        print("VAL REPROJ SCORE : ", validation_loss_dataset_reprojected)
 
                         # Logging validation metric for each dataset
-                        trainer.log_validation_dataset(dataset, validation_loss_dataset_total, 
-                                            validation_loss_dataset_bev, validation_loss_dataset_reprojected, 
-                                            msdict["log_counter"] + 1)
+                        trainer.log_validation_dataset(dataset, validation_loss_dataset_total, msdict["log_counter"] + 1)
                     
                     overall_val_score = overall_val_score/len(VALID_DATASET_LIST)
 

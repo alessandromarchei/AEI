@@ -594,20 +594,9 @@ class AutoSteerTrainer():
       
     
     # Log validation loss for each dataset to TensorBoard
-    def log_validation_dataset(self, dataset, validation_loss_dataset_total, 
-            validation_loss_dataset_bev, validation_loss_dataset_reprojected, log_count):
-        
-        self.writer.add_scalars(
-            f"Val Scores - {dataset}", 
-            {
-                "TOTAL" : validation_loss_dataset_total,
-                "BEV" : validation_loss_dataset_bev,
-                "REPROJECTED" :validation_loss_dataset_reprojected
-            },
-            log_count
-        )
+    def log_validation_dataset(self, dataset, validation_loss_dataset_total, log_count):
+         self.writer.add_scalar(f"{dataset} (Validation)", validation_loss_dataset_total, log_count)
 
     # Log overall validation loss across all datasets to TensorBoard
     def log_validation_overall(self, overall_val_score, log_count):
-        
-        self.writer.add_scalar("OVERALL", overall_val_score, log_count)
+        self.writer.add_scalar("Overall (Validation)", overall_val_score, log_count)
