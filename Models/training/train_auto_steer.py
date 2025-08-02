@@ -116,10 +116,9 @@ def main():
     # Batch Size
     batch_size = 32
 
-    data_list = VALID_DATASET_LIST.copy()
-
     for epoch in range(0, NUM_EPOCHS):
 
+        data_list = VALID_DATASET_LIST.copy()
         print(f"EPOCH : {epoch}")
 
         # Batch Size Schedule
