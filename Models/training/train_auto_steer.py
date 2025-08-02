@@ -359,14 +359,13 @@ def main():
 
                         validation_loss_dataset_total =  msdict[dataset]["total_running"] / msdict[dataset]["num_val_samples"]
                         overall_val_score += validation_loss_dataset_total
-                
-                        print("DATASET :", dataset)
-                        print("VAL TOTAL SCORE : ", validation_loss_dataset_total)
+                        print("DATASET :", dataset, " VAL SCORE : ", validation_loss_dataset_total)
 
                         # Logging validation metric for each dataset
                         trainer.log_validation_dataset(dataset, validation_loss_dataset_total, msdict["log_counter"] + 1)
                     
                     overall_val_score = overall_val_score/len(VALID_DATASET_LIST)
+                    print("OVERALL VAL SCORE :", overall_val_score)
 
                     # Logging average metric overall across all datasets
                     trainer.log_validation_overall(overall_val_score, msdict["log_counter"] + 1)
