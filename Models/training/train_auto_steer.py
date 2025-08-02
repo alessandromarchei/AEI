@@ -130,12 +130,8 @@ def main():
             batch_size = 4
       
         # Learning Rate Schedule
-        if(epoch < 30):
-            trainer.set_learning_rate(0.0005)
-        elif (epoch >= 30 and epoch < 40):
-            trainer.set_learning_rate(0.0001)
-        elif (epoch >= 40):
-            trainer.set_learning_rate(0.000025)
+        if(epoch > 30):
+            trainer.set_learning_rate(0.00001)
 
         # Augmentation Schedule
         apply_augmentation = False
