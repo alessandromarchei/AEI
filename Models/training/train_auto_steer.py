@@ -3,6 +3,7 @@
 
 import os
 import random
+import torch
 from PIL import Image
 from typing import Literal, get_args
 from matplotlib import pyplot as plt
@@ -141,7 +142,7 @@ def main():
     LOGSTEP_MODEL = 5000
 
     # Val visualization param
-    N_VALVIS = 50
+    N_VALVIS = 15
 
     
     # ========================= Main training loop ========================= #
@@ -249,14 +250,6 @@ def main():
                 )
             ).convert("RGB")
             
-            # Perspective visualization
-            #perspective_vis = Image.open(
-            #    os.path.join(
-            #        msdict[dataset]["path_perspective_vis"],
-            #        f"{frame_id}.jpg"
-            #    )
-            #).convert("RGB")
-
             # BEV visualization
             bev_vis = Image.open(
                 os.path.join(
@@ -264,40 +257,7 @@ def main():
                     f"{frame_id}.jpg"
                 )
             ).convert("RGB")
-            '''
-            # BEV to Image projection
-            plt.figure()
-            plt.imshow(perspective_image)
-            for i in range (0, 3):
-
-                if(i == 0):
-                    perspective_image_points, perspective_image_points_normalized = \
-                    projectBEVtoImage(homotrans_mat, bev_egopath)
-                    color = 'yellow'
-                if(i == 1):
-                    perspective_image_points, perspective_image_points_normalized = \
-                    projectBEVtoImage(homotrans_mat, bev_egoleft)
-                    color = 'green'
-                if(i == 2):
-                    perspective_image_points, perspective_image_points_normalized = \
-                    projectBEVtoImage(homotrans_mat, bev_egoright)
-                    color = 'cyan'
-                
-                perspective_x_points = [point[0] for point in perspective_image_points]
-                perspective_y_points = [point[1] for point in perspective_image_points]
-            
-                plt.plot(perspective_x_points, perspective_y_points, color)
-            
-            # Original perspective visualization
-            plt.figure()
-            plt.imshow(perspective_vis)
-
-            # BEV Image and Visualization
-            plt.figure()
-            plt.imshow(bev_image)
-            plt.figure()
-            plt.imshow(bev_vis)
-            '''
+          
             # Assign data
             trainer.set_data(homotrans_mat, bev_image, perspective_image, \
                 bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
@@ -309,7 +269,7 @@ def main():
             # Converting to tensor and loading
             trainer.load_data()
             
-            # Run model and get loss
+            # Run model and calculate loss
             trainer.run_model()
             
             # Gradient accumulation
@@ -325,8 +285,8 @@ def main():
             
             # Logging Visualization to Tensor Board
             if((msdict["sample_counter"] + 1) % LOGSTEP_VIS == 0):  
-                trainer.save_visualization(msdict["log_counter"] + 1, bev_vis)
-            '''
+                trainer.save_visualization(msdict["log_counter"] + 1, bev_vis, is_train=True)
+            
             # Save model and run Validation on entire validation dataset
             if ((msdict["sample_counter"] + 1) % LOGSTEP_MODEL == 0):
                 
@@ -345,17 +305,7 @@ def main():
 
                 # Validation metrics for each dataset
                 for dataset in VALID_DATASET_LIST:
-                    val_dict_schema = {
-                        "total_running" : 0,
-                        "total_score" : 0,
-                        "bev_running" : 0,
-                        "bev_score" : 0,
-                        "reproj_running" : 0,
-                        "reproj_score" : 0
-                    }
-                    msdict[dataset]["val_egopath"] = val_dict_schema
-                    msdict[dataset]["val_egoleft"] = val_dict_schema
-                    msdict[dataset]["val_egoright"] = val_dict_schema
+
                     msdict[dataset]["num_val_samples"] = 0
 
                 # Temporarily disable gradient computation for backpropagation
@@ -368,165 +318,104 @@ def main():
                         for val_count in range(0, msdict[dataset]["N_vals"]):
 
                             # Fetch data
-                            [
-                                frame_id, image,
-                                xs_bev_egopath, xs_reproj_egopath,
-                                xs_bev_egoleft, xs_reproj_egoleft,
-                                xs_bev_egoright, xs_reproj_egoright,
-                                ys_bev, ys_reproj,
-                                flags_egopath, valids_egopath,
-                                flags_egoleft, valids_egoleft,
-                                flags_egoright, valids_egoright,
-                                transform_matrix
+                            [   frame_id, bev_image,
+                                homotrans_mat,
+                                bev_egopath, reproj_egopath,
+                                bev_egoleft, reproj_egoleft,
+                                bev_egoright, reproj_egoright,
                             ] = msdict[dataset]["loader"].getItem(
                                 val_count,
                                 is_train = False
                             )
                             msdict[dataset]["num_val_samples"] = msdict[dataset]["num_val_samples"] + 1
-                            
-                            # Path handling
-                            val_save_dir = os.path.join(
-                                MODEL_SAVE_ROOT_PATH,
-                                "VAL_VIS",
-                                dataset,
-                                f"iter_{msdict['log_counter'] + 1}_epoch_{epoch}_step_{msdict['sample_counter'] + 1}"
-                            )
-                            if not (os.path.exists(val_save_dir)):
-                                os.makedirs(val_save_dir)
 
-                            val_save_path = (
+                            # BEV
+                            perspective_image = Image.open(
                                 os.path.join(
-                                    val_save_dir, 
-                                    f"{str(val_count).zfill(2)}"
+                                    msdict[dataset]["path_perspective_image"],
+                                    f"{frame_id}.png"
                                 )
-                                if (val_count < N_VALVIS)
-                                else None
-                            )
+                            ).convert("RGB")
 
-                            # Fetch it again, the orig vis
-                            orig_vis = Image.open(
+                            # BEV visualization
+                            bev_vis = Image.open(
                                 os.path.join(
-                                    msdict[dataset]["path_orig_vis"],
+                                    msdict[dataset]["path_bev_vis"],
                                     f"{frame_id}.jpg"
                                 )
                             ).convert("RGB")
 
-                            # Validate
-                            [
-                                val_total_loss_egopath, val_bev_loss_egopath, val_reproj_loss_egopath,
-                                val_total_loss_egoleft, val_bev_loss_egoleft, val_reproj_loss_egoleft,
-                                val_total_loss_egoright, val_bev_loss_egoright, val_reproj_loss_egoright
-                            ] = trainer.validate(
-                                orig_vis, image, 
-                                xs_bev_egopath,
-                                xs_reproj_egopath,
-                                xs_bev_egoleft,
-                                xs_reproj_egoleft,
-                                xs_bev_egoright,
-                                xs_reproj_egoright,
-                                ys_bev,
-                                ys_reproj,
-                                valids_egopath,
-                                valids_egoleft,
-                                valids_egoright,
-                                transform_matrix,
-                                val_save_path
-                            )
+                            # Perspective image
+                            perspective_image = Image.open(
+                                os.path.join(
+                                    msdict[dataset]["path_perspective_image"],
+                                    f"{frame_id}.png"
+                                )
+                            ).convert("RGB")
                             
-                            # Log
+                            # BEV visualization
+                            bev_vis = Image.open(
+                                os.path.join(
+                                    msdict[dataset]["path_bev_vis"],
+                                    f"{frame_id}.jpg"
+                                )
+                            ).convert("RGB")
+                        
+                            # Assign data
+                            trainer.set_data(homotrans_mat, bev_image, perspective_image, \
+                                bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
+                                reproj_egoleft, reproj_egoright)
+                            
+                            # Augment image
+                            trainer.apply_augmentations(False)
+                            
+                            # Converting to tensor and loading
+                            trainer.load_data()
+                            
+                            # Run model and calculate loss
+                            trainer.run_model()
 
-                            # Egopath
-                            msdict[dataset]["val_egopath"]["total_running"] += val_total_loss_egopath
-                            msdict[dataset]["val_egopath"]["bev_running"] += val_bev_loss_egopath
-                            msdict[dataset]["val_egopath"]["reproj_running"] += val_reproj_loss_egopath
+                            # Get running total of loss value
+                            msdict[dataset]["total_running"] += trainer.get_total_loss()
 
-                            # Egoleft
-                            msdict[dataset]["val_egoleft"]["total_running"] += val_total_loss_egoleft
-                            msdict[dataset]["val_egoleft"]["bev_running"] += val_bev_loss_egoleft
-                            msdict[dataset]["val_egoleft"]["reproj_running"] += val_reproj_loss_egoleft
+                            # Save visualization to Tensorboard
+                            if(val_count < N_VALVIS):  
+                                trainer.save_visualization(msdict["log_counter"] + 1, bev_vis, is_train=False)
 
-                            # Egoright
-                            msdict[dataset]["val_egoright"]["total_running"] += val_total_loss_egoright
-                            msdict[dataset]["val_egoright"]["bev_running"] += val_bev_loss_egoright
-                            msdict[dataset]["val_egoright"]["reproj_running"] += val_reproj_loss_egoright
 
                     # Calculate final validation scores for network on each dataset
                     # as well as overall validation score - A lower score is better
+
+                    overall_val_score = 0
+
                     for dataset in VALID_DATASET_LIST:
-                        # Egopath
-                        msdict[dataset]["val_egopath"]["total_score"] = msdict[dataset]["val_egopath"]["total_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_egopath"]["bev_score"] = msdict[dataset]["val_egopath"]["bev_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_egopath"]["reproj_score"] = msdict[dataset]["val_egopath"]["reproj_running"] / msdict[dataset]["num_val_samples"]
 
-                        # Egoleft
-                        msdict[dataset]["val_egoleft"]["total_score"] = msdict[dataset]["val_egoleft"]["total_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_egoleft"]["bev_score"] = msdict[dataset]["val_egoleft"]["bev_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_egoleft"]["reproj_score"] = msdict[dataset]["val_egoleft"]["reproj_running"] / msdict[dataset]["num_val_samples"]
+                        validation_loss_dataset_total =  msdict[dataset]["total_running"] / msdict[dataset]["num_val_samples"]
+                        validation_loss_dataset_bev =  msdict[dataset]["bev_running"] / msdict[dataset]["num_val_samples"]
+                        validation_loss_dataset_reprojected =  msdict[dataset]["reprojected_running"] / msdict[dataset]["num_val_samples"]
+                        overall_val_score += validation_loss_dataset_total
+                
+                        print("DATASET :", dataset)
+                        print("VAL TOTAL SCORE : ", validation_loss_dataset_total)
+                        print("VAL BEV SCORE : ", validation_loss_dataset_bev)
+                        print("VAL REPROJ SCORE : ", validation_loss_dataset_reprojected)
 
-                        # Egoright
-                        msdict[dataset]["val_egoright"]["total_score"] = msdict[dataset]["val_egoright"]["total_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_egoright"]["bev_score"] = msdict[dataset]["val_egoright"]["bev_running"] / msdict[dataset]["num_val_samples"]
-                        msdict[dataset]["val_egoright"]["reproj_score"] = msdict[dataset]["val_egoright"]["reproj_running"] / msdict[dataset]["num_val_samples"]
-
-                    # Overall validation metric - total score
-                    msdict["overall_val_total_running"] = sum([
-                        (
-                            msdict[dataset]["val_egopath"]["total_score"] + \
-                            msdict[dataset]["val_egoleft"]["total_score"] + \
-                            msdict[dataset]["val_egoright"]["total_score"]
-                        ) / 3.0
-
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["num_val_overall_samples"] = sum([
-                        msdict[dataset]["num_val_samples"]
-                        for dataset in VALID_DATASET_LIST
-                    ])
+                        # Logging validation metric for each dataset
+                        trainer.log_validation_dataset(dataset, validation_loss_dataset_total, 
+                                            validation_loss_dataset_bev, validation_loss_dataset_reprojected, 
+                                            msdict["log_counter"] + 1)
                     
-                    msdict["overall_val_total_score"] = msdict["val_overall_running"] / msdict["num_val_overall_samples"]
+                    overall_val_score = overall_val_score/len(VALID_DATASET_LIST)
 
-                    # Overall validation metric - bev score
-                    msdict["overall_val_bev_running"] = sum([
-                        (
-                            msdict[dataset]["val_egopath"]["bev_running"] + \
-                            msdict[dataset]["val_egoleft"]["bev_running"] + \
-                            msdict[dataset]["val_egoright"]["bev_running"]
-                        ) / 3.0
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["overall_val_bev_score"] = msdict["overall_val_bev_running"] / msdict["num_val_overall_samples"]
-
-                    # Overall validation metric - reproj score
-                    msdict["overall_val_reproj_running"] = sum([
-                        (
-                            msdict[dataset]["val_egopath"]["reproj_running"] + \
-                            msdict[dataset]["val_egoleft"]["reproj_running"] + \
-                            msdict[dataset]["val_egoright"]["reproj_running"]
-                        ) / 3.0
-                        for dataset in VALID_DATASET_LIST
-                    ])
-                    msdict["overall_val_reproj_score"] = msdict["overall_val_reproj_running"] / msdict["num_val_overall_samples"]
-                    
-                    print("================ Complete - Validation Scores ================")
-                    for dataset in VALID_DATASET_LIST:
-                        for key in ["egopath", "egoleft", "egoright"]:
-                            print(f"\n{dataset} - {key.upper()} TOTAL SCORE : {msdict[dataset]['val_' + key]['total_score']}")
-                            print(f"{dataset} - {key.upper()} BEV SCORE : {msdict[dataset]['val_' + key]['bev_score']}")
-                            print(f"{dataset} - {key.upper()} REPROJ SCORE : {msdict[dataset]['val_' + key]['reproj_score']}")
-                    print("\nOVERALL :")
-                    print(f"VAL SCORE : {msdict['overall_val_total_score']}")
-                    print(f"VAL BEV SCORE : {msdict['overall_val_bev_score']}")
-                    print(f"VAL REPROJ SCORE : {msdict['overall_val_reproj_score']}\n")
-
-                    # Logging average metrics
-                    trainer.log_validation(msdict)
-
+                    # Logging average metric overall across all datasets
+                    trainer.log_validation_overall(overall_val_score, msdict["log_counter"] + 1)
+                        
                 # Switch back to training
                 print("================ Continuing with training ================")
                 trainer.set_train_mode()
             
             msdict["data_list_count"] = msdict["data_list_count"] + 1
-            '''
+            
 
 if (__name__ == "__main__"):
     main()
