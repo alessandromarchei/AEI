@@ -8,7 +8,7 @@ class BEVPathContext(nn.Module):
         # Standard
         self.GeLU = nn.GELU()
         self.sigmoid = nn.Sigmoid()
-        self.dropout = nn.Dropout(p=0.5)
+        self.dropout = nn.Dropout(p=0.25)
         self.avg_pool = nn.AvgPool2d(2, stride=2)
 
         # Feature convolution
