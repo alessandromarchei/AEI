@@ -20,15 +20,14 @@ include_directories(
     ${EIGEN3_INCLUDE_DIR}
 )
 
-# Add source files
-add_executable(${PROJECT_NAME}
+add_executable(pathfinder_node 
+    src/pathfinder_node.cpp
     src/path_finder.cpp
     src/estimator.cpp
-)
+    )
 
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} yaml-cpp)
+target_link_libraries(pathfinder_node ${OpenCV_LIBS} yaml-cpp)
 
-add_executable(pathfinder_node src/pathfinder_node.cpp)
 target_include_directories(pathfinder_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)

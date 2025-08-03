@@ -14,7 +14,10 @@ public:
 
 private:
     void topic_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
+    void timer_callback_();
 
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_;
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
+    rclcpp::TimerBase::SharedPtr timer_;
+    Estimator bayesFilter;
 };
