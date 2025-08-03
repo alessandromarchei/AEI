@@ -110,10 +110,8 @@ void drawLanes(const std::vector<LanePts> &lanes,
     cv::destroyAllWindows();
 }
 
-std::vector<LanePts> loadLanesFromYaml(const std::string &filename)
+std::vector<LanePts> loadLanesFromYaml(const std::string &filename, cv::Mat &H)
 {
-    cv::Mat H = loadHFromYaml("../test/image_to_world_transform.yaml");
-
     std::vector<LanePts> lanes;
     YAML::Node root = YAML::LoadFile(filename);
     int i = 0;

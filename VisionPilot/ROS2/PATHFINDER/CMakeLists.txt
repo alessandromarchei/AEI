@@ -38,4 +38,9 @@ ament_target_dependencies(pathfinder_node rclcpp std_msgs)
 install(TARGETS pathfinder_node
   DESTINATION lib/${PROJECT_NAME})
 
+install(
+  DIRECTORY test
+  DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package()

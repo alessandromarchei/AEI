@@ -6,6 +6,7 @@
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
+#include "ament_index_cpp/get_package_share_directory.hpp"
 
 class PathFinderNode : public rclcpp::Node
 {
@@ -20,4 +21,9 @@ private:
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
     rclcpp::TimerBase::SharedPtr timer_;
     Estimator bayesFilter;
+    cv::Mat H;
+    drivingCorridor drivCorr;
+    const double proc_SD = 0.5;
+    const double meas_SD = 0.5;
+    const double epsilon = 0.05;
 };
