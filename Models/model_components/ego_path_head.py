@@ -26,6 +26,4 @@ class EgoPathHead(nn.Module):
         p1 = self.GeLU(p1)
         ego_path = self.ego_path_layer_2(p1)
 
-        ego_path = self.ego_path_layer_0(feature_vector)
-        # Final result
         return ego_path
