@@ -32,6 +32,15 @@ def log_skipped(frame_id, reason):
     skipped_dict[frame_id] = reason
 
 
+def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
+    """
+    Parse all coords of an (x, y) point to int, making it
+    suitable for image operations.
+    """
+
+    return (int(point[0]), int(point[1]))
+
+
 def roundLineFloats(line, ndigits = 4):
     line = list(line)
     for i in range(len(line)):
@@ -344,3 +353,118 @@ def polyfit_BEV(
         validity_list[i] = 0
     
     return fitted_bev_line, flag_list, validity_list
+
+
+def findSourcePointsBEV(
+    h: int,
+    w: int,
+    egoleft: list,
+    egoright: list,
+) -> dict:
+    """
+    Find 4 source points for the BEV homography transform.
+    """
+
+    # Renorm 2 egolines
+    egoleft = [
+        [p[0] * w, p[1] * h]
+        for p in egoleft
+    ]
+    egoright = [
+        [p[0] * w, p[1] * h]
+        for p in egoright
+    ]
+
+    ego_height = max(egoleft[-1][1], egoright[-1][1]) * EGO_HEIGHT_RATIO
+
+    sps = {
+        "LS" : egoleft[0],
+        "RS" : egoright[0],
+        "LE" : egoleft[-1],
+        "RE" : egoright[-1]
+    }
+
+    # Tuplize 4 corners
+    for i, pt in sps.items():
+        sps[i] = imagePointTuplize(pt)
+
+    # Log the ego_height too
+    sps["ego_h"] = ego_height
+
+    return sps
+
+
+def transformBEV(
+    img: np.ndarray,
+    line: list,
+    sps: dict
+):
+    h, w, _ = img.shape
+
+    # Renorm/tuplize drivable path
+    line = [
+        (point[0] * w, point[1] * h) for point in line
+        if (point[1] * h >= sps["ego_h"])
+    ]
+    if (not line):
+        return (None, None, None, None, None, None, False)
+
+    # Interp more points for original line
+    line = interpLine(line, MIN_POINTS)
+
+    # Get transformation matrix
+    mat, _ = cv2.findHomography(
+        srcPoints = np.array([
+            sps["LS"],
+            sps["RS"],
+            sps["LE"],
+            sps["RE"]
+        ]),
+        dstPoints = np.array([
+            BEV_PTS["LS"],
+            BEV_PTS["RS"],
+            BEV_PTS["LE"],
+            BEV_PTS["RE"],
+        ])
+    )
+
+    # Transform image
+    im_dst = cv2.warpPerspective(
+        img, mat,
+        np.array([BEV_W, BEV_H])
+    )
+
+    # Transform egopath
+    bev_line = np.array(
+        line,
+        dtype = np.float32
+    ).reshape(-1, 1, 2)
+    bev_line = cv2.perspectiveTransform(bev_line, mat)
+    bev_line = [
+        tuple(map(int, point[0])) 
+        for point in bev_line
+    ]
+
+    # Polyfit BEV egopath to get 33-coords format with flags
+    bev_line, flag_list, validity_list = polyfit_BEV(
+        bev_line = bev_line,
+        order = POLYFIT_ORDER,
+        y_step = BEV_Y_STEP,
+        y_limit = BEV_H
+    )
+
+    # Now reproject it back to orig space
+    inv_mat = np.linalg.inv(mat)
+    reproj_line = np.array(
+        bev_line,
+        dtype = np.float32
+    ).reshape(-1, 1, 2)
+    reproj_line = cv2.perspectiveTransform(reproj_line, inv_mat)
+    reproj_line = [
+        tuple(map(int, point[0])) 
+        for point in reproj_line
+    ]
+
+    return (im_dst, bev_line, reproj_line, flag_list, validity_list, mat, True)
+
+
