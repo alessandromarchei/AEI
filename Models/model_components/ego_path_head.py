@@ -10,7 +10,7 @@ class EgoPathHead(nn.Module):
         #self.dropout = nn.Dropout(p=0.5)
 
         # Context - MLP Layers
-        self.ego_path_layer_0 = nn.Linear(800, 11)
+        self.ego_path_layer_0 = nn.Linear(1280, 11)
         #self.ego_path_layer_1 = nn.Linear(200, 200)
         #self.ego_path_layer_2 = nn.Linear(200, 11)
  

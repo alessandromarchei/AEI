@@ -15,19 +15,19 @@ class BEVPathContext(nn.Module):
         self.feature_conv = nn.Conv2d(1280, 1280, 3, 1, 1)
 
         # Context - MLP Layers
-        self.context_layer_0 = nn.Linear(1280, 800)
-        self.context_layer_1 = nn.Linear(800, 800)
-        self.context_layer_2 = nn.Linear(800, 200)
+        #self.context_layer_0 = nn.Linear(1280, 800)
+        #self.context_layer_1 = nn.Linear(800, 800)
+        #self.context_layer_2 = nn.Linear(800, 200)
 
         # Context - Extraction Layers
-        self.context_layer_3 = nn.Conv2d(1, 128, 3, 1, 1)
-        self.context_layer_4 = nn.Conv2d(128, 256, 3, 1, 1)
-        self.context_layer_5 = nn.Conv2d(256, 512, 3, 1, 1)
-        self.context_layer_6 = nn.Conv2d(512, 1280, 3, 1, 1)
+        #self.context_layer_3 = nn.Conv2d(1, 128, 3, 1, 1)
+        #self.context_layer_4 = nn.Conv2d(128, 256, 3, 1, 1)
+        #self.context_layer_5 = nn.Conv2d(256, 512, 3, 1, 1)
+        #self.context_layer_6 = nn.Conv2d(512, 1280, 3, 1, 1)
 
         # Context - Decode layers
         self.context_layer_7 = nn.Linear(1280, 1280)
-        self.context_layer_8 = nn.Linear(1280, 800)
+        self.context_layer_8 = nn.Linear(1280, 1280)
      
 
     def forward(self, features):
