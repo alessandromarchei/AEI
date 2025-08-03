@@ -1,13 +1,13 @@
 #! /usr/bin/env python3
 
-import argparse
-import json
 import os
-import shutil
-import pathlib
-from PIL import Image, ImageDraw
+import cv2
+import math
+import json
+import argparse
 import warnings
-from datetime import datetime
+import numpy as np
+from PIL import Image, ImageDraw
 
 # Custom warning format
 def custom_warning_format(
@@ -18,15 +18,21 @@ def custom_warning_format(
 
 warnings.formatwarning = custom_warning_format
 
+PointCoords = tuple[float, float]
+ImagePointCoords = tuple[int, int]
+
+# Skipped frames
+skipped_dict = {}
+
 
 # ============================== Helper functions ============================== #
 
 
-def roundLineFloats(line, ndigits = 4):
-    """
-    Round floats to reduce JSON size.
+def log_skipped(frame_id, reason):
+    skipped_dict[frame_id] = reason
 
-    """
+
+def roundLineFloats(line, ndigits = 4):
     line = list(line)
     for i in range(len(line)):
         line[i] = [
@@ -37,31 +43,78 @@ def roundLineFloats(line, ndigits = 4):
     return line
 
 
-def normalizeCoords(lane, width, height):
+def normalizeCoords(line, width, height):
     """
-    Normalize the coords of lane points.
+    Normalize the coords of line points.
+    """
 
-    """
     return [
         (x / width, y / height) 
-        for x, y in lane
+        for x, y in line
     ]
 
 
-def getLaneAnchor(lane):
+def interpLine(line: list, points_quota: int):
+    """
+    Interpolates a line of (x, y) points to have at least `point_quota` points.
+    """
+
+    if len(line) >= points_quota:
+        return line
+
+    # Extract x, y separately then parse to interp
+    x = np.array([pt[0] for pt in line])
+    y = np.array([pt[1] for pt in line])
+    interp_x = np.interp
+    interp_y = np.interp
+
+    # Here I try to interp more points along the line, based on
+    # distance between each subsequent original points. 
+
+    # 1) Use distance along line as param (t)
+    # This is Euclidian distance between each point and the one before it
+    distances = np.cumsum(np.sqrt(
+        np.diff(x, prepend = x[0])**2 + \
+        np.diff(y, prepend = y[0])**2
+    ))
+    # Force first t as zero
+    distances[0] = 0
+
+    # 2) Generate new t evenly spaced along original line
+    evenly_t = np.linspace(distances[0], distances[-1], points_quota)
+
+    # 3) Interp x, y coordinates based on evenly t
+    x_new = interp_x(evenly_t, distances, x)
+    y_new = interp_y(evenly_t, distances, y)
+
+    return list(zip(x_new, y_new))
+
+
+def getLineAnchor(line):
     """
     Determine "anchor" point of a lane.
-
     """
-    (x2, y2) = lane[0]
-    (x1, y1) = lane[1]
-    for i in range(1, len(lane) - 1, 1):
-        if (lane[i][0] != x2):
-            (x1, y1) = lane[i]
+
+    (x2, y2) = line[0]
+    (x1, y1) = line[1]
+
+    for i in range(len(line) - 2, 0, -1):
+        if (line[i][0] != x2):
+            (x1, y1) = line[i]
             break
-    if (x1 == x2):
-        warnings.warn(f"Vertical lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
+
+    if (x1 == x2) or (y1 == y2):
+        if (x1 == x2):
+            error_lane = "Vertical"
+        elif (y1 == y2):
+            error_lane = "Horizontal"
+        warnings.warn("{0} line detected: {1}, with these 2 anchors: ({2}, {3}), ({4}, {5}).".format(
+            error_lane, line, 
+            x1, y1, 
+            x2, y2
+        ))
         return (x1, None, None)
+    
     a = (y2 - y1) / (x2 - x1)
     b = y1 - a * x1
     x0 = (img_height - b) / a
@@ -69,83 +122,3 @@ def getLaneAnchor(lane):
     return (x0, a, b)
 
 
-def getEgoIndexes(anchors):
-    """
-    Identifies 2 ego lanes - left and right - from a sorted list of lane anchors.
-
-    """
-    for i in range(len(anchors)):
-        if (anchors[i][0] >= img_width / 2):
-            if (i == 0):
-                return "NO LANES on the LEFT side of frame."
-            left_ego_idx, right_ego_idx = i - 1, i
-            return (left_ego_idx, right_ego_idx)
-    
-    return "NO LANES on the RIGHT side of frame."
-
-
-def getDrivablePath(left_ego, right_ego):
-    """
-    Computes drivable path as midpoint between 2 ego lanes, basically the main point of this task.
-
-    """
-    i, j = 0, 0
-    drivable_path = []
-    while (i <= len(left_ego) - 1 and j <= len(right_ego) - 1):
-        if (left_ego[i][1] == right_ego[j][1]):
-            drivable_path.append((
-                (left_ego[i][0] + right_ego[j][0]) / 2,     # Midpoint along x axis
-                left_ego[i][1]
-            ))
-            i += 1
-            j += 1
-        elif (left_ego[i][1] > right_ego[j][1]):
-            i += 1
-        else:
-            j += 1
-
-    # Extend drivable path to bottom edge of the frame
-    if ((len(drivable_path) >= 2) and (drivable_path[0][1] < img_height)):
-        x1, y1 = drivable_path[1]
-        x2, y2 = drivable_path[0]
-        if (x2 == x1):
-            x_bottom = x2
-        else:
-            a = (y2 - y1) / (x2 - x1)
-            x_bottom = x2 + (img_height - y2) / a
-        drivable_path.insert(0, (x_bottom, img_height))
-
-    # Extend drivable path to be on par with longest ego lane
-    # By making it parallel with longer ego lane
-    y_top = min(left_ego[-1][1], right_ego[-1][1])
-    if ((len(drivable_path) >= 2) and (drivable_path[-1][1] > y_top)):
-        sign_left_ego = left_ego[-1][0] - left_ego[-2][0]
-        sign_right_ego = right_ego[-1][0] - right_ego[-2][0]
-        sign_val = sign_left_ego * sign_right_ego
-        # 2 egos going the same direction
-        if (sign_val > 0):
-            longer_ego = left_ego if left_ego[-1][1] < right_ego[-1][1] else right_ego
-            if len(longer_ego) >= 2 and len(drivable_path) >= 2:
-                x1, y1 = longer_ego[-1]
-                x2, y2 = longer_ego[-2]
-                if (x2 == x1):
-                    x_top = drivable_path[-1][0]
-                else:
-                    a = (y2 - y1) / (x2 - x1)
-                    x_top = drivable_path[-1][0] + (y_top - drivable_path[-1][1]) / a
-
-                drivable_path.append((x_top, y_top))
-        # 2 egos going opposite directions
-        else:
-            if len(drivable_path) >= 2:
-                x1, y1 = drivable_path[-1]
-                x2, y2 = drivable_path[-2]
-                if (x2 == x1):
-                    x_top = x1
-                else:
-                    a = (y2 - y1) / (x2 - x1)
-                    x_top = x1 + (y_top - y1) / a
-
-                drivable_path.append((x_top, y_top))
-
-    return drivable_path
