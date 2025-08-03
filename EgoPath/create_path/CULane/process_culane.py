@@ -48,7 +48,7 @@ def getLaneAnchor(lane):
             (x1, y1) = lane[i]
             break
     if (x1 == x2):
-        warnings.warn(f"Vertical lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
+        # warnings.warn(f"Vertical lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
         return (x1, None, None)
     a = (y2 - y1) / (x2 - x1)
     b = y1 - a * x1
@@ -215,7 +215,7 @@ def parseAnnotations(anno_path, crop = None):
     with open(anno_path, "r") as f:
         read_data = f.readlines()
         if (len(read_data) < 2):    # Some files are empty, or having less than 2 lines
-            warnings.warn(f"Parsing {anno_path} : insufficient lane amount: {len(read_data)}")
+            # warnings.warn(f"Parsing {anno_path} : insufficient lane amount: {len(read_data)}")
             return None
         else:
             # Parse data from those JSON lines
@@ -243,7 +243,7 @@ def parseAnnotations(anno_path, crop = None):
                 # Remove empty lanes
                 lanes = [lane for lane in lanes if (lane and len(lane) >= 2)]   # Pick lanes with >= 2 points
                 if (len(lanes) < 2):    # Ignore frames with less than 2 lanes
-                    warnings.warn(f"Parsing {anno_path}: insufficient lane amount after cropping: {len(lanes)}")
+                    # warnings.warn(f"Parsing {anno_path}: insufficient lane amount after cropping: {len(lanes)}")
                     return None
 
             # Determine 2 ego lanes
@@ -251,8 +251,8 @@ def parseAnnotations(anno_path, crop = None):
             ego_indexes = getEgoIndexes(lane_anchors)
 
             if (type(ego_indexes) is str):
-                if (ego_indexes.startswith("NO")):
-                    warnings.warn(f"Parsing {anno_path}: {ego_indexes}")
+                # if (ego_indexes.startswith("NO")):
+                    # warnings.warn(f"Parsing {anno_path}: {ego_indexes}")
                 return None
 
             left_ego = lanes[ego_indexes[0]]
@@ -464,7 +464,7 @@ if __name__ == "__main__":
                 this_data = parseAnnotations(anno_file, crop)
                 if (this_data is not None):
 
-                    print(f"Processing data in label file {anno_file}.")
+                    # print(f"Processing data in label file {anno_file}.")
                     annotateGT(
                         anno_entry = this_data,
                         anno_raw_file = os.path.join(dataset_dir, img_path),

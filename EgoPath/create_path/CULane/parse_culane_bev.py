@@ -126,7 +126,7 @@ def getLineAnchor(line):
     
     a = (y2 - y1) / (x2 - x1)
     b = y1 - a * x1
-    x0 = (img_height - b) / a
+    x0 = (H - b) / a
     
     return (x0, a, b)
 
@@ -468,3 +468,294 @@ def transformBEV(
     return (im_dst, bev_line, reproj_line, flag_list, validity_list, mat, True)
 
 
+# ============================== Main run ============================== #
+
+
+if __name__ == "__main__":
+
+    # DIRECTORY STRUCTURE
+
+    IMG_DIR = "image"
+    JSON_PATH = "drivable_path.json"
+
+    BEV_IMG_DIR = "image_bev"
+    BEV_VIS_DIR = "visualization_bev"
+    BEV_JSON_PATH = "drivable_path_bev.json"
+    BEV_SKIPPED_JSON_PATH = "skipped_frames.json"
+
+    # OTHER PARAMS
+
+    W = 860
+    H = 430
+
+    # BEV-related
+    MIN_POINTS = 30
+    BEV_PTS = {
+        "LS" : [240, 1280],         # Left start
+        "RS" : [400, 1280],         # Right start
+        "LE" : [240, 0],            # Left end
+        "RE" : [400, 0]             # Right end
+    }
+    BEV_W = 640
+    BEV_H = 1280
+    EGO_HEIGHT_RATIO = 1.05
+    BEV_Y_STEP = 128
+    POLYFIT_ORDER = 2
+
+    # Visualization (colors in BGR)
+    COLOR_EGOPATH = (0, 255, 255)   # Yellow
+    COLOR_EGOLEFT = (0, 128, 0)     # Green
+    COLOR_EGORIGHT = (255, 255, 0)  # Cyan
+    # COLOR_STARTS = (255, 0, 0)      # Blue
+    # COLOR_ENDS = (153, 0, 153)      # Kinda purple
+    # COLOR_HEIGHT = (0, 165, 255)    # Orange
+    # POINT_SIZE = 8
+    THICKNESS = -1
+
+    # PARSING ARGS
+
+    parser = argparse.ArgumentParser(
+        description = "Generating BEV from TuSimple processed datasets"
+    )
+    parser.add_argument(
+        "--dataset_dir", 
+        type = str, 
+        help = "Processed TuSimple directory",
+        required = True
+    )
+    # For debugging only
+    parser.add_argument(
+        "--early_stopping",
+        type = int,
+        help = "Num. frames you wanna limit, instead of whole set.",
+        required = False
+    )
+    args = parser.parse_args()
+
+    # Parse dataset dir
+    dataset_dir = args.dataset_dir
+    IMG_DIR = os.path.join(dataset_dir, IMG_DIR)
+    JSON_PATH = os.path.join(dataset_dir, JSON_PATH)
+    BEV_JSON_PATH = os.path.join(dataset_dir, BEV_JSON_PATH)
+    BEV_SKIPPED_JSON_PATH = os.path.join(dataset_dir, BEV_SKIPPED_JSON_PATH)
+
+    # Parse early stopping
+    if (args.early_stopping):
+        print(f"Early stopping set, stopping after {args.early_stopping} files.")
+        early_stopping = args.early_stopping
+    else:
+        early_stopping = None
+
+    # Generate new dirs and paths
+    BEV_IMG_DIR = os.path.join(dataset_dir, BEV_IMG_DIR)
+    BEV_VIS_DIR = os.path.join(dataset_dir, BEV_VIS_DIR)
+
+    if not (os.path.exists(BEV_IMG_DIR)):
+        os.makedirs(BEV_IMG_DIR)
+    if not (os.path.exists(BEV_VIS_DIR)):
+        os.makedirs(BEV_VIS_DIR)
+
+    # Preparing data
+    with open(JSON_PATH, "r") as f:
+        json_data = json.load(f)
+    data_master = {}    # Dumped later
+
+    # Get source points for transform
+    STANDARD_FRAME = "001923"
+    STANDARD_JSON = json_data[STANDARD_FRAME]
+    STANDARD_SPS = findSourcePointsBEV(
+        h = H,
+        w = W,
+        egoleft = STANDARD_JSON["egoleft_lane"],
+        egoright = STANDARD_JSON["egoright_lane"]
+    )
+    matrix_registered = False
+
+    # MAIN GENERATION LOOP
+
+    counter = 0
+    for frame_id, frame_content in json_data.items():
+
+        counter += 1
+
+        # Acquire frame
+        frame_img_path = os.path.join(
+            IMG_DIR,
+            f"{frame_id}.png"
+        )
+        img = cv2.imread(frame_img_path)
+
+        # Acquire frame data
+        this_frame_data = json_data[frame_id]
+
+        # MAIN ALGORITHM
+
+        # Transform to BEV space            
+
+        # Egopath
+        (
+            im_dst, 
+            bev_egopath, orig_bev_egopath, 
+            egopath_flag_list, egopath_validity_list, 
+            mat, success
+        ) = transformBEV(
+            img = img,
+            line = this_frame_data["drivable_path"],
+            sps = STANDARD_SPS
+        )
+
+        # Register standard homography matrix for the first time
+        if (not matrix_registered):
+            data_master["standard_homomatrix"] = mat.tolist()
+            print("Registered standard homography matrix!")
+            matrix_registered = True
+
+        # Egoleft
+        (
+            _, 
+            bev_egoleft, orig_bev_egoleft, 
+            egoleft_flag_list, egoleft_validity_list, 
+            _, _
+        ) = transformBEV(
+            img = img, 
+            line = this_frame_data["egoleft_lane"],
+            sps = STANDARD_SPS
+        )
+
+        # Egoright
+        (
+            _, 
+            bev_egoright, orig_bev_egoright, 
+            egoright_flag_list, egoright_validity_list, 
+            _, _
+        ) = transformBEV(
+            img = img, 
+            line = this_frame_data["egoright_lane"],
+            sps = STANDARD_SPS
+        )
+        
+        # Skip if invalid frame (due to too high ego_height value)
+        if (success == False):
+            log_skipped(
+                frame_id,
+                "Null EgoPath from BEV transformation algorithm."
+            )
+            continue
+
+        # Save stuffs
+        annotateGT(
+            img = im_dst,
+            orig_img = img,
+            frame_id = frame_id,
+            bev_egopath = bev_egopath,
+            reproj_egopath = orig_bev_egopath,
+            bev_egoleft = bev_egoleft,
+            reproj_egoleft = orig_bev_egoleft,
+            bev_egoright = bev_egoright,
+            reproj_egoright = orig_bev_egoright,
+            raw_dir = BEV_IMG_DIR,
+            visualization_dir = BEV_VIS_DIR,
+            normalized = False
+        )
+
+        # Register this frame GT to master JSON
+        # Each point has tuple format (x, y, flag, valid)
+        data_master[frame_id] = {
+            "bev_egopath" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            bev_egopath,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egopath_flag_list, 
+                    egopath_validity_list
+                ))
+            ],
+            "reproj_egopath" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            orig_bev_egopath,
+                            width = W,
+                            height = H
+                        )
+                    ), 
+                    egopath_flag_list, 
+                    egopath_validity_list
+                ))
+            ],
+            "bev_egoleft" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            bev_egoleft,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egoleft_flag_list, 
+                    egoleft_validity_list
+                ))
+            ],
+            "reproj_egoleft" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            orig_bev_egoleft,
+                            width = W,
+                            height = H
+                        )
+                    ), 
+                    egoleft_flag_list, 
+                    egoleft_validity_list
+                ))
+            ],
+            "bev_egoright" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            bev_egoright,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egoright_flag_list, 
+                    egoright_validity_list
+                ))
+            ],
+            "reproj_egoright" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    roundLineFloats(
+                        normalizeCoords(
+                            orig_bev_egoright,
+                            width = W,
+                            height = H
+                        )
+                    ), 
+                    egoright_flag_list, 
+                    egoright_validity_list
+                ))
+            ],
+        }
+
+        # Break if early_stopping reached
+        if (early_stopping is not None):
+            if (counter >= early_stopping):
+                break
+
+    # Save master data
+    with open(BEV_JSON_PATH, "w") as f:
+        json.dump(data_master, f, indent = 4)
+
+    # Save skipped frames
+    with open(BEV_SKIPPED_JSON_PATH, "w") as f:
+        json.dump(skipped_dict, f, indent = 4)
