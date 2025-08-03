@@ -37,6 +37,7 @@ class BEVPathContext(nn.Module):
         
         # Pooling and averaging channel layers to get a single vector
         feature_vector = torch.mean(bev_features, dim = [2,3])
+        feature_vector = self.dropout(feature_vector)
         '''
         # MLP
         c0 = self.context_layer_0(feature_vector)
