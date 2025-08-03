@@ -642,6 +642,14 @@ if __name__ == "__main__":
             )
             continue
 
+        # Skip if the polyfit goes horribly wrong
+        if not (bev_egoleft[-1][0] <= bev_egopath[-1][0] <= bev_egoright[-1][0]):
+            log_skipped(
+                frame_id,
+                "Polyfit went horribly wrong."
+            )
+            continue
+
         # Save stuffs
         annotateGT(
             img = im_dst,
