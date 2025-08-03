@@ -134,9 +134,9 @@ def main():
             trainer.set_learning_rate(0.00001)
 
         # Augmentation Schedule
-        apply_augmentation = False
-        if ((epoch >= 15) and (epoch < 35)):
-            apply_augmentation = True
+        apply_augmentation = True
+        if (epoch > 35):
+            apply_augmentation = False
 
         # Shuffle overall data list at start of epoch
         random.shuffle(data_list)
