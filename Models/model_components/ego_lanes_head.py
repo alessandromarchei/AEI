@@ -14,7 +14,7 @@ class EgoLanesHead(nn.Module):
         self.ego_left_lane_layer_1 = nn.Linear(200, 200)
         self.ego_left_lane_layer_2 = nn.Linear(200, 11)
 
-        self.ego_right_lane_layer_0 = nn.Linear(1280, 11)
+        self.ego_right_lane_layer_0 = nn.Linear(800, 200)
         self.ego_right_lane_layer_1 = nn.Linear(200, 200)
         self.ego_right_lane_layer_2 = nn.Linear(200, 11)
  
