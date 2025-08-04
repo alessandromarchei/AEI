@@ -27,14 +27,14 @@ class EgoLanesHead(nn.Module):
         p1_left = self.ego_left_lane_layer_1(p0_left)
         p1_left = self.GeLU(p1_left)
         p1_left = self.ego_left_lane_layer_2(p1_left)
-        ego_left_lane = self.TanH(p1_left)*3
+        ego_left_lane = self.Tanh(p1_left)*3
 
         p0_right = self.ego_right_lane_layer_0(feature_vector)
         p0_right = self.GeLU(p0_right)
         p1_right = self.ego_right_lane_layer_1(p0_right)
         p1_right = self.GeLU(p1_right)
         p1_right = self.ego_right_lane_layer_2(p1_right)
-        ego_right_lane = self.TanH(p1_right)*3
+        ego_right_lane = self.Tanh(p1_right)*3
 
         # Final result
         return ego_left_lane, ego_right_lane
