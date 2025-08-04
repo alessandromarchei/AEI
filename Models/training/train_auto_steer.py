@@ -101,8 +101,8 @@ def main():
     
     # Training loop parameters
     NUM_EPOCHS = 50
-    LOGSTEP_LOSS = 250
-    LOGSTEP_VIS = 500
+    LOGSTEP_LOSS = 25
+    LOGSTEP_VIS = 100
     LOGSTEP_MODEL = 5700
 
     # Val visualization param
@@ -309,22 +309,6 @@ def main():
                                 )
                             ).convert("RGB")
 
-                            # Perspective image
-                            perspective_image = Image.open(
-                                os.path.join(
-                                    msdict[dataset]["path_perspective_image"],
-                                    f"{frame_id}.png"
-                                )
-                            ).convert("RGB")
-                            
-                            # BEV visualization
-                            bev_vis = Image.open(
-                                os.path.join(
-                                    msdict[dataset]["path_bev_vis"],
-                                    f"{frame_id}.jpg"
-                                )
-                            ).convert("RGB")
-                        
                             # Assign data
                             trainer.set_data(homotrans_mat, bev_image, perspective_image, \
                                 bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
