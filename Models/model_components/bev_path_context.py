@@ -73,11 +73,8 @@ class BEVPathContext(nn.Module):
 
         # Decoding driving path related features
         path_features = self.context_layer_7(context_feature_vector)
-        path_features = self.dropout(path_features)
         path_features = self.GeLU(path_features)
-     
         path_features = self.context_layer_8(path_features)
-        path_features = self.dropout(path_features)
         path_features = self.GeLU(path_features)
 
         return path_features   
