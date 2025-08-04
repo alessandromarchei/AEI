@@ -31,7 +31,10 @@ def main():
     ROOT_PATH = '/home/zain/Autoware/Data/AutoSteer/'#args.root
 
     # Model save root path
-    MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/' #args.model_save_root_path
+    MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/models/' #args.model_save_root_path
+
+    # Visualizations save root path
+    VIS_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/figures/'
 
     # Init metadata for datasets
     msdict = {}
@@ -103,10 +106,10 @@ def main():
     NUM_EPOCHS = 50
     LOGSTEP_LOSS = 25
     LOGSTEP_VIS = 100
-    LOGSTEP_MODEL = 5700
+    LOGSTEP_MODEL = 10
 
     # Val visualization param
-    N_VALVIS = 15
+    N_VALVIS = 25
 
     
     # ========================= Main training loop ========================= #
@@ -327,8 +330,10 @@ def main():
                             msdict[dataset]["total_running"] += trainer.get_total_loss()
 
                             # Save visualization to Tensorboard
-                            if(val_count < N_VALVIS):  
-                                trainer.save_visualization(msdict["log_counter"] + 1 + val_count, bev_vis, is_train=False)
+                            if(val_count < N_VALVIS): 
+                                vis_path = VIS_SAVE_ROOT_PATH + dataset + '_epoch_'+ str(epoch) + '_step_' + \
+                                    str(msdict["log_counter"] + 1) + '_image_' + str(frame_id)
+                                trainer.save_visualization(msdict["log_counter"] + 1 + val_count, bev_vis, vis_path, is_train=False)
 
 
                     # Calculate final validation scores for network on each dataset
