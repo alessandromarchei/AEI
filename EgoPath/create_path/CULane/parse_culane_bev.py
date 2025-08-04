@@ -492,7 +492,7 @@ if __name__ == "__main__":
 
     # OTHER PARAMS
 
-    W = 860
+    W = 1440
     H = 430
 
     # BEV-related
@@ -505,8 +505,8 @@ if __name__ == "__main__":
     }
     BEV_W = 640
     BEV_H = 1280
-    EGO_HEIGHT_RATIO = 1.05
-    BEV_Y_STEP = 128
+    EGO_HEIGHT_RATIO = 1
+    BEV_Y_STEP = 144
     POLYFIT_ORDER = 2
 
     # Visualization (colors in BGR)
@@ -568,7 +568,7 @@ if __name__ == "__main__":
     data_master = {}    # Dumped later
 
     # Get source points for transform
-    STANDARD_FRAME = "001923"
+    STANDARD_FRAME = "000025"
     STANDARD_JSON = json_data[STANDARD_FRAME]
     STANDARD_SPS = findSourcePointsBEV(
         h = H,

@@ -314,8 +314,8 @@ if __name__ == "__main__":
     list_path = "list"
     test_classification = "test_split"
 
-    img_width = 1640
-    img_height = 590
+    img_width = 1640        # New width: 1440
+    img_height = 590        # New height: 430
 
     # ============================== Parsing args ============================== #
 
@@ -340,7 +340,7 @@ if __name__ == "__main__":
         nargs = 4,
         help = "Crop image: [TOP, RIGHT, BOTTOM, LEFT]. Must always be 4 ints. Non-cropped sizes are 0.",
         metavar = ("TOP", "RIGHT", "BOTTOM", "LEFT"),
-        default = [0, 390, 160, 390],    # 2 plus 2 is 4 minus 1 that's 3, quick maths
+        default = [0, 100, 160, 100],    # 2 plus 2 is 4 minus 1 that's 3, quick maths
         required = False
     )
     parser.add_argument(
