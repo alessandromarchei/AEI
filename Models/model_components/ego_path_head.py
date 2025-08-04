@@ -7,7 +7,7 @@ class EgoPathHead(nn.Module):
         super(EgoPathHead, self).__init__()
         # Standard
         self.GeLU = nn.GELU()
-        self.HardTanH = nn.Hardtanh(-3, 3)
+        self.Tanh = nn.Tanh()
 
         # Context - MLP Layers
         self.ego_path_layer_0 = nn.Linear(800, 200)
@@ -23,6 +23,6 @@ class EgoPathHead(nn.Module):
         p1 = self.ego_path_layer_1(p0)
         p1 = self.GeLU(p1)
         p1 = self.ego_path_layer_2(p1)
-        ego_path = self.HardTanH(p1)
+        ego_path = self.Tanh(p1)*3
 
         return ego_path
