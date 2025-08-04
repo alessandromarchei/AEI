@@ -16,7 +16,7 @@ public:
 private:
     void topic_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
     void timer_callback_();
-
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr loopback_publisher_;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_;
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
     rclcpp::TimerBase::SharedPtr timer_;
@@ -26,4 +26,6 @@ private:
     const double proc_SD = 0.5;
     const double meas_SD = 0.5;
     const double epsilon = 0.05;
+    std::string yaml_fp;
+    std::string homo_fp;
 };

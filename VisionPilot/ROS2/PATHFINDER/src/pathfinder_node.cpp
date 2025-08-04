@@ -15,25 +15,31 @@ PathFinderNode::PathFinderNode() : Node("pathfinder_node"), drivCorr(std::nullop
   init_state.fill(default_state);
   bayesFilter.initialize(init_state);
 
-  publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("output_topic", 10);
-
+  publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("tracked_states", 10);
   subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
-      "input_topic", 10, std::bind(&PathFinderNode::topic_callback, this, std::placeholders::_1));
+      "egoLanes", 10, std::bind(&PathFinderNode::topic_callback, this, std::placeholders::_1));
 
+  // For loopback testing without egoLanes and egoPath topics
+  loopback_publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("egoLanes", 10);
   timer_ = this->create_wall_timer(std::chrono::milliseconds(1000), std::bind(&PathFinderNode::timer_callback_, this));
 
   std::string package_share_dir = ament_index_cpp::get_package_share_directory("PATHFINDER");
-  std::string yaml_fp = package_share_dir + "/test/000001/1616005402699.yaml";
-  std::string homo_fp = package_share_dir + "/test/image_to_world_transform.yaml";
+  yaml_fp = package_share_dir + "/test/000001/1616005402699.yaml";
+  homo_fp = package_share_dir + "/test/image_to_world_transform.yaml";
   estimateH(homo_fp);
   H = loadHFromYaml(homo_fp);
 
+  RCLCPP_INFO(this->get_logger(), "PathFinder Node started");
+}
+
+void PathFinderNode::topic_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
+{
+  //------to remove
   auto egoLanesPts = loadLanesFromYaml(yaml_fp, H);
-  std::vector<fittedCurve> egoPaths;
   if (egoLanesPts.size() < 2)
     std::cerr << "Not enough lanes to calculate ego path" << std::endl;
-
   auto egoLanesPtsLR = {egoLanesPts[2], egoLanesPts[1]}; // identify lane pairs
+  //--------------------
 
   std::vector<fittedCurve> egoLanes;
   for (auto lanePts : egoLanesPtsLR)
@@ -44,11 +50,6 @@ PathFinderNode::PathFinderNode() : Node("pathfinder_node"), drivCorr(std::nullop
 
   drivCorr = drivingCorridor(egoLanes[0], egoLanes[1], std::nullopt);
 
-  RCLCPP_INFO(this->get_logger(), "PathFinder Node started");
-}
-
-void PathFinderNode::timer_callback_()
-{
   std::array<Gaussian, STATE_DIM> measurement;
   std::array<Gaussian, STATE_DIM> process;
 
@@ -120,29 +121,42 @@ void PathFinderNode::timer_callback_()
   publisher_->publish(out_msg);
 }
 
-void PathFinderNode::topic_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
+void PathFinderNode::timer_callback_()
 {
-  std::array<Gaussian, STATE_DIM> measurement;
-  std::array<Gaussian, STATE_DIM> process;
-  bayesFilter.update(measurement);
-  const auto &state = bayesFilter.getState();
-  bayesFilter.predict(process);
+  auto egoLanesPts = loadLanesFromYaml(yaml_fp, H);
+  if (egoLanesPts.size() < 2)
+    std::cerr << "Not enough lanes to calculate ego path" << std::endl;
+  auto list1 = egoLanesPts[2].BevPoints;
+  auto list2 = egoLanesPts[1].BevPoints;
+  auto msg = std_msgs::msg::Float64MultiArray();
 
-  std::string log_msg = "Received array: [";
-  for (size_t i = 0; i < msg->data.size(); ++i)
+  size_t max_points = std::max(list1.size(), list2.size());
+  msg.data.reserve((list1.size() + list2.size()) * 2);
+
+  for (auto &p : list1)
   {
-    log_msg += std::to_string(msg->data[i]);
-    if (i < msg->data.size() - 1)
-      log_msg += ", ";
+    msg.data.push_back(p.x);
+    msg.data.push_back(p.y);
   }
-  log_msg += "]";
+  for (auto &p : list2)
+  {
+    msg.data.push_back(p.x);
+    msg.data.push_back(p.y);
+  }
 
-  RCLCPP_INFO(this->get_logger(), "%s", log_msg.c_str());
+  msg.layout.dim.resize(3);
+  msg.layout.dim[0].label = "lists";
+  msg.layout.dim[0].size = 2;
+  msg.layout.dim[0].stride = (list1.size() + list2.size()) * 2;
 
-  auto out_msg = std_msgs::msg::Float64MultiArray();
-  out_msg.data = msg->data;
+  msg.layout.dim[1].label = "points";
+  msg.layout.dim[1].size = max_points;
+  msg.layout.dim[1].stride = max_points * 2;
 
-  publisher_->publish(out_msg);
+  msg.layout.dim[2].label = "xy";
+  msg.layout.dim[2].size = 2;
+  msg.layout.dim[2].stride = 2;
+  loopback_publisher_->publish(msg);
 }
 
 int main(int argc, char *argv[])
