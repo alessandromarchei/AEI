@@ -25,6 +25,7 @@ PathFinderNode::PathFinderNode() : Node("pathfinder_node"), drivCorr(std::nullop
   std::string package_share_dir = ament_index_cpp::get_package_share_directory("PATHFINDER");
   std::string yaml_fp = package_share_dir + "/test/000001/1616005402699.yaml";
   std::string homo_fp = package_share_dir + "/test/image_to_world_transform.yaml";
+  estimateH(homo_fp);
   H = loadHFromYaml(homo_fp);
 
   auto egoLanesPts = loadLanesFromYaml(yaml_fp, H);

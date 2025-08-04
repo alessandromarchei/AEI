@@ -124,8 +124,8 @@ std::vector<LanePts> loadLanesFromYaml(const std::string &filename, cv::Mat &H)
         {
             // std::cout << "  [" << pt2d[0].as<double>() << ", " << pt2d[1].as<double>() << "]\n";
             auto noise = generatePixelNoise(5.0);
-            double u = pt2d[0].as<double>() + noise[0];
-            double v = pt2d[1].as<double>() + noise[1];
+            double u = pt2d[0].as<double>() ;//+ noise[0];
+            double v = pt2d[1].as<double>() ;//+ noise[1];
             lane_pixels.emplace_back(cv::Point2f(u, v));
         }
         std::vector<cv::Point2f> bev_pixels;
@@ -238,7 +238,7 @@ std::array<double, 3> fitQuadPoly(const std::vector<cv::Point2f> &points)
     return coeffs;
 }
 
-void estimateH()
+void estimateH(const std::string &filename)
 {
     //   [975.577, 567.689]    //   [1.657, 1.973, 38.649]
     //   [1150.05, 747.249]    //   [1.469, 1.553, 6.53]
@@ -256,9 +256,13 @@ void estimateH()
         {-1.217f, 39.064f},
         {1.657f, 38.649f}};
     cv::Mat H = cv::findHomography(imagePixels, BevPixels);
-    // std::cout << "Estimated Homography Matrix H:\n"
-    //           << H << std::endl;
-    // cv::FileStorage fs("image_to_world_transform.yaml", cv::FileStorage::WRITE);
+    std::ofstream file(filename);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to open file: " << filename << std::endl;
+        return;
+    }
+    file << "H: " << H.reshape(1, 1) << std::endl;
 }
 
 fittedCurve calculateEgoPath(const fittedCurve &leftLane, const fittedCurve &rightLane)
