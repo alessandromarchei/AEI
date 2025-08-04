@@ -83,3 +83,6 @@ CULane is a large-scale lane detection dataset specifically designed for autonom
 
 ```bash
 python process_culane.py --dataset_dir /path/to/CULane --output_dir /path/to/output
+
+python3 EgoPath/create_path/CULane/process_culane.py --dataset_dir ../pov_datasets/CULane --output_dir ../pov_datasets/CULANE
+python3 EgoPath/create_path/CULane/parse_culane_bev.py --dataset_dir ../pov_datasets/CULANE/

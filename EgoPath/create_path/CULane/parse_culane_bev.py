@@ -322,6 +322,10 @@ def polyfit_BEV(
         point for point in bev_line
         if (0 <= point[0] < BEV_W) and (0 <= point[1] < BEV_H)
     ]
+    if (not valid_line):
+        warnings.warn("No valid points in BEV line for polyfit.")
+        return None, None, None
+    
     x = [point[0] for point in valid_line]
     y = [point[1] for point in valid_line]
     z = np.polyfit(y, x, order)
@@ -452,6 +456,9 @@ def transformBEV(
         y_step = BEV_Y_STEP,
         y_limit = BEV_H
     )
+
+    if (not bev_line):
+        return (None, None, None, None, None, None, False)
 
     # Now reproject it back to orig space
     inv_mat = np.linalg.inv(mat)
@@ -590,14 +597,15 @@ if __name__ == "__main__":
 
         # MAIN ALGORITHM
 
-        # Transform to BEV space            
+        # Transform to BEV space
+        success_flag = True
 
         # Egopath
         (
             im_dst, 
             bev_egopath, orig_bev_egopath, 
             egopath_flag_list, egopath_validity_list, 
-            mat, success
+            mat, success_egopath
         ) = transformBEV(
             img = img,
             line = this_frame_data["drivable_path"],
@@ -615,7 +623,7 @@ if __name__ == "__main__":
             _, 
             bev_egoleft, orig_bev_egoleft, 
             egoleft_flag_list, egoleft_validity_list, 
-            _, _
+            _, success_egoleft
         ) = transformBEV(
             img = img, 
             line = this_frame_data["egoleft_lane"],
@@ -627,18 +635,25 @@ if __name__ == "__main__":
             _, 
             bev_egoright, orig_bev_egoright, 
             egoright_flag_list, egoright_validity_list, 
-            _, _
+            _, success_egoright
         ) = transformBEV(
             img = img, 
             line = this_frame_data["egoright_lane"],
             sps = STANDARD_SPS
         )
+
+        if (
+            (not success_egopath) or 
+            (not success_egoleft) or 
+            (not success_egoright)
+        ):
+            success_flag = False
         
         # Skip if invalid frame (due to too high ego_height value)
-        if (success == False):
+        if (success_flag == False):
             log_skipped(
                 frame_id,
-                "Null EgoPath from BEV transformation algorithm."
+                "Null EgoPath/EgoLeft/EgoRight from BEV transformation algorithm."
             )
             continue
 
