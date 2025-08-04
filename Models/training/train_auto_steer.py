@@ -6,7 +6,6 @@ import random
 import torch
 from PIL import Image
 from typing import Literal, get_args
-from matplotlib import pyplot as plt
 import sys
 sys.path.append('../..')
 from Models.data_utils.load_data_auto_steer import LoadDataAutoSteer
@@ -130,7 +129,11 @@ def main():
             batch_size = 4
       
         # Learning Rate Schedule
-        if(epoch > 30):
+        if(epoch <= 10):
+            trainer.set_learning_rate(0.0005)
+        elif(epoch > 10 and epoch < 30):
+            trainer.set_learning_rate(0.0001)
+        elif(epoch > 30):
             trainer.set_learning_rate(0.00001)
 
         # Augmentation Schedule

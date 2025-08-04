@@ -2,12 +2,9 @@
 
 import torch
 from torchvision import transforms
-from torch import nn, optim
+from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-import math
-import cv2
-from PIL import Image
 import numpy as np
 from typing import Literal, get_args
 import sys
