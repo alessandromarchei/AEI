@@ -14,7 +14,7 @@ class EgoPathHead(nn.Module):
 
     def forward(self, feature_vector):
 
-        # MLP
+        # Prediction
         ego_path = self.ego_path_layer_0(feature_vector)
         ego_path = self.Tanh(ego_path)*3
 

@@ -10,14 +10,13 @@ class EgoLanesHead(nn.Module):
 
         # Context - MLP Layers
         self.ego_left_lane_layer_0 = nn.Linear(800, 11)
-
         self.ego_right_lane_layer_0 = nn.Linear(800, 11)
 
  
 
     def forward(self, feature_vector):
 
-        # MLP
+        # Prediction
         ego_left_lane = self.ego_left_lane_layer_0(feature_vector)
         ego_left_lane = self.Tanh(ego_left_lane)*3
 
