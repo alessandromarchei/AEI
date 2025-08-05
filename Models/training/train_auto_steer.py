@@ -12,7 +12,7 @@ from Models.data_utils.load_data_auto_steer import LoadDataAutoSteer
 from Models.training.auto_steer_trainer import AutoSteerTrainer
 
 # Currently limiting to available datasets only. Will unlock eventually
-VALID_DATASET_LITERALS = Literal["TUSIMPLE"]
+VALID_DATASET_LITERALS = Literal["TUSIMPLE", "CULANE"]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
@@ -103,10 +103,10 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 50
+    NUM_EPOCHS = 10
     LOGSTEP_LOSS = 25
     LOGSTEP_VIS = 100
-    LOGSTEP_MODEL = 10
+    LOGSTEP_MODEL = 10000
 
     # Val visualization param
     N_VALVIS = 25
@@ -116,7 +116,7 @@ def main():
     print('Beginning Training')
 
     # Batch Size
-    batch_size = 32
+    batch_size = 8
 
     for epoch in range(0, NUM_EPOCHS):
 
@@ -124,19 +124,19 @@ def main():
         print(f"EPOCH : {epoch}")
 
         # Batch Size Schedule
-        if (epoch > 10 and epoch <= 20):
-            batch_size = 16
-        elif (epoch > 20 and epoch <= 30):
-            batch_size = 8
-        elif (epoch > 30):
+        if (epoch > 2 and epoch <= 4):
+            batch_size = 6
+        elif (epoch > 4 and epoch <= 6):
             batch_size = 4
+        elif (epoch > 8):
+            batch_size = 2
       
         # Learning Rate Schedule
-        if(epoch <= 10):
+        if(epoch <= 4):
             trainer.set_learning_rate(0.0005)
-        elif(epoch > 10 and epoch < 30):
+        elif(epoch > 4 and epoch < 8):
             trainer.set_learning_rate(0.0001)
-        elif(epoch > 30):
+        elif(epoch > 8):
             trainer.set_learning_rate(0.00001)
 
         # Augmentation Schedule
