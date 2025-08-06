@@ -6,14 +6,13 @@ import random
 import torch
 from PIL import Image
 from typing import Literal, get_args
-from matplotlib import pyplot as plt
 import sys
 sys.path.append('../..')
 from Models.data_utils.load_data_auto_steer import LoadDataAutoSteer
 from Models.training.auto_steer_trainer import AutoSteerTrainer
 
 # Currently limiting to available datasets only. Will unlock eventually
-VALID_DATASET_LITERALS = Literal["TUSIMPLE"]
+VALID_DATASET_LITERALS = Literal["TUSIMPLE", "CULANE"]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
@@ -32,7 +31,10 @@ def main():
     ROOT_PATH = '/home/zain/Autoware/Data/AutoSteer/'#args.root
 
     # Model save root path
-    MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/' #args.model_save_root_path
+    MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/models/' #args.model_save_root_path
+
+    # Visualizations save root path
+    VIS_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/figures/'
 
     # Init metadata for datasets
     msdict = {}
@@ -101,20 +103,20 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 50
-    LOGSTEP_LOSS = 250
-    LOGSTEP_VIS = 500
-    LOGSTEP_MODEL = 5700
+    NUM_EPOCHS = 10
+    LOGSTEP_LOSS = 25
+    LOGSTEP_VIS = 100
+    LOGSTEP_MODEL = 10000
 
     # Val visualization param
-    N_VALVIS = 15
+    N_VALVIS = 25
 
     
     # ========================= Main training loop ========================= #
     print('Beginning Training')
 
     # Batch Size
-    batch_size = 32
+    batch_size = 8
 
     for epoch in range(0, NUM_EPOCHS):
 
@@ -122,21 +124,25 @@ def main():
         print(f"EPOCH : {epoch}")
 
         # Batch Size Schedule
-        if (epoch > 10 and epoch <= 20):
-            batch_size = 16
-        elif (epoch > 20 and epoch <= 30):
-            batch_size = 8
-        elif (epoch > 30):
+        if (epoch > 2 and epoch <= 4):
+            batch_size = 6
+        elif (epoch > 4 and epoch <= 6):
             batch_size = 4
+        elif (epoch > 8):
+            batch_size = 2
       
         # Learning Rate Schedule
-        if(epoch > 30):
+        if(epoch <= 4):
+            trainer.set_learning_rate(0.0005)
+        elif(epoch > 4 and epoch < 8):
+            trainer.set_learning_rate(0.0001)
+        elif(epoch > 8):
             trainer.set_learning_rate(0.00001)
 
         # Augmentation Schedule
-        apply_augmentation = False
-        if ((epoch >= 15) and (epoch < 35)):
-            apply_augmentation = True
+        apply_augmentation = True
+        if (epoch > 35):
+            apply_augmentation = False
 
         # Shuffle overall data list at start of epoch
         random.shuffle(data_list)
@@ -306,22 +312,6 @@ def main():
                                 )
                             ).convert("RGB")
 
-                            # Perspective image
-                            perspective_image = Image.open(
-                                os.path.join(
-                                    msdict[dataset]["path_perspective_image"],
-                                    f"{frame_id}.png"
-                                )
-                            ).convert("RGB")
-                            
-                            # BEV visualization
-                            bev_vis = Image.open(
-                                os.path.join(
-                                    msdict[dataset]["path_bev_vis"],
-                                    f"{frame_id}.jpg"
-                                )
-                            ).convert("RGB")
-                        
                             # Assign data
                             trainer.set_data(homotrans_mat, bev_image, perspective_image, \
                                 bev_egopath, bev_egoleft, bev_egoright, reproj_egopath, \
@@ -340,8 +330,10 @@ def main():
                             msdict[dataset]["total_running"] += trainer.get_total_loss()
 
                             # Save visualization to Tensorboard
-                            if(val_count < N_VALVIS):  
-                                trainer.save_visualization(msdict["log_counter"] + 1 + val_count, bev_vis, is_train=False)
+                            if(val_count < N_VALVIS): 
+                                vis_path = VIS_SAVE_ROOT_PATH + dataset + '_epoch_'+ str(epoch) + '_step_' + \
+                                    str(msdict["log_counter"] + 1) + '_image_' + str(frame_id)
+                                trainer.save_visualization(msdict["log_counter"] + 1 + val_count, bev_vis, vis_path, is_train=False)
 
 
                     # Calculate final validation scores for network on each dataset

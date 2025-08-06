@@ -7,45 +7,40 @@ import numpy as np
 from PIL import Image
 from argparse import ArgumentParser
 sys.path.append('../..')
-from inference.domain_seg_infer import DomainSegNetworkInfer
+from inference.ego_space_infer import EgoSpaceNetworkInfer
 
 
-def make_visualization(prediction):
+def make_visualization(prediction, image):
 
-  # Creating visualization object
-  shape = prediction.shape
-  row = shape[0]
-  col = shape[1]
-  vis_predict_object = np.zeros((row, col, 3), dtype = "uint8")
+    # Creating visualization object
+    colour_mask = np.array(image)
 
-  # Assigning background colour
-  vis_predict_object[:,:,0] = 255
-  vis_predict_object[:,:,1] = 93
-  vis_predict_object[:,:,2] = 61
+    # Getting foreground object labels
+    foreground_lables = np.where(prediction == 1.0)
 
-  # Getting foreground object labels
-  foreground_lables = np.where(prediction == 1.0)
+    # Assigning foreground objects colour
+    colour_mask[foreground_lables[0], foreground_lables[1], 0] = 28
+    colour_mask[foreground_lables[0], foreground_lables[1], 1] = 255
+    colour_mask[foreground_lables[0], foreground_lables[1], 2] = 148
+    
+    # Converting to OpenCV BGR color channel ordering
+    colour_mask = cv2.cvtColor(colour_mask, cv2.COLOR_RGB2BGR)
 
-  # Assigning foreground objects colour
-  vis_predict_object[foreground_lables[0], foreground_lables[1], 0] = 28
-  vis_predict_object[foreground_lables[0], foreground_lables[1], 1] = 148
-  vis_predict_object[foreground_lables[0], foreground_lables[1], 2] = 255
-        
-  return vis_predict_object
+    return colour_mask
 
 def main(): 
 
   parser = ArgumentParser()
   parser.add_argument("-p", "--model_checkpoint_path", dest="model_checkpoint_path", help="path to pytorch checkpoint file to load model dict")
-  parser.add_argument("-i", "--video_filepath", dest="video_filepath", help="path to input video which will be processed by DomainSeg")
+  parser.add_argument("-i", "--video_filepath", dest="video_filepath", help="path to input video which will be processed by EgoSpace")
   parser.add_argument("-o", "--output_file", dest="output_file", help="path to output video visualization file, must include output file name")
   parser.add_argument('-v', "--vis", action='store_true', default=False, help="flag for whether to show frame by frame visualization while processing is occuring")
   args = parser.parse_args() 
 
   # Saved model checkpoint path
   model_checkpoint_path = args.model_checkpoint_path
-  model = DomainSegNetworkInfer(checkpoint_path=model_checkpoint_path)
-  print('DomainSeg Model Loaded')
+  model = EgoSpaceNetworkInfer(checkpoint_path=model_checkpoint_path)
+  print('EgoSpace Model Loaded')
     
   # Create a VideoCapture object and read from input file
   # If the input is taken from the camera, pass 0 instead of the video file name.
@@ -82,7 +77,7 @@ def main():
       
       # Running inference
       prediction = model.inference(image_pil)
-      vis_obj = make_visualization(prediction)
+      vis_obj = make_visualization(prediction, image_pil)
       
       # Resizing to match the size of the output video
       # which is set to standard HD resolution

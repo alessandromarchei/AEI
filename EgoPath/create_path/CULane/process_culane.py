@@ -17,6 +17,17 @@ warnings.formatwarning = custom_warning_format
 
 # ============================== Helper functions ============================== #
 
+def roundLineFloats(line, ndigits = 4):
+    line = list(line)
+    for i in range(len(line)):
+        line[i] = [
+            round(line[i][0], ndigits),
+            round(line[i][1], ndigits)
+        ]
+    line = tuple(line)
+    return line
+
+
 def normalizeCoords(lane, width, height):
     """
     Normalize the coords of lane points.
@@ -37,7 +48,7 @@ def getLaneAnchor(lane):
             (x1, y1) = lane[i]
             break
     if (x1 == x2):
-        warnings.warn(f"Vertical lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
+        # warnings.warn(f"Vertical lane detected: {lane}, with these 2 anchors: ({x1}, {y1}), ({x2}, {y2}).")
         return (x1, None, None)
     a = (y2 - y1) / (x2 - x1)
     b = y1 - a * x1
@@ -130,7 +141,7 @@ def getDrivablePath(left_ego, right_ego):
 
 def annotateGT(
         anno_entry, anno_raw_file, 
-        raw_dir, visualization_dir, mask_dir,
+        raw_dir, visualization_dir,
         img_width, img_height,
         normalized = True,
         crop = None
@@ -194,12 +205,6 @@ def annotateGT(
     # Save visualization img, same format with raw, just different dir
     raw_img.save(os.path.join(visualization_dir, save_name))
 
-    # Working on binary mask
-    mask = Image.new("L", (img_width, img_height), 0)
-    mask_draw = ImageDraw.Draw(mask)
-    mask_draw.line(drivable_renormed, fill = 255, width = lane_w)
-    mask.save(os.path.join(mask_dir, save_name))
-
 
 def parseAnnotations(anno_path, crop = None):
     """
@@ -210,7 +215,7 @@ def parseAnnotations(anno_path, crop = None):
     with open(anno_path, "r") as f:
         read_data = f.readlines()
         if (len(read_data) < 2):    # Some files are empty, or having less than 2 lines
-            warnings.warn(f"Parsing {anno_path} : insufficient lane amount: {len(read_data)}")
+            # warnings.warn(f"Parsing {anno_path} : insufficient lane amount: {len(read_data)}")
             return None
         else:
             # Parse data from those JSON lines
@@ -238,7 +243,7 @@ def parseAnnotations(anno_path, crop = None):
                 # Remove empty lanes
                 lanes = [lane for lane in lanes if (lane and len(lane) >= 2)]   # Pick lanes with >= 2 points
                 if (len(lanes) < 2):    # Ignore frames with less than 2 lanes
-                    warnings.warn(f"Parsing {anno_path}: insufficient lane amount after cropping: {len(lanes)}")
+                    # warnings.warn(f"Parsing {anno_path}: insufficient lane amount after cropping: {len(lanes)}")
                     return None
 
             # Determine 2 ego lanes
@@ -246,8 +251,8 @@ def parseAnnotations(anno_path, crop = None):
             ego_indexes = getEgoIndexes(lane_anchors)
 
             if (type(ego_indexes) is str):
-                if (ego_indexes.startswith("NO")):
-                    warnings.warn(f"Parsing {anno_path}: {ego_indexes}")
+                # if (ego_indexes.startswith("NO")):
+                    # warnings.warn(f"Parsing {anno_path}: {ego_indexes}")
                 return None
 
             left_ego = lanes[ego_indexes[0]]
@@ -258,11 +263,38 @@ def parseAnnotations(anno_path, crop = None):
 
             # Parse processed data, all coords normalized
             anno_data = {
-                "lanes" : [normalizeCoords(lane, img_width, img_height) for lane in lanes],
+                "lanes" : [
+                    roundLineFloats(
+                        normalizeCoords(
+                            lane,
+                            img_width, 
+                            img_height
+                        )
+                    )
+                    for lane in lanes
+                ],
                 "ego_indexes" : ego_indexes,
-                "drivable_path" : normalizeCoords(drivable_path, img_width, img_height),
-                "img_width" : img_width,
-                "img_height" : img_height,
+                "drivable_path" : roundLineFloats(
+                    normalizeCoords(
+                        drivable_path, 
+                        img_width, 
+                        img_height
+                    )
+                ),
+                "egoleft_lane" : roundLineFloats(
+                    normalizeCoords(
+                        left_ego, 
+                        img_width, 
+                        img_height
+                    )
+                ),
+                "egoright_lane" : roundLineFloats(
+                    normalizeCoords(
+                        right_ego, 
+                        img_width, 
+                        img_height
+                    )
+                ),
             }
 
             return anno_data
@@ -282,8 +314,8 @@ if __name__ == "__main__":
     list_path = "list"
     test_classification = "test_split"
 
-    img_width = 1640
-    img_height = 590
+    img_width = 1640        # New width: 1440
+    img_height = 590        # New height: 430
 
     # ============================== Parsing args ============================== #
 
@@ -308,7 +340,7 @@ if __name__ == "__main__":
         nargs = 4,
         help = "Crop image: [TOP, RIGHT, BOTTOM, LEFT]. Must always be 4 ints. Non-cropped sizes are 0.",
         metavar = ("TOP", "RIGHT", "BOTTOM", "LEFT"),
-        default = [0, 390, 160, 390],    # 2 plus 2 is 4 minus 1 that's 3, quick maths
+        default = [0, 100, 160, 100],    # 2 plus 2 is 4 minus 1 that's 3, quick maths
         required = False
     )
     parser.add_argument(
@@ -374,12 +406,11 @@ if __name__ == "__main__":
     """
     --output_dir
         |----image
-        |----segmentation
         |----visualization
         |----drivable_path.json
     """
     list_splits = ["train", "val", "test"]
-    list_subdirs = ["image", "segmentation", "visualization"]
+    list_subdirs = ["image", "visualization"]
     if (os.path.exists(output_dir)):
         warnings.warn(f"Output directory {output_dir} already exists. Purged")
         shutil.rmtree(output_dir)
@@ -433,13 +464,12 @@ if __name__ == "__main__":
                 this_data = parseAnnotations(anno_file, crop)
                 if (this_data is not None):
 
-                    print(f"Processing data in label file {anno_file}.")
+                    # print(f"Processing data in label file {anno_file}.")
                     annotateGT(
                         anno_entry = this_data,
                         anno_raw_file = os.path.join(dataset_dir, img_path),
                         raw_dir = os.path.join(output_dir, "image"),
                         visualization_dir = os.path.join(output_dir, "visualization"),
-                        mask_dir = os.path.join(output_dir, "segmentation"),
                         img_height = img_height,
                         img_width = img_width,
                         crop = crop
@@ -447,11 +477,12 @@ if __name__ == "__main__":
 
                     # Save as 6-digit incremental index
                     img_index = str(str(img_id_counter).zfill(6))
-                    data_master[img_index] = {}
-                    data_master[img_index]["drivable_path"] = this_data["drivable_path"]
-                    data_master[img_index]["img_height"] = img_height
-                    data_master[img_index]["img_width"] = img_width
-                    
+                    data_master[img_index] = {
+                        "drivable_path": this_data["drivable_path"],
+                        "egoleft_lane": this_data["egoleft_lane"],
+                        "egoright_lane": this_data["egoright_lane"],
+                    }
+
                     # Early stopping, it defined
                     if (early_stopping and img_id_counter >= early_stopping - 1):
                         break

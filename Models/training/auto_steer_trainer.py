@@ -2,12 +2,9 @@
 
 import torch
 from torchvision import transforms
-from torch import nn, optim
+from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
-import math
-import cv2
-from PIL import Image
 import numpy as np
 from typing import Literal, get_args
 import sys
@@ -425,9 +422,13 @@ class AutoSteerTrainer():
     def loss_backward(self):
         self.total_loss.backward()
 
-    # Get total loss values
+    # Get total loss value
     def get_total_loss(self):
         return self.total_loss.item()
+    
+    # Get total loss value
+    def get_total_loss(self):
+        return self.total_loss.detach().cpu().numpy()
     
     def get_bev_loss(self):
         return self.BEV_loss.item()
@@ -472,7 +473,7 @@ class AutoSteerTrainer():
         print("Finished training")
 
     # Save predicted visualization
-    def save_visualization(self, log_count, bev_vis, is_train):
+    def save_visualization(self, log_count, bev_vis, vis_path = "", is_train = False):
 
         # Predicted Egopath (BEV)
         pred_bev_ego_path = self.pred_bev_ego_path_tensor.cpu().detach().numpy()
@@ -554,7 +555,7 @@ class AutoSteerTrainer():
         if(is_train):
             self.writer.add_figure("Train (BEV)", fig_bev, global_step = (log_count))
         else:
-            self.writer.add_figure("Validation (BEV)", fig_bev, global_step = (log_count))
+            fig_bev.savefig(vis_path + '_BEV.png')
 
         # Visualize Ground Truth and Predictions (Perspective)
         fig_perspective, axs = plt.subplots(2,1, figsize=(8, 8))
@@ -590,8 +591,10 @@ class AutoSteerTrainer():
         if(is_train):
             self.writer.add_figure("Train (Perspective)", fig_perspective, global_step = (log_count))
         else:
-            self.writer.add_figure("Validation (Perspective)", fig_perspective, global_step = (log_count))
-      
+            fig_perspective.savefig(vis_path + '_Perspective.png')
+
+        plt.close(fig_bev)
+        plt.close(fig_perspective)
     
     # Log validation loss for each dataset to TensorBoard
     def log_validation_dataset(self, dataset, validation_loss_dataset_total, log_count):
