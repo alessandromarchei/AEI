@@ -77,7 +77,7 @@ def main():
       
       # Running inference
       prediction = model.inference(image_pil)
-      vis_obj = make_visualization(prediction)
+      vis_obj = make_visualization(prediction, image_pil)
       
       # Resizing to match the size of the output video
       # which is set to standard HD resolution
