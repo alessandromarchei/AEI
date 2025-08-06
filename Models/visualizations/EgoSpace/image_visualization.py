@@ -14,24 +14,19 @@ def make_visualization(prediction, image):
 
     # Creating visualization object
     colour_mask = np.array(image)
-    shape = prediction.shape
-    row = shape[0]
-    col = shape[1]
-
-    # Black-and-white mask
-    segMask = np.zeros((row, col), dtype='uint8')
 
     # Getting foreground object labels
     foreground_lables = np.where(prediction == 1.0)
 
     # Assigning foreground objects colour
     colour_mask[foreground_lables[0], foreground_lables[1], 0] = 28
-    colour_mask[foreground_lables[0], foreground_lables[1], 1] = 148
-    colour_mask[foreground_lables[0], foreground_lables[1], 2] = 255
+    colour_mask[foreground_lables[0], foreground_lables[1], 1] = 255
+    colour_mask[foreground_lables[0], foreground_lables[1], 2] = 148
+    
+    # Converting to OpenCV BGR color channel ordering
+    colour_mask = cv2.cvtColor(colour_mask, cv2.COLOR_RGB2BGR)
 
-    segMask[foreground_lables[0], foreground_lables[1]] = 255
-
-    return segMask, colour_mask
+    return colour_mask
 
 def main(): 
 
@@ -59,17 +54,10 @@ def main():
     # Run inference and create visualization
     print('Running Inference and Creating Visualization')
     prediction = model.inference(image_pil)
-    label_mask, vis_mask = make_visualization(prediction)
-
-    # Apply alpha transparency factor of 0.5
-    label_mask_composite = np.uint8(label_mask*0.5)
-    label_mask_composite = Image.fromarray(label_mask_composite)
-    vis = Image.fromarray(vis_mask)
-    visualization = Image.composite(image, vis, label_mask_composite)
-    vis_obj = np.array(visualization)
+    vis_mask = make_visualization(prediction, image_pil)
 
     # Resize and display visualization
-    vis_obj = cv2.resize(vis_obj, (frame.shape[1], frame.shape[0]))
+    vis_obj = cv2.resize(vis_mask, (frame.shape[1], frame.shape[0]))
     image_vis_obj = cv2.addWeighted(vis_obj, alpha, frame, 1 - alpha, 0)
     cv2.imshow('Prediction Objects', image_vis_obj)
     cv2.waitKey(0)
