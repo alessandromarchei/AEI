@@ -12,12 +12,6 @@ This folder provides comprehensive tools for ONNX model optimization and perform
 ## Watch the explainer video
 Please click the video link to play - [***Video link***](https://drive.google.com/file/d/1o7lEQHD0VcooGQ0-rRwHe5UGDCBkUCNB/view?usp=drive_link)
 
-## libtorch
-Code for using libTorch C++ to load model and inference
-
-## onnx_rt
-Code for using ONNX Runtime to load model and inference on the following ONNX Runtime Execution Providers
-
 ## Features
 
 ### Quantization-Aware Training (QAT) Tool
