@@ -24,7 +24,7 @@
 Helper classes and scripts related to checking data, benchmarking, and data loading
 
 ## exports
-Code to for model quantization and exports
+Code to perform model quantization and exports
 
 ## inference
 Helper classes to run model inference
