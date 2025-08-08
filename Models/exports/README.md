@@ -7,11 +7,10 @@ This folder provides comprehensive tools for ONNX model optimization and perform
 1. `quantize_model_sceneseg.py`: Performs QAT training and converts FP32 models to optimized INT8 versions
 2. `benchmark_qat_model.py`: Converts QAT checkpoints to final ONNX models and benchmarks their performance
 3. `benchmark_onnx_models.py`: Benchmarks and compares PyTorch, ONNX FP32, and ONNX INT8 model performance
+4. Additional export utilities can be found in the **libtorch** and **onnx_rt** folders.
 
 ## Watch the explainer video
 Please click the video link to play - [***Video link***](https://drive.google.com/file/d/1o7lEQHD0VcooGQ0-rRwHe5UGDCBkUCNB/view?usp=drive_link)
-
-Additional export utilities can be found in the **libtorch** and **onnx_rt** folders.
 
 ## libtorch
 Code for using libTorch C++ to load model and inference
