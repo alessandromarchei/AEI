@@ -211,7 +211,7 @@ def main():
             # Perspective image
             perspective_image = Image.open(
                 os.path.join(
-                    msdict[dataset]["path_perspective_image"],
+                    msdict[current_dataset]["path_perspective_image"],
                     f"{frame_id}.png"
                 )
             ).convert("RGB")
@@ -219,7 +219,7 @@ def main():
             # BEV visualization
             bev_vis = Image.open(
                 os.path.join(
-                    msdict[dataset]["path_bev_vis"],
+                    msdict[current_dataset]["path_bev_vis"],
                     f"{frame_id}.jpg"
                 )
             ).convert("RGB")
