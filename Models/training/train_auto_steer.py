@@ -32,9 +32,13 @@ def main():
 
     # Model save root path
     MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/models/' #args.model_save_root_path
+    if (not os.path.exists(MODEL_SAVE_ROOT_PATH)):
+        os.makedirs(MODEL_SAVE_ROOT_PATH)
 
     # Visualizations save root path
     VIS_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/figures/'
+    if (not os.path.exists(VIS_SAVE_ROOT_PATH)):
+        os.makedirs(VIS_SAVE_ROOT_PATH)
 
     # Init metadata for datasets
     msdict = {}
