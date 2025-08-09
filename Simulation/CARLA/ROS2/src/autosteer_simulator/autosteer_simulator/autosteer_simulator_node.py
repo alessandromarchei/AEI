@@ -8,13 +8,16 @@ from builtin_interfaces.msg import Time
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
+from std_msgs.msg import Float32MultiArray
+import cv2
+from cv_bridge import CvBridge
 
-LOOKAHEAD_DISTANCE = 100.0  # meters
+LOOKAHEAD_DISTANCE = 60.0  # meters
 STEP_DISTANCE = 2.0        # distance between waypoints
-DEFAULT_SPEED = 10.0       # m/s constant assumed speed
+DEFAULT_SPEED = 2.0       # m/s constant assumed speed
 LANE_WIDTH = 4.0          # meters, typical lane width
 
-#TODO: homotransform to camera frame, publish Float32MultiArray, publish annotated image
+#TODO: publish Float32MultiArray
 
 def yaw_to_quaternion(yaw_deg):
     yaw = math.radians(yaw_deg)
@@ -44,15 +47,20 @@ class AutoSteerSimulator(Node):
     def __init__(self):
         super().__init__('autosteer_simulator')
         
-        # self.image_sub_ = self.create_subscription(
-        #     Image,
-        #     '/carla/ego_vehicle/rgb_front/image',
-        #     self.image_callback,
-        #     10
-        # )
-        self.egoPath_pub_ = self.create_publisher(Path, '/egoPath', 10)
-        self.egoLaneL_pub_ = self.create_publisher(Path, '/egoLaneL', 10)
-        self.egoLaneR_pub_ = self.create_publisher(Path, '/egoLaneR', 10)
+        self.image_sub_ = self.create_subscription(
+            Image,
+            '/carla/hero/main_cam/image',
+            self.image_callback,
+            2
+        )
+        self.egoPath_viz_pub_ = self.create_publisher(Path, '/viz/egoPath', 2)
+        self.egoLaneL_viz_pub_ = self.create_publisher(Path, '/viz/egoLaneL', 2)
+        self.egoLaneR_viz_pub_ = self.create_publisher(Path, '/viz/egoLaneR', 2)
+        self.image_viz_pub_ = self.create_publisher(Image, '/viz/autosteer', 2)
+        
+        self.egoLaneL_pub_ = self.create_publisher(Float32MultiArray, '/egoLaneL', 2)
+        self.egoLaneR_pub_ = self.create_publisher(Float32MultiArray, '/egoLaneR', 2)
+        self.egoPath_pub_ = self.create_publisher(Float32MultiArray, '/egoPath', 2)
         
         self.client = carla.Client("localhost", 2000)
         self.client.set_timeout(5.0)
@@ -65,7 +73,23 @@ class AutoSteerSimulator(Node):
             return
 
         timer_period = 0.1
-        self.timer = self.create_timer(timer_period, self.timer_callback)
+        # self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.bridge = CvBridge()
+        self.egopath_pts = []
+
+        # Hardcoded intrinsics
+        self.K = np.array([[102841.44,     0.0, 640.0],
+                           [    0.0, 102841.44, 360.0],
+                           [    0.0,     0.0,    1.0]])
+        # Hardcoded extrinsics (rotation + translation)
+        R_base_to_cam = np.array([
+                                [0, 0,  1],
+                                [0,  1, 0],
+                                [-1,  0,  0]
+                                ], dtype=np.float32)
+        self.rvec, _ = cv2.Rodrigues(R_base_to_cam)
+        self.tvec = np.array([[-1.3 - 0.71], [0.0], [1.25]], dtype=np.float32) #add tire radius
+        self.dist_coeffs = np.zeros((5,1))
 
     def _find_ego_vehicle(self):
         for actor in self.world.get_actors().filter('vehicle.*'):
@@ -73,6 +97,25 @@ class AutoSteerSimulator(Node):
                 return actor
         self.get_logger().error('Ego vehicle not found')
         return None
+
+    def image_callback(self, msg : Image):
+        self.timer_callback()
+        if len(self.egopath_pts) == 0:
+            self.get_logger().warn('No ego path points available for visualization')
+            return
+        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        image_points, _ = cv2.projectPoints(self.egopath_pts, self.rvec, self.tvec, self.K, self.dist_coeffs)
+
+        # image_points is Nx1x2 array; reshape to Nx2
+        img_points = image_points.reshape(-1, 2)
+
+        for pt in img_points:
+            u, v = int(pt[1]/360 + 1280/2), int(720/2 + pt[0]/640)
+            if 0 <= u < frame.shape[1] and 0 <= v < frame.shape[0]:
+                cv2.circle(frame, (u, v), 3, (0, 0, 255), -1)
+        annotated_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
+        annotated_msg.header = msg.header
+        self.image_viz_pub_.publish(annotated_msg)
 
     def timer_callback(self):
         if not self.ego:
@@ -158,13 +201,12 @@ class AutoSteerSimulator(Node):
             right_ps.pose.orientation = ps.pose.orientation
             right_lane.poses.append(right_ps)
             
-
-            
         if path_msg.poses:
             self.get_logger().info(f'Publishing path with {len(path_msg.poses)} waypoints')
-            self.egoPath_pub_.publish(path_msg)
-            self.egoLaneL_pub_.publish(left_lane)
-            self.egoLaneR_pub_.publish(right_lane)  
+            self.egoPath_viz_pub_.publish(path_msg)
+            self.egoLaneL_viz_pub_.publish(left_lane)
+            self.egoLaneR_viz_pub_.publish(right_lane)  
+            self.egopath_pts = np.array([[pose.pose.position.x, pose.pose.position.y, pose.pose.position.z] for pose in path_msg.poses if pose.pose.position.x>1.25])
         
 def main(args=None):
     rclpy.init(args=args)
