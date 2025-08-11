@@ -13,6 +13,7 @@ VisualizeMasksNode::VisualizeMasksNode(const rclcpp::NodeOptions & options)
   const std::string mask_topic = this->declare_parameter<std::string>("mask_topic");
   viz_type_ = this->declare_parameter<std::string>("viz_type", "scene");
   const std::string output_topic = this->declare_parameter<std::string>("output_topic", "~/out/image");
+  measure_latency_ = this->declare_parameter<bool>("measure_latency", true);
 
   createColorMap(viz_type_);
 
@@ -45,6 +46,12 @@ void VisualizeMasksNode::createColorMap(const std::string& viz_type)
 
 void VisualizeMasksNode::onData(const Image::ConstSharedPtr& image_msg, const Image::ConstSharedPtr& mask_msg)
 {
+  // --- Latency Watcher Start ---
+  if (measure_latency_ && (++frame_count_ % LATENCY_SAMPLE_INTERVAL == 0)) {
+    viz_start_time_ = std::chrono::steady_clock::now();
+  }
+  // -----------------------------
+  
   cv_bridge::CvImagePtr image_ptr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8);
   cv_bridge::CvImagePtr mask_ptr = cv_bridge::toCvCopy(mask_msg, sensor_msgs::image_encodings::MONO8);
 
@@ -80,6 +87,18 @@ void VisualizeMasksNode::onData(const Image::ConstSharedPtr& image_msg, const Im
   sensor_msgs::msg::Image::SharedPtr out_msg =
     cv_bridge::CvImage(image_msg->header, sensor_msgs::image_encodings::BGR8, blended_image).toImageMsg();
   pub_.publish(out_msg);
+  
+  // --- Latency Watcher End & Report ---
+  if (measure_latency_ && (frame_count_ % LATENCY_SAMPLE_INTERVAL == 0)) {
+    auto viz_end_time = std::chrono::steady_clock::now();
+    auto latency_ms =
+      std::chrono::duration<double, std::milli>(viz_end_time - viz_start_time_)
+        .count();
+    RCLCPP_INFO(
+      this->get_logger(), "Frame %zu: Visualization Latency: %.2f ms (%.1f FPS)", frame_count_,
+      latency_ms, 1000.0 / latency_ms);
+  }
+  // ------------------------------------
 }
 
 }  // namespace autoware_pov::visualization

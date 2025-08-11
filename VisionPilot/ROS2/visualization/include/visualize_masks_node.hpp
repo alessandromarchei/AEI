@@ -10,6 +10,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <vector>
+#include <chrono>
 
 namespace autoware_pov::visualization
 {
@@ -36,6 +37,12 @@ private:
   message_filters::Subscriber<Image> sub_image_;
   message_filters::Subscriber<Image> sub_mask_;
   std::shared_ptr<Synchronizer> sync_;
+  
+  // Latency monitoring (like original AUTOSEG)
+  static constexpr size_t LATENCY_SAMPLE_INTERVAL = 100; // Log every 100 frames
+  size_t frame_count_ = 0;
+  bool measure_latency_ = false;
+  std::chrono::steady_clock::time_point viz_start_time_;
 };
 
 }  // namespace autoware_pov::visualization
