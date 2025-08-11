@@ -20,6 +20,7 @@ RunModelNode::RunModelNode(const rclcpp::NodeOptions & options)
   const std::string input_topic = this->declare_parameter<std::string>("input_topic", "/sensors/camera/image_raw");
   output_topic_str_ = this->declare_parameter<std::string>("output_topic");
   model_type_ = this->declare_parameter<std::string>("model_type");
+  measure_latency_ = this->declare_parameter<bool>("measure_latency", true);
 
   // Instantiate the backend
   if (backend_str == "onnxruntime") {
@@ -52,10 +53,28 @@ void RunModelNode::onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg)
     return;
   }
 
+  // --- Latency Watcher Start ---
+  if (measure_latency_ && (++frame_count_ % LATENCY_SAMPLE_INTERVAL == 0)) {
+    inference_start_time_ = std::chrono::steady_clock::now();
+  }
+  // -----------------------------
+
   if (!backend_->doInference(in_image_ptr->image)) {
     RCLCPP_WARN(this->get_logger(), "Inference failed.");
     return;
   }
+
+  // --- Latency Watcher End & Report ---
+  if (measure_latency_ && (frame_count_ % LATENCY_SAMPLE_INTERVAL == 0)) {
+    auto inference_end_time = std::chrono::steady_clock::now();
+    auto latency_ms =
+      std::chrono::duration<double, std::milli>(inference_end_time - inference_start_time_)
+        .count();
+    RCLCPP_INFO(
+      this->get_logger(), "Frame %zu: Inference Latency: %.2f ms (%.1f FPS)", frame_count_,
+      latency_ms, 1000.0 / latency_ms);
+  }
+  // ------------------------------------
 
   // Get processed output from backend (like original architecture)
   cv::Mat processed_output;
