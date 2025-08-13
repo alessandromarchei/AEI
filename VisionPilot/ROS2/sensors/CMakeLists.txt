@@ -13,7 +13,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 
-include_directories(include)
+include_directories(include ../../common/include)
 
 # video_publisher_node
 add_library(video_publisher_node SHARED

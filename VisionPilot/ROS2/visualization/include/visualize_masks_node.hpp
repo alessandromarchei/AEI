@@ -11,6 +11,8 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <chrono>
+#include "../../common/include/masks_visualization_engine.hpp"
+
 
 namespace autoware_pov::visualization
 {
@@ -26,11 +28,12 @@ private:
   using Synchronizer = message_filters::Synchronizer<SyncPolicy>;
 
   void onData(const Image::ConstSharedPtr& image, const Image::ConstSharedPtr& mask);
-  void createColorMap(const std::string& viz_type);
 
   // Parameters
-  std::vector<cv::Vec3b> color_map_;
   std::string viz_type_;
+  
+  // Common masks visualization engine
+  std::unique_ptr<autoware_pov::common::MasksVisualizationEngine> viz_engine_;
 
   // ROS
   image_transport::Publisher pub_;

@@ -1,4 +1,5 @@
 #include "visualize_depth_node.hpp"
+#include "../../common/include/depth_visualization_engine.hpp"
 #include <cv_bridge/cv_bridge.h>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -13,6 +14,9 @@ VisualizeDepthNode::VisualizeDepthNode(const rclcpp::NodeOptions & options)
   const std::string depth_topic = this->declare_parameter<std::string>("depth_topic");
   const std::string output_topic = this->declare_parameter<std::string>("output_topic", "~/out/image");
   measure_latency_ = this->declare_parameter<bool>("measure_latency", true);
+
+  // Create common depth visualization engine
+  depth_viz_engine_ = std::make_unique<autoware_pov::common::DepthVisualizationEngine>();
 
   // Publisher
   pub_ = image_transport::create_publisher(this, output_topic);
@@ -32,20 +36,8 @@ void VisualizeDepthNode::onData(const sensor_msgs::msg::Image::ConstSharedPtr& m
   
   cv_bridge::CvImagePtr depth_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_32FC1);
 
-  // Normalize depth to 0-255 range
-  cv::Mat normalized_depth;
-  double min_val, max_val;
-  cv::minMaxLoc(depth_ptr->image, &min_val, &max_val);
-  
-  if (max_val > min_val) {
-    depth_ptr->image.convertTo(normalized_depth, CV_8UC1, 255.0 / (max_val - min_val), -min_val * 255.0 / (max_val - min_val));
-  } else {
-    normalized_depth = cv::Mat::zeros(depth_ptr->image.size(), CV_8UC1);
-  }
-  
-  // Apply colormap
-  cv::Mat colorized_depth;
-  cv::applyColorMap(normalized_depth, colorized_depth, cv::COLORMAP_VIRIDIS);
+  // Use common depth visualization engine (framework-agnostic)
+  cv::Mat colorized_depth = depth_viz_engine_->visualize(depth_ptr->image);
 
   sensor_msgs::msg::Image::SharedPtr out_msg =
     cv_bridge::CvImage(msg->header, sensor_msgs::image_encodings::BGR8, colorized_depth).toImageMsg();

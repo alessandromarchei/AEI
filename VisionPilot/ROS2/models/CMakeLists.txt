@@ -35,11 +35,12 @@ link_directories("${ONNXRUNTIME_ROOTDIR}/lib")
 
 # --- Inference Backend Library ---
 add_library(inference_backends SHARED
-  src/onnx_runtime_backend.cpp
-  src/tensorrt_backend.cpp
+  ../../common/backends/onnx_runtime_backend.cpp
+  ../../common/backends/tensorrt_backend.cpp
 )
 target_include_directories(inference_backends PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../common/include>
   $<INSTALL_INTERFACE:include>
   ${OpenCV_INCLUDE_DIRS}
   "${ONNXRUNTIME_ROOTDIR}/include"
@@ -62,6 +63,7 @@ add_library(run_model_node SHARED
 )
 target_include_directories(run_model_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../common/include>
   $<INSTALL_INTERFACE:include>
 )
 ament_target_dependencies(run_model_node

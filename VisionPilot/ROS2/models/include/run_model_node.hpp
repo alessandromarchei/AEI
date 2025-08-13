@@ -1,7 +1,7 @@
 #ifndef RUN_MODEL_NODE_HPP_
 #define RUN_MODEL_NODE_HPP_
 
-#include "inference_backend_base.hpp"
+#include "../../common/include/inference_backend_base.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <image_transport/image_transport.hpp>
 #include <memory>

@@ -1,41 +1,49 @@
-# VisionPilot ROS2 - Modular Pipeline
+# VisionPilot ROS2 - Middleware Wrapper Layer
 
-A highly modular and scalable ROS2-based system supporting multiple deep learning networks with real-time inference and visualization capabilities.
+ROS2-specific implementation that wraps framework-agnostic core engines from `VisionPilot/common`. This layer handles ROS2 message passing, topic management, and node orchestration while delegating core AI processing to shared common engines.
 
-##  Architecture Overview
+## Architecture Overview
 
-The system is built around three core packages:
+The ROS2 layer acts as a thin wrapper around common engines:
 
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────────────┐
 │   SENSORS   │───▶│    MODELS    │───▶│ VISUALIZATION   │
 │             │    │              │    │                 │
-│ Video Feed  │    │ Generic AI   │    │ Task-Specific   │
-│ Publishers  │    │ Inference    │    │ Rendering       │
+│ ROS2 Video  │    │ ROS2 Model   │    │ ROS2 Viz        │
+│ Publishers  │    │ Wrappers     │    │ Wrappers        │
+│     │       │    │     │        │    │     │           │
+│             │    │              │    │                 │
+│ Common      │    │ Common       │    │ Common          │
+│ Video       │    │ Inference    │    │ Visualization   │
+│ Engine      │    │ Backends     │    │ Engines         │
 └─────────────┘    └──────────────┘    └─────────────────┘
 ```
 
-###  Package Structure
+## Package Structure
 
-- **`sensors/`** - Video input and data publishing
-- **`models/`** - Generic AI model inference (ONNX Runtime + TensorRT)
-- **`visualization/`** - Task-specific visualization and rendering
+- **`sensors/`** - ROS2 video publishing nodes + common video engine
+- **`models/`** - ROS2 inference nodes + common AI backends  
+- **`visualization/`** - ROS2 visualization nodes + common rendering engines
 
-##  Supported Models & Tasks
+## Supported Pipelines
 
-###  Segmentation Models
+### Segmentation
 - **Scene Segmentation**: Binary foreground/background separation
 - **Domain Segmentation**: Road/off-road classification  
 
-
-### Depth Estimation
+### Depth Estimation  
 - **Scene 3D**: Monocular depth estimation
 
-###  Inference Backends
-- **ONNX Runtime** (CPU/CUDA)
-- **TensorRT** (FP16/FP32 optimization)
+## Core Features
 
-## 📋 Prerequisites
+- **Framework Agnostic Core**: All AI processing handled by `VisionPilot/common` engines
+- **ROS2 Integration**: Native ROS2 topics, parameters, and launch files
+- **Configurable**: YAML-driven configuration with no hardcoded paths
+- **Performance Monitoring**: Built-in latency and FPS measurements
+- **Concurrent Execution**: Multiple independent pipelines simultaneously
+
+##  Prerequisites
 
 ### System Requirements
 - Ubuntu 20.04/22.04
@@ -175,18 +183,9 @@ scene3d_model:
     measure_latency: true
 ```
 
-###  Model Type Differentiation
+### Model Integration
 
-The system uses a **single generic inference node** (`run_model_node`) that adapts behavior based on `model_type`:
-
-#### Segmentation Models (`model_type: "segmentation"`)
-- **Multi-class**: Performs `argmax` across channels → outputs `MONO8` class IDs
-- **Binary**: Applies threshold (>0) → outputs `MONO8` binary mask
-- **Scene vs Domain**: Differentiated by **node name** and **YAML section**
-
-#### Depth Models (`model_type: "depth"`)
-- **Processing**: Returns raw float values without post-processing
-- **Output**: `TYPE_32FC1` depth maps
+The system uses a **single generic inference node** (`run_model_node`) that delegates processing to common backends. Model behavior is determined by configuration and handled transparently by the common layer.
 
 ###  Visualization Configuration
 

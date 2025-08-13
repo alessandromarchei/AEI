@@ -17,9 +17,11 @@ find_package(OpenCV REQUIRED)
 # visualize_masks_node
 add_library(visualize_masks_node_lib SHARED
   src/visualize_masks_node.cpp
+  ../../common/visualizers/masks_visualization_engine.cpp
 )
 target_include_directories(visualize_masks_node_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../common/include>
   $<INSTALL_INTERFACE:include>
 )
 ament_target_dependencies(visualize_masks_node_lib
@@ -39,9 +41,11 @@ rclcpp_components_register_node(
 # visualize_depth_node
 add_library(visualize_depth_node_lib SHARED
   src/visualize_depth_node.cpp
+  ../../common/visualizers/depth_visualization_engine.cpp
 )
 target_include_directories(visualize_depth_node_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../common/include>
   $<INSTALL_INTERFACE:include>
 )
 ament_target_dependencies(visualize_depth_node_lib
