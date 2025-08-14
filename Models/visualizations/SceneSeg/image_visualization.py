@@ -31,8 +31,9 @@ def make_visualization_freespace(prediction, image):
   # Creating visualization
   binary_mask = np.zeros((row, col), dtype = "uint8")
   binary_mask[free_space_labels[0], free_space_labels[1]] = 255
-  edge_contour = find_freespace_edge(binary_mask)
-  cv2.fillPoly(colour_mask, pts =[edge_contour], color=(28,255,145))
+  if(edge_contour):
+    edge_contour = find_freespace_edge(binary_mask)
+    cv2.fillPoly(colour_mask, pts =[edge_contour], color=(28,255,145))
 
   # Converting to OpenCV BGR color channel ordering
   colour_mask = cv2.cvtColor(colour_mask, cv2.COLOR_RGB2BGR)
