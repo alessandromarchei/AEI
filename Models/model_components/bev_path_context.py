@@ -60,7 +60,8 @@ class BEVPathContext(nn.Module):
         context = self.GeLU(c7)
 
         # Attention
-        context = context*features + features
+        fused_features = self.avg_pool(features)
+        context = context*fused_features + fused_features
 
         # Context feature vector
         context_feature_vector = torch.mean(context, dim = [2,3])
