@@ -9,6 +9,41 @@ from argparse import ArgumentParser
 sys.path.append('../..')
 from inference.scene_seg_infer import SceneSegNetworkInfer
 
+def find_freespace_edge(binary_mask):
+
+    contours, _ = cv2.findContours(binary_mask,
+                      cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    cnt = None
+    if(len(contours > 0)):
+      cnt = max(contours, key = lambda x: cv2.contourArea(x))
+    return cnt
+
+def make_visualization_freespace(prediction, image):
+
+  colour_mask = np.array(image)
+
+  # Getting freespace object labels
+  free_space_labels = np.where(prediction == 2)
+
+  shape = prediction.shape
+  row = shape[0]
+  col = shape[1]
+  binary_mask = np.zeros((row, col), dtype = "uint8")
+  binary_mask[free_space_labels[0], free_space_labels[1]] = 255
+  edge_contour = find_freespace_edge(binary_mask)
+  if(edge_contour):
+    cv2.fillPoly(colour_mask, pts =[edge_contour], color=(28,255,145))
+  #cv2.drawContours(colour_mask, edge_contour, -1, color=(28, 255, 145), thickness=-1)
+
+  # Assigning freespace objects colour
+  #colour_mask[free_space_labels[0], free_space_labels[1], 0] = 28
+  #colour_mask[free_space_labels[0], free_space_labels[1], 1] = 255
+  #colour_mask[free_space_labels[0], free_space_labels[1], 2] = 145
+
+  # Converting to OpenCV BGR color channel ordering
+  colour_mask = cv2.cvtColor(colour_mask, cv2.COLOR_RGB2BGR)
+
+  return colour_mask
 
 def make_visualization(prediction):
 
@@ -30,7 +65,7 @@ def make_visualization(prediction):
   vis_predict_object[foreground_lables[0], foreground_lables[1], 0] = 145
   vis_predict_object[foreground_lables[0], foreground_lables[1], 1] = 28
   vis_predict_object[foreground_lables[0], foreground_lables[1], 2] = 255
-        
+
   return vis_predict_object
 
 def main(): 
@@ -82,7 +117,8 @@ def main():
       
       # Running inference
       prediction = model.inference(image_pil)
-      vis_obj = make_visualization(prediction)
+      #vis_obj = make_visualization(prediction)
+      vis_obj = make_visualization_freespace(prediction, image_pil)
       
       # Resizing to match the size of the output video
       # which is set to standard HD resolution
