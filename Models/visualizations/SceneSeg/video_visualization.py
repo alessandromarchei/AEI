@@ -25,20 +25,17 @@ def make_visualization_freespace(prediction, image):
   # Getting freespace object labels
   free_space_labels = np.where(prediction == 2)
 
+  # Get shape
   shape = prediction.shape
   row = shape[0]
   col = shape[1]
+
+  # Create visualization
   binary_mask = np.zeros((row, col), dtype = "uint8")
   binary_mask[free_space_labels[0], free_space_labels[1]] = 255
   edge_contour = find_freespace_edge(binary_mask)
   if(edge_contour):
     cv2.fillPoly(colour_mask, pts =[edge_contour], color=(28,255,145))
-  #cv2.drawContours(colour_mask, edge_contour, -1, color=(28, 255, 145), thickness=-1)
-
-  # Assigning freespace objects colour
-  #colour_mask[free_space_labels[0], free_space_labels[1], 0] = 28
-  #colour_mask[free_space_labels[0], free_space_labels[1], 1] = 255
-  #colour_mask[free_space_labels[0], free_space_labels[1], 2] = 145
 
   # Converting to OpenCV BGR color channel ordering
   colour_mask = cv2.cvtColor(colour_mask, cv2.COLOR_RGB2BGR)
@@ -89,9 +86,13 @@ def main():
 
   # Output filepath
   output_filepath_obj = args.output_file + '.avi'
+  output_filepath_freespace = args.output_file + 'freespace.avi'
   fps = cap.get(cv2.CAP_PROP_FPS)
   # Video writer object
   writer_obj = cv2.VideoWriter(output_filepath_obj,
+    cv2.VideoWriter_fourcc(*"MJPG"), fps,(1280,720))
+  
+  writer_freespace = cv2.VideoWriter(output_filepath_freespace,
     cv2.VideoWriter_fourcc(*"MJPG"), fps,(1280,720))
 
   # Check if video catpure opened successfully
@@ -117,23 +118,27 @@ def main():
       
       # Running inference
       prediction = model.inference(image_pil)
-      #vis_obj = make_visualization(prediction)
-      vis_obj = make_visualization_freespace(prediction, image_pil)
+      vis_obj = make_visualization(prediction)
+      vis_obj_freespace = make_visualization_freespace(prediction, image_pil)
       
       # Resizing to match the size of the output video
       # which is set to standard HD resolution
       frame = cv2.resize(frame, (1280, 720))
       vis_obj = cv2.resize(vis_obj, (1280, 720))
+      vis_obj_freespace = cv2.resize(vis_obj_freespace, (1280, 720))
 
       # Create the composite visualization
       image_vis_obj = cv2.addWeighted(vis_obj, alpha, frame, 1 - alpha, 0)
+      image_vis_freespace = cv2.addWeighted(vis_obj_freespace, alpha, frame, 1 - alpha, 0)
 
       if(args.vis):
         cv2.imshow('Prediction Objects', image_vis_obj)
+        cv2.imshow('Prediction Freespace', image_vis_freespace)
         cv2.waitKey(10)
 
       # Writing to video frame
       writer_obj.write(image_vis_obj)
+      writer_freespace.write(image_vis_freespace)
 
     else:
       print('Frame not read - ending processing')
