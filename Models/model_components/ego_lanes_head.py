@@ -15,8 +15,8 @@ class EgoLanesHead(nn.Module):
     def forward(self, feature_vector):
 
         # Prediction
-        ego_left_lane = self.ego_left_lane_layer_0(feature_vector)
-        ego_right_lane = self.ego_right_lane_layer_0(feature_vector)
+        ego_left_lane = self.ego_left_lane_layer_0(feature_vector) + 0.4
+        ego_right_lane = self.ego_right_lane_layer_0(feature_vector) + 0.6
 
         # Final result
         return ego_left_lane, ego_right_lane

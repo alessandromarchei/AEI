@@ -13,6 +13,6 @@ class EgoPathHead(nn.Module):
     def forward(self, feature_vector):
 
         # Prediction
-        ego_path = self.ego_path_layer_0(feature_vector)
+        ego_path = self.ego_path_layer_0(feature_vector) + 0.5
 
         return ego_path

@@ -9,6 +9,7 @@ class BEVPathContext(nn.Module):
         self.GeLU = nn.GELU()
         self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(p=0.25)
+        self.dropout_aggressize = nn.Dropout(p=0.5)
         self.pool = nn.MaxPool2d(2, stride=2)
 
         # Context - MLP Layers
@@ -65,15 +66,15 @@ class BEVPathContext(nn.Module):
 
         # Context feature vector
         context_feature_vector = torch.mean(context, dim = [2,3])
-        context_feature_vector = self.dropout(context_feature_vector)
+        context_feature_vector = self.dropout_aggressize(context_feature_vector)
 
 
         # Decoding driving path related features
         path_features = self.context_layer_7(context_feature_vector)
-        path_features = self.dropout(path_features)
+        path_features = self.dropout_aggressize(path_features)
         path_features = self.GeLU(path_features)
         path_features = self.context_layer_8(path_features)
-        path_features = self.dropout(path_features)
+        path_features = self.dropout_aggressize(path_features)
         path_features = self.GeLU(path_features)
 
         return path_features   
