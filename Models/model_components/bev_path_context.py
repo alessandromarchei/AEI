@@ -9,7 +9,7 @@ class BEVPathContext(nn.Module):
         self.GeLU = nn.GELU()
         self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(p=0.25)
-        self.dropout_aggressize = nn.Dropout(p=0.5)
+        self.dropout_aggressize = nn.Dropout(p=0.4)
         self.pool = nn.MaxPool2d(2, stride=2)
 
         # Context - MLP Layers
@@ -24,8 +24,9 @@ class BEVPathContext(nn.Module):
         self.context_layer_6 = nn.Conv2d(512, 1456, 3, 1, 1)
 
         # Context - Decode layers
-        self.context_layer_7 = nn.Linear(1456, 800)
-        self.context_layer_8 = nn.Linear(800, 800)
+        self.context_layer_7 = nn.Linear(1456, 1280)
+        self.context_layer_8 = nn.Linear(1280, 1024)
+        self.context_layer_9 = nn.Linear(1024, 800)
      
 
     def forward(self, features):
@@ -74,6 +75,9 @@ class BEVPathContext(nn.Module):
         path_features = self.dropout_aggressize(path_features)
         path_features = self.GeLU(path_features)
         path_features = self.context_layer_8(path_features)
+        path_features = self.dropout_aggressize(path_features)
+        path_features = self.GeLU(path_features)
+        path_features = self.context_layer_9(path_features)
         path_features = self.dropout_aggressize(path_features)
         path_features = self.GeLU(path_features)
 
