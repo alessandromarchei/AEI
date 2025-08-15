@@ -9,8 +9,7 @@ class EgoPathHead(nn.Module):
         self.GeLU = nn.GELU()
         self.dropout = nn.Dropout(p=0.25)
         self.dropout_aggressize = nn.Dropout(p=0.4)
-        self.TanH = nn.Tanh()
-
+   
         # Ego Path  Decode layers
         self.ego_path_layer_0 = nn.Linear(1456, 1280)
         self.ego_path_layer_1 = nn.Linear(1280, 1024)
@@ -36,9 +35,7 @@ class EgoPathHead(nn.Module):
         ego_path = self.dropout_aggressize(ego_path)
         ego_path = self.GeLU(ego_path)
 
-        ego_path = self.ego_path_layer_3(ego_path)
-
         # Final Path Prediction
-        ego_path = self.TanH(ego_path)*3 + 0.5
+        ego_path = self.ego_path_layer_3(ego_path) + 0.5
 
         return ego_path
