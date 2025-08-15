@@ -256,7 +256,7 @@ def main():
             # Save model and run Validation on entire validation dataset
             if ((msdict["sample_counter"] + 1) % LOGSTEP_MODEL == 0):
                 
-                print(f"\nIteration: {msdict["log_counter"] + 1}")
+                print(f"\nIteration: {msdict['log_counter'] + 1}")
                 print("================ Saving Model ================")
 
                 # Save model
