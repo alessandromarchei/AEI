@@ -217,8 +217,14 @@ def polyfit_BEV(
     y_step: int,
     y_limit: int
 ):
-    x = [point[0] for point in bev_egopath]
-    y = [point[1] for point in bev_egopath]
+    x = [
+        point[0] 
+        for point in bev_egopath
+    ]
+    y = [
+        point[1] 
+        for point in bev_egopath
+    ]
     z = np.polyfit(y, x, order)
     f = np.poly1d(z)
     y_new = np.linspace(
@@ -291,13 +297,22 @@ def findSourcePointsBEV(
     ego_height = max(egoleft[-1][1], egoright[-1][1]) * 1.05
 
     # Both egos have Null anchors
-    if ((not anchor_left[1]) and (not anchor_right[1])):
+    if (
+        (not anchor_left[1]) and 
+        (not anchor_right[1])
+    ):
         midanchor_end = [midanchor_start[0], h]
         original_end_w = sps["RS"][0] - sps["LS"][0]
 
     else:
-        left_deg = 90 if (not anchor_left[1]) else math.degrees(math.atan(anchor_left[1])) % 180
-        right_deg = 90 if (not anchor_right[1]) else math.degrees(math.atan(anchor_right[1])) % 180
+        left_deg = (
+            90 if (not anchor_left[1]) 
+            else math.degrees(math.atan(anchor_left[1])) % 180
+        )
+        right_deg = (
+            90 if (not anchor_right[1]) 
+            else math.degrees(math.atan(anchor_right[1])) % 180
+        )
         mid_deg = (left_deg + right_deg) / 2
         mid_grad = - math.tan(math.radians(mid_deg))
         mid_intercept = h - mid_grad * midanchor_start[0]
