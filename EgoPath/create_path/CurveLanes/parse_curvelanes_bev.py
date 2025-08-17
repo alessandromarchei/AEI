@@ -28,6 +28,7 @@ skipped_dict = {}
 
 
 def log_skipped(frame_id, reason):
+    warnings.warn(reason)
     skipped_dict[frame_id] = reason
 
 
@@ -92,13 +93,13 @@ def annotateGT(
     # Draw egopath
     if (normalized):
         renormed_bev_egopath = [
-            (x * W, y * H) 
+            (x * BEV_W, y * BEV_H)
             for x, y in bev_egopath
         ]
     else:
         renormed_bev_egopath = bev_egopath
     drawLine(
-        img = img,
+        img = img_bev_vis,
         line = renormed_bev_egopath,
         color = COLOR_EGOPATH
     )
@@ -106,7 +107,7 @@ def annotateGT(
     # Draw egoleft
     if (normalized):
         renormed_bev_egoleft = [
-            (x * W, y * H)
+            (x * BEV_W, y * BEV_H)
             for x, y in bev_egoleft
         ]
     else:
@@ -120,7 +121,7 @@ def annotateGT(
     # Draw egoright
     if (normalized):
         renormed_bev_egoright = [
-            (x * W, y * H) 
+            (x * BEV_W, y * BEV_H)
             for x, y in bev_egoright
         ]
     else:
@@ -211,19 +212,31 @@ def interpX(line, y):
 
 
 def polyfit_BEV(
-    bev_egopath: list,
+    bev_line: list,
     order: int,
     y_step: int,
     y_limit: int
 ):
+    valid_line = [
+        point for point in bev_line
+        if (
+            (0 <= point[0] < BEV_W) and 
+            (0 <= point[1] < BEV_H)
+        )
+    ]
+    if (not valid_line):
+        warnings.warn("No valid points in BEV line for polyfit.")
+        return None, None, None
+    
     x = [
         point[0] 
-        for point in bev_egopath
+        for point in valid_line
     ]
     y = [
         point[1] 
-        for point in bev_egopath
+        for point in valid_line
     ]
+
     z = np.polyfit(y, x, order)
     f = np.poly1d(z)
     y_new = np.linspace(
@@ -233,26 +246,26 @@ def polyfit_BEV(
     x_new = f(y_new)
 
     # Sort by decreasing y
-    fitted_bev_egopath = sorted(
+    fitted_bev_line = sorted(
         tuple(zip(x_new, y_new)),
         key = lambda x: x[1],
         reverse = True
     )
 
-    flag_list = [0] * len(fitted_bev_egopath)
-    for i in range(len(fitted_bev_egopath)):
-        if (not 0 <= fitted_bev_egopath[i][0] <= BEV_W):
+    flag_list = [0] * len(fitted_bev_line)
+    for i in range(len(fitted_bev_line)):
+        if (not 0 <= fitted_bev_line[i][0] <= BEV_W):
             flag_list[i - 1] = 1
             break
     if (not 1 in flag_list):
         flag_list[-1] = 1
 
-    validity_list = [1] * len(fitted_bev_egopath)
+    validity_list = [1] * len(fitted_bev_line)
     last_valid_index = flag_list.index(1)
     for i in range(last_valid_index + 1, len(validity_list)):
         validity_list[i] = 0
     
-    return fitted_bev_egopath, flag_list, validity_list
+    return fitted_bev_line, flag_list, validity_list
 
 
 def imagePointTuplize(point: PointCoords) -> ImagePointCoords:
@@ -399,7 +412,7 @@ def transformBEV(
         y_limit = BEV_H
     )
 
-    if (not line):
+    if (not bev_line):
         return (None, None, None, None, None, None, False)
     
     # Now reproject it back to orig space
@@ -529,65 +542,189 @@ if __name__ == "__main__":
         this_frame_data = json_data[frame_id]
 
         # MAIN ALGORITHM
-        try:
 
-            # Get source points for transform
-            sps_dict = findSourcePointsBEV(
-                h = H,
-                w = W,
-                egoleft = this_frame_data["egoleft_lane"],
-                egoright = this_frame_data["egoright_lane"]
-            )
+        # Get source points for transform
+        sps_dict = findSourcePointsBEV(
+            h = H,
+            w = W,
+            egoleft = this_frame_data["egoleft_lane"],
+            egoright = this_frame_data["egoright_lane"]
+        )
 
-            # Transform to BEV space
-            
-            (im_dst, bev_egopath, flag_list, validity_list, mat) = transformBEV(
-                img = img,
-                egopath = this_frame_data["drivable_path"],
-                sps = sps_dict
-            )
+        # Transform to BEV space
+        success_flag = True
+        
+        # Egopath
+        (
+            im_dst, 
+            bev_egopath, 
+            orig_bev_egopath, 
+            egopath_flag_list, 
+            egopath_validity_list, 
+            mat, 
+            success_egopath
+        ) = transformBEV(
+            img = img,
+            line = this_frame_data["drivable_path"],
+            sps = sps_dict
+        )
 
-            # Skip if invalid frame (due to too high ego_height value)
-            if (not bev_egopath):
-                log_skipped(
-                    frame_id,
-                    "Null EgoPath from BEV transformation algorithm."
-                )
-                continue
+        # Egoleft
+        (
+            _, 
+            bev_egoleft, 
+            orig_bev_egoleft, 
+            egoleft_flag_list, 
+            egoleft_validity_list, 
+            _, 
+            success_egoleft
+        ) = transformBEV(
+            img = img, 
+            line = this_frame_data["egoleft_lane"],
+            sps = sps_dict
+        )
 
-            # Save stuffs
-            annotateGT(
-                img = im_dst,
-                frame_id = frame_id,
-                bev_egopath = bev_egopath,
-                raw_dir = BEV_IMG_DIR,
-                visualization_dir = BEV_VIS_DIR,
-                normalized = False
-            )
+        # Egoright
+        (
+            _, 
+            bev_egoright, 
+            orig_bev_egoright, 
+            egoright_flag_list, 
+            egoright_validity_list, 
+            _, 
+            success_egoright
+        ) = transformBEV(
+            img = img, 
+            line = this_frame_data["egoright_lane"],
+            sps = sps_dict
+        )
 
-            # Register this frame GT to master JSON
-            # Each point has tuple format (x, y, flag, valid)
-            data_master[frame_id] = {
-                "drivable_path" : [
-                    (point[0], point[1], flag, valid)
-                    for point, flag, valid in list(zip(
-                        round_line_floats(
-                            normalizeCoords(
-                                bev_egopath,
-                                width = BEV_W,
-                                height = BEV_H
-                            )
-                        ), 
-                        flag_list, 
-                        validity_list
-                    ))
-                ],
-                "transform_matrix" : mat.tolist()
-            }
+        if (
+            (not success_egopath) or 
+            (not success_egoleft) or 
+            (not success_egoright)
+        ):
+            success_flag = False
 
-        except Exception as e:
-            log_skipped(frame_id, str(e))
+        # ======================== FRAME'S SANITY CHECK ======================== #
+        
+        # Skip if invalid frame
+        if (success_flag == False):
+            warning_msg = "Null EgoPath/EgoLeft/EgoRight from BEV transformation algorithm."
+            log_skipped(frame_id,warning_msg)
             continue
+
+        # Skip if the polyfit goes horribly wrong
+        if (not (bev_egoleft[-1][0] <= bev_egopath[-1][0] <= bev_egoright[-1][0])):
+            warning_msg = "Polyfit went horribly wrong."
+            log_skipped(frame_id, warning_msg)
+            continue
+
+        # Save stuffs
+        annotateGT(
+            img = im_dst,
+            orig_img = img,
+            frame_id = frame_id,
+            bev_egopath = bev_egopath,
+            reproj_egopath = orig_bev_egopath,
+            bev_egoleft = bev_egoleft,
+            reproj_egoleft = orig_bev_egoleft,
+            bev_egoright = bev_egoright,
+            reproj_egoright = orig_bev_egoright,
+            raw_dir = BEV_IMG_DIR,
+            visualization_dir = BEV_VIS_DIR,
+            normalized = False
+        )
+
+        # Register this frame GT to master JSON
+        # Each point has tuple format (x, y, flag, valid)
+        data_master[frame_id] = {
+            "bev_egopath" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    round_line_floats(
+                        normalizeCoords(
+                            bev_egopath,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egopath_flag_list, 
+                    egopath_validity_list
+                ))
+            ],
+            "reproj_egopath" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    round_line_floats(
+                        normalizeCoords(
+                            orig_bev_egopath,
+                            width = W,
+                            height = H
+                        )
+                    ), 
+                    egopath_flag_list, 
+                    egopath_validity_list
+                ))
+            ],
+            "bev_egoleft" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    round_line_floats(
+                        normalizeCoords(
+                            bev_egoleft,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egoleft_flag_list, 
+                    egoleft_validity_list
+                ))
+            ],
+            "reproj_egoleft" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    round_line_floats(
+                        normalizeCoords(
+                            orig_bev_egoleft,
+                            width = W,
+                            height = H
+                        )
+                    ), 
+                    egoleft_flag_list, 
+                    egoleft_validity_list
+                ))
+            ],
+            "bev_egoright" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    round_line_floats(
+                        normalizeCoords(
+                            bev_egoright,
+                            width = BEV_W,
+                            height = BEV_H
+                        )
+                    ), 
+                    egoright_flag_list, 
+                    egoright_validity_list
+                ))
+            ],
+            "reproj_egoright" : [
+                (point[0], point[1], flag, valid)
+                for point, flag, valid in list(zip(
+                    round_line_floats(
+                        normalizeCoords(
+                            orig_bev_egoright,
+                            width = W,
+                            height = H
+                        )
+                    ), 
+                    egoright_flag_list, 
+                    egoright_validity_list
+                ))
+            ],
+            "homomatrix" : mat.tolist()
+        }
 
         # Break if early_stopping reached
         if (early_stopping is not None):

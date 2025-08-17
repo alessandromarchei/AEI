@@ -438,7 +438,7 @@ def transformBEV(
         np.array([BEV_W, BEV_H])
     )
 
-    # Transform egopath
+    # Transform line
     bev_line = np.array(
         line,
         dtype = np.float32
@@ -526,7 +526,6 @@ if __name__ == "__main__":
     # COLOR_ENDS = (153, 0, 153)      # Kinda purple
     # COLOR_HEIGHT = (0, 165, 255)    # Orange
     # POINT_SIZE = 8
-    THICKNESS = -1
 
     # PARSING ARGS
 
@@ -658,7 +657,7 @@ if __name__ == "__main__":
         ):
             success_flag = False
         
-        # Skip if invalid frame (due to too high ego_height value)
+        # Skip if invalid frame
         if (success_flag == False):
             log_skipped(
                 frame_id,
@@ -667,7 +666,7 @@ if __name__ == "__main__":
             continue
 
         # Skip if the polyfit goes horribly wrong
-        if not (bev_egoleft[-1][0] <= bev_egopath[-1][0] <= bev_egoright[-1][0]):
+        if (not (bev_egoleft[-1][0] <= bev_egopath[-1][0] <= bev_egoright[-1][0])):
             log_skipped(
                 frame_id,
                 "Polyfit went horribly wrong."
