@@ -24,7 +24,7 @@ def main():
     # ====================== Loading datasets ====================== #
 
     # Root
-    ROOT_PATH = 'DATASET ROOT HERE (INCLUDING MULTIPLE PROCESSED DATASETS)' #args.root
+    ROOT_PATH = '/home/zain/Autoware/Data/AutoSteer/'#args.root
 
     # Model save root path
     MODEL_SAVE_ROOT_PATH = '{PATH TO POV PROJECT ROOT}/Models/saves/AutoSteer/models/' #args.model_save_root_path
