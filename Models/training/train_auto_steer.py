@@ -28,14 +28,11 @@ def main():
 
     # Model save root path
     MODEL_SAVE_ROOT_PATH = '{PATH TO POV PROJECT ROOT}/Models/saves/AutoSteer/models/' #args.model_save_root_path
-
-    # Visualizations save root path
-    VIS_SAVE_ROOT_PATH = '{PATH TO POV PROJECT ROOT}/Models/saves/AutoSteer/figures/' #args.vis_save_root_path
     if (not os.path.exists(MODEL_SAVE_ROOT_PATH)):
         os.makedirs(MODEL_SAVE_ROOT_PATH)
 
     # Visualizations save root path
-    VIS_SAVE_ROOT_PATH = '{PATH TO POV PROJECT ROOT}/Models/saves/AutoSteer/figures/'
+    VIS_SAVE_ROOT_PATH = '{PATH TO POV PROJECT ROOT}/Models/saves/AutoSteer/figures/' #args.vis_save_root_path
     if (not os.path.exists(VIS_SAVE_ROOT_PATH)):
         os.makedirs(VIS_SAVE_ROOT_PATH)
 
