@@ -195,6 +195,21 @@ def annotateGT(
     )
 
 
+def calAngle(line: list[tuple[float, float]]) -> float:
+    """
+    Calculate angle of a line with vertical axis at anchor point.
+    - Vertical upward lane: 0°
+    - Horizontal leftward lane: -90°
+    - Horizontal rightward lane: +90°
+    """
+    return math.degrees(
+        math.atan2(
+            line[1][0] - line[0][0],
+            -(line[1][1] - line[0][1])
+        )
+    )
+
+
 def interpX(line, y):
     """
     Interpolate x-value of a point on a line, given y-value
@@ -476,6 +491,11 @@ if __name__ == "__main__":
     COLOR_EGOLEFT = (0, 128, 0)     # Green (BGR)
     COLOR_EGORIGHT = (255, 255, 0)  # Cyan (BGR)
 
+    # SANITY CHECK PARAMS
+
+    EGO_ANCHOR_ANGLE_THRESHOLD = 45         # Degrees
+    EGO_ANCHOR_DISTANCE_THRESHOLD = 0.3     # Should not be in 30% left or right
+
     # PARSING ARGS
 
     parser = argparse.ArgumentParser(
@@ -543,82 +563,130 @@ if __name__ == "__main__":
 
         # MAIN ALGORITHM
 
-        # Get source points for transform
-        sps_dict = findSourcePointsBEV(
-            h = H,
-            w = W,
-            egoleft = this_frame_data["egoleft_lane"],
-            egoright = this_frame_data["egoright_lane"]
-        )
+        try:
+            # Get source points for transform
+            sps_dict = findSourcePointsBEV(
+                h = H,
+                w = W,
+                egoleft = this_frame_data["egoleft_lane"],
+                egoright = this_frame_data["egoright_lane"]
+            )
 
-        # Transform to BEV space
-        success_flag = True
-        
-        # Egopath
-        (
-            im_dst, 
-            bev_egopath, 
-            orig_bev_egopath, 
-            egopath_flag_list, 
-            egopath_validity_list, 
-            mat, 
-            success_egopath
-        ) = transformBEV(
-            img = img,
-            line = this_frame_data["drivable_path"],
-            sps = sps_dict
-        )
+            # Transform to BEV space
+            success_flag = True
+            
+            # Egopath
+            (
+                im_dst, 
+                bev_egopath, 
+                orig_bev_egopath, 
+                egopath_flag_list, 
+                egopath_validity_list, 
+                mat, 
+                success_egopath
+            ) = transformBEV(
+                img = img,
+                line = this_frame_data["drivable_path"],
+                sps = sps_dict
+            )
 
-        # Egoleft
-        (
-            _, 
-            bev_egoleft, 
-            orig_bev_egoleft, 
-            egoleft_flag_list, 
-            egoleft_validity_list, 
-            _, 
-            success_egoleft
-        ) = transformBEV(
-            img = img, 
-            line = this_frame_data["egoleft_lane"],
-            sps = sps_dict
-        )
+            # Egoleft
+            (
+                _, 
+                bev_egoleft, 
+                orig_bev_egoleft, 
+                egoleft_flag_list, 
+                egoleft_validity_list, 
+                _, 
+                success_egoleft
+            ) = transformBEV(
+                img = img, 
+                line = this_frame_data["egoleft_lane"],
+                sps = sps_dict
+            )
 
-        # Egoright
-        (
-            _, 
-            bev_egoright, 
-            orig_bev_egoright, 
-            egoright_flag_list, 
-            egoright_validity_list, 
-            _, 
-            success_egoright
-        ) = transformBEV(
-            img = img, 
-            line = this_frame_data["egoright_lane"],
-            sps = sps_dict
-        )
+            # Egoright
+            (
+                _, 
+                bev_egoright, 
+                orig_bev_egoright, 
+                egoright_flag_list, 
+                egoright_validity_list, 
+                _, 
+                success_egoright
+            ) = transformBEV(
+                img = img, 
+                line = this_frame_data["egoright_lane"],
+                sps = sps_dict
+            )
 
-        if (
-            (not success_egopath) or 
-            (not success_egoleft) or 
-            (not success_egoright)
-        ):
-            success_flag = False
+            if (
+                (not success_egopath) or 
+                (not success_egoleft) or 
+                (not success_egoright)
+            ):
+                success_flag = False
+
+        except Exception as e:
+            print(f"Unexpected error at frame {frame_id}: {e}")
+            log_skipped(frame_id, str(e))
+            continue
 
         # ======================== FRAME'S SANITY CHECK ======================== #
         
         # Skip if invalid frame
         if (success_flag == False):
             warning_msg = "Null EgoPath/EgoLeft/EgoRight from BEV transformation algorithm."
-            log_skipped(frame_id,warning_msg)
+            log_skipped(frame_id, warning_msg)
             continue
 
         # Skip if the polyfit goes horribly wrong
-        if (not (bev_egoleft[-1][0] <= bev_egopath[-1][0] <= bev_egoright[-1][0])):
+        if not (
+            (bev_egoleft[0][0] <= bev_egopath[0][0] <= bev_egoright[0][0]) and
+            (bev_egoleft[-1][0] <= bev_egopath[-1][0] <= bev_egoright[-1][0])
+        ):
             warning_msg = "Polyfit went horribly wrong."
             log_skipped(frame_id, warning_msg)
             continue
+
+        # Distance check
+        if not (
+            (BEV_W * EGO_ANCHOR_DISTANCE_THRESHOLD <= bev_egopath[0][0]) and 
+            (bev_egopath[0][0] <= BEV_W * (1 - EGO_ANCHOR_DISTANCE_THRESHOLD))
+        ):
+            warning_msg = "EgoPath anchor is too far left or right."
+            log_skipped(frame_id, warning_msg)
+            continue
+
+        # ANGLE CHECK
+        
+        bev_egopath_anchor_angle = calAngle(bev_egopath)
+        bev_egoleft_anchor_angle = calAngle(bev_egoleft)
+        bev_egoright_anchor_angle = calAngle(bev_egoright)
+
+        # Egopath must not be too steep
+        if not (abs(bev_egopath_anchor_angle) <= EGO_ANCHOR_ANGLE_THRESHOLD):
+            warning_msg = f"EgoPath anchor angle is too steep: {bev_egopath_anchor_angle}"
+            log_skipped(frame_id, warning_msg)
+            continue
+
+        # 3 angles should be same dirs at anchor level
+        if not (
+            (
+                (bev_egopath_anchor_angle > 0) and 
+                (bev_egoleft_anchor_angle > 0) and 
+                (bev_egoright_anchor_angle > 0)
+            ) or (
+                (bev_egopath_anchor_angle < 0) and 
+                (bev_egoleft_anchor_angle < 0) and 
+                (bev_egoright_anchor_angle < 0)
+            )
+        ):
+            warning_msg = "EgoPath/EgoLeft/EgoRight anchor angles are not consistent."
+            log_skipped(frame_id, warning_msg)
+            continue
+
+        # ======================== SANITY CHECK DONE, CONTINUING ======================== #
 
         # Save stuffs
         annotateGT(
