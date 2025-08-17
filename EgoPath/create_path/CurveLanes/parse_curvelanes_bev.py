@@ -88,12 +88,11 @@ def annotateGT(
     # =========================== BEV VIS =========================== #
 
     img_bev_vis = img.copy()
-    h, w, _ = img_bev_vis.shape
 
     # Draw egopath
     if (normalized):
         renormed_bev_egopath = [
-            (x * w, y * h) 
+            (x * W, y * H) 
             for x, y in bev_egopath
         ]
     else:
@@ -107,7 +106,7 @@ def annotateGT(
     # Draw egoleft
     if (normalized):
         renormed_bev_egoleft = [
-            (x * w, y * h) 
+            (x * W, y * H)
             for x, y in bev_egoleft
         ]
     else:
@@ -121,7 +120,7 @@ def annotateGT(
     # Draw egoright
     if (normalized):
         renormed_bev_egoright = [
-            (x * w, y * h) 
+            (x * W, y * H) 
             for x, y in bev_egoright
         ]
     else:
@@ -146,7 +145,7 @@ def annotateGT(
     # Draw reprojected egopath
     if (normalized):
         renormed_reproj_egopath = [
-            (x * w, y * h) 
+            (x * W, y * H) 
             for x, y in reproj_egopath
         ]
     else:
@@ -160,7 +159,7 @@ def annotateGT(
     # Draw reprojected egoleft
     if (normalized):
         renormed_reproj_egoleft = [
-            (x * w, y * h) 
+            (x * W, y * H) 
             for x, y in reproj_egoleft
         ]
     else:
@@ -174,7 +173,7 @@ def annotateGT(
     # Draw reprojected egoright
     if (normalized):
         renormed_reproj_egoright = [
-            (x * w, y * h) 
+            (x * W, y * H) 
             for x, y in reproj_egoright
         ]
     else:
@@ -346,13 +345,11 @@ def transformBEV(
     line: list,
     sps: dict
 ):
-    h, w, _ = img.shape
-
     # Renorm/tuplize drivable path
     line = [
-        (point[0] * w, point[1] * h)
+        (point[0] * W, point[1] * H)
         for point in line
-        if (point[1] * h >= sps["ego_h"])
+        if (point[1] * H >= sps["ego_h"])
     ]
     if (not line):
         return (None, None, None, None, None, None, False)
@@ -448,11 +445,14 @@ if __name__ == "__main__":
     MIN_POINTS = 30
 
     BEV_PTS = {
-        "LS" : [120, 640],          # Left start
-        "RS" : [200, 640],          # Right start
-        "LE" : [120, 0],            # Left end
-        "RE" : [200, 0]             # Right end
+        "LS" : [240, 1280],         # Left start
+        "RS" : [400, 1280],         # Right start
+        "LE" : [240, 0],            # Left end
+        "RE" : [400, 0]             # Right end
     }
+
+    W = 800
+    H = 400
 
     BEV_W = 640
     BEV_H = 1280
@@ -524,7 +524,6 @@ if __name__ == "__main__":
             f"{frame_id}.png"
         )
         img = cv2.imread(frame_img_path)
-        h, w, _ = img.shape
 
         # Acquire frame data
         this_frame_data = json_data[frame_id]
@@ -534,8 +533,8 @@ if __name__ == "__main__":
 
             # Get source points for transform
             sps_dict = findSourcePointsBEV(
-                h = h,
-                w = w,
+                h = H,
+                w = W,
                 egoleft = this_frame_data["egoleft_lane"],
                 egoright = this_frame_data["egoright_lane"]
             )
