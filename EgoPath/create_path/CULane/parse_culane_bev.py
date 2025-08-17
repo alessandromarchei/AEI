@@ -449,7 +449,8 @@ def transformBEV(
         for point in bev_line
     ]
 
-    # Polyfit BEV egopath to get 33-coords format with flags
+    # Polyfit BEV line for certain amount of coords
+    # (should be 11 by default), along with flags
     bev_line, flag_list, validity_list = polyfit_BEV(
         bev_line = bev_line,
         order = POLYFIT_ORDER,
@@ -472,7 +473,15 @@ def transformBEV(
         for point in reproj_line
     ]
 
-    return (im_dst, bev_line, reproj_line, flag_list, validity_list, mat, True)
+    return (
+        im_dst, 
+        bev_line, 
+        reproj_line, 
+        flag_list, 
+        validity_list, 
+        mat, 
+        True
+    )
 
 
 # ============================== Main run ============================== #

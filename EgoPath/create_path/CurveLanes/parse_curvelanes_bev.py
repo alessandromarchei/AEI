@@ -343,21 +343,22 @@ def findSourcePointsBEV(
 
 def transformBEV(
     img: np.ndarray,
-    egopath: list,
+    line: list,
     sps: dict
 ):
     h, w, _ = img.shape
 
     # Renorm/tuplize drivable path
-    egopath = [
-        (point[0] * w, point[1] * h) for point in egopath
+    line = [
+        (point[0] * w, point[1] * h)
+        for point in line
         if (point[1] * h >= sps["ego_h"])
     ]
-    if (not egopath):
-        return (None, None, None, None, None)
+    if (not line):
+        return (None, None, None, None, None, None, False)
 
-    # Interp more points for original egopath
-    egopath = interpLine(egopath, MIN_POINTS)
+    # Interp more points for original line
+    line = interpLine(line, MIN_POINTS)
 
     # Get transformation matrix
     mat, _ = cv2.findHomography(
@@ -381,26 +382,50 @@ def transformBEV(
         np.array([BEV_W, BEV_H])
     )
 
-    # Transform egopath
-    bev_egopath = np.array(
-        egopath,
+    # Transform line
+    bev_line = np.array(
+        line,
         dtype = np.float32
     ).reshape(-1, 1, 2)
-    bev_egopath = cv2.perspectiveTransform(bev_egopath, mat)
-    bev_egopath = [
+    bev_line = cv2.perspectiveTransform(bev_line, mat)
+    bev_line = [
         tuple(map(int, point[0])) 
-        for point in bev_egopath
+        for point in bev_line
     ]
 
-    # Polyfit BEV egopath to get 33-coords format with flags
-    bev_egopath, flag_list, validity_list = polyfit_BEV(
-        bev_egopath = bev_egopath,
+    # Polyfit BEV line for certain amount of coords
+    # (should be 11 by default), along with flags
+    bev_line, flag_list, validity_list = polyfit_BEV(
+        bev_line = bev_line,
         order = POLYFIT_ORDER,
         y_step = BEV_Y_STEP,
         y_limit = BEV_H
     )
 
-    return (im_dst, bev_egopath, flag_list, validity_list, mat)
+    if (not line):
+        return (None, None, None, None, None, None, False)
+    
+    # Now reproject it back to orig space
+    inv_mat = np.linalg.inv(mat)
+    reproj_line = np.array(
+        bev_line,
+        dtype = np.float32
+    ).reshape(-1, 1, 2)
+    reproj_line = cv2.perspectiveTransform(reproj_line, inv_mat)
+    reproj_line = [
+        tuple(map(int, point[0])) 
+        for point in reproj_line
+    ]
+
+    return (
+        im_dst, 
+        bev_line, 
+        reproj_line, 
+        flag_list, 
+        validity_list, 
+        mat, 
+        True
+    )
 
 
 # ============================== Main run ============================== #
