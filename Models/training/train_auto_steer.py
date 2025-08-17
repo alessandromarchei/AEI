@@ -24,13 +24,13 @@ def main():
     # ====================== Loading datasets ====================== #
 
     # Root
-    ROOT_PATH = '/home/tranhuunhathuy/Documents/Autoware/POV_train/pov_datasets/' #args.root
+    ROOT_PATH = 'DATASET ROOT HERE (INCLUDING MULTIPLE PROCESSED DATASETS)' #args.root
 
     # Model save root path
-    MODEL_SAVE_ROOT_PATH = '/home/tranhuunhathuy/Documents/Autoware/POV_train/autoware.privately-owned-vehicles/Models/saves/AutoSteer/models/' #args.model_save_root_path
+    MODEL_SAVE_ROOT_PATH = '{PATH TO POV PROJECT ROOT}/Models/saves/AutoSteer/models/' #args.model_save_root_path
 
     # Visualizations save root path
-    VIS_SAVE_ROOT_PATH = '/home/tranhuunhathuy/Documents/Autoware/POV_train/autoware.privately-owned-vehicles/Models/saves/AutoSteer/figures/'
+    VIS_SAVE_ROOT_PATH = '{PATH TO POV PROJECT ROOT}/Models/saves/AutoSteer/figures/' #args.vis_save_root_path
 
     # Init metadata for datasets
     msdict = {}
