@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>autosteer_simulator</name>
+  <name>road_shape_publisher</name>
   <version>0.1.0</version>
-  <description>autosteer_simulator</description>
+  <description>road_shape_publisher</description>
 
   <maintainer email="limjitern@gmail.com">JITERN</maintainer>
   <license>Apache License 2.0</license>

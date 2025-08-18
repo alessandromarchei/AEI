@@ -43,9 +43,9 @@ def rpy_to_matrix(roll, pitch, yaw):
     ])
     return R
 
-class AutoSteerSimulator(Node):
+class RoadShapePublisher(Node):
     def __init__(self):
-        super().__init__('autosteer_simulator')
+        super().__init__('road_shape_publisher')
         
         self.image_sub_ = self.create_subscription(
             Image,
@@ -230,7 +230,7 @@ class AutoSteerSimulator(Node):
         
 def main(args=None):
     rclpy.init(args=args)
-    node = AutoSteerSimulator()
+    node = RoadShapePublisher()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
