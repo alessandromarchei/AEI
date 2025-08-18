@@ -3,8 +3,8 @@
 
 namespace autoware_pov::common {
 
-MasksVisualizationEngine::MasksVisualizationEngine(const std::string& viz_type) 
-    : viz_type_(viz_type) {
+MasksVisualizationEngine::MasksVisualizationEngine(const std::string& viz_type, bool show_opencv_window) 
+    : viz_type_(viz_type), show_opencv_window_(show_opencv_window) {
 }
 
 cv::Mat MasksVisualizationEngine::visualize(const cv::Mat& mask, const cv::Mat& original_image) {
@@ -73,6 +73,14 @@ cv::Mat MasksVisualizationEngine::visualize(const cv::Mat& mask, const cv::Mat& 
     // Blend with original image: 50% color + 50% original
     cv::Mat blended_result;
     cv::addWeighted(resized_color_mask, 0.5, original_image, 0.5, 0.0, blended_result);
+    
+    // Display OpenCV window with the blended result (only if flag is enabled)
+    if (show_opencv_window_) {
+        cv::namedWindow("VisionPilot Visualization", cv::WINDOW_NORMAL);
+        cv::resizeWindow("VisionPilot Visualization", 1280, 720);  // Set window size to 1280x720
+        cv::imshow("VisionPilot Visualization", blended_result);
+        cv::waitKey(1);  // Non-blocking display update
+    }
     
     return blended_result;
 }
