@@ -16,22 +16,65 @@ PathFinderNode::PathFinderNode() : Node("pathfinder_node"), drivCorr(std::nullop
   bayesFilter.initialize(init_state);
 
   publisher_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("tracked_states", 10);
-  subscription_ = this->create_subscription<std_msgs::msg::Float32MultiArray>(
-      "egoLanes", 10, std::bind(&PathFinderNode::topic_callback, this, std::placeholders::_1));
 
-  // For loopback testing without egoLanes and egoPath topics
-  loopback_publisher_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("egoLanes", 10);
-  timer_ = this->create_wall_timer(std::chrono::milliseconds(1000), std::bind(&PathFinderNode::timer_callback_, this));
-
-  std::string package_share_dir = ament_index_cpp::get_package_share_directory("PATHFINDER");
-  yaml_fp = package_share_dir + "/test/000001/1616005402699.yaml";
-  homo_fp = package_share_dir + "/test/image_to_world_transform.yaml";
-  estimateH(homo_fp);
-  H = loadHFromYaml(homo_fp);
+  sub_laneL_ = this->create_subscription<std_msgs::msg::Float32MultiArray>("/egoLaneL", 10,
+                                                                           std::bind(&PathFinderNode::callbackLaneL, this, std::placeholders::_1));
+  sub_laneR_ = this->create_subscription<std_msgs::msg::Float32MultiArray>("/egoLaneR", 10,
+                                                                           std::bind(&PathFinderNode::callbackLaneR, this, std::placeholders::_1));
+  sub_path_ = this->create_subscription<std_msgs::msg::Float32MultiArray>("/egoPath", 10,
+                                                                          std::bind(&PathFinderNode::callbackPath, this, std::placeholders::_1));
 
   RCLCPP_INFO(this->get_logger(), "PathFinder Node started");
 }
 
+void PathFinderNode::callbackLaneL(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+{
+  auto points = reshapeTo2D(msg);
+  RCLCPP_INFO(this->get_logger(), "Received egoLaneL with %zu points", points.size());
+}
+
+void PathFinderNode::callbackLaneR(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+{
+  auto points = reshapeTo2D(msg);
+  RCLCPP_INFO(this->get_logger(), "Received egoLaneR with %zu points", points.size());
+}
+
+void PathFinderNode::callbackPath(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+{
+  auto points = reshapeTo2D(msg);
+  RCLCPP_INFO(this->get_logger(), "Received egoPath with %zu points", points.size());
+}
+
+/// Convert Flat Float32MultiArray → vector of {x,y}
+std::vector<std::array<float, 2>> PathFinderNode::reshapeTo2D(const std_msgs::msg::Float32MultiArray::SharedPtr &msg)
+{
+  size_t N = 0;
+  size_t D = 0;
+  if (msg->layout.dim.size() >= 2)
+  {
+    N = msg->layout.dim[0].size; // number of points
+    D = msg->layout.dim[1].size; // should be 2
+  }
+
+  std::vector<std::array<float, 2>> pts;
+  if (D != 2 || N == 0)
+  {
+    RCLCPP_WARN(this->get_logger(), "Invalid dimensions (N=%zu, D=%zu)", N, D);
+    return pts;
+  }
+
+  pts.reserve(N);
+  for (size_t i = 0; i < N; i++)
+  {
+    std::array<float, 2> p;
+    p[0] = msg->data[i * D + 0]; // x
+    p[1] = msg->data[i * D + 1]; // y
+    pts.push_back(p);
+  }
+  return pts;
+}
+
+//TODO: rewrite the following function to use the new callback functions
 void PathFinderNode::topic_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
 {
   std::vector<cv::Point2f> list1;
@@ -162,68 +205,6 @@ void PathFinderNode::topic_callback(const std_msgs::msg::Float32MultiArray::Shar
     out_msg.data[STATE_DIM + i] = state[i].variance;
   }
   publisher_->publish(out_msg);
-}
-
-void PathFinderNode::timer_callback_()
-{
-  auto egoLanesPts = loadLanesFromYaml(yaml_fp, H);
-  if (egoLanesPts.size() < 2)
-  {
-    std::cerr << "Not enough lanes to calculate ego path" << std::endl;
-    return;
-  }
-  auto list1 = egoLanesPts[2].BevPoints;
-  auto list2 = egoLanesPts[1].BevPoints;
-  auto msg = std_msgs::msg::Float32MultiArray();
-
-  size_t max_points = std::max(list1.size(), list2.size());
-  msg.data.reserve(2 * max_points * 2); // 2 lists * max_points * (x,y)
-
-  float NaN = std::numeric_limits<float>::quiet_NaN();
-
-  for (auto &p : list1)
-  {
-    msg.data.push_back(static_cast<float>(p.x));
-    msg.data.push_back(static_cast<float>(p.y));
-  }
-  for (size_t i = list1.size(); i < max_points; ++i)
-  {
-    msg.data.push_back(NaN);
-    msg.data.push_back(NaN);
-  }
-
-  for (auto &p : list2)
-  {
-    msg.data.push_back(static_cast<float>(p.x));
-    msg.data.push_back(static_cast<float>(p.y));
-  }
-  for (size_t i = list2.size(); i < max_points; ++i)
-  {
-    msg.data.push_back(NaN);
-    msg.data.push_back(NaN);
-  }
-
-  // Layout
-  msg.layout.dim.resize(3);
-
-  // dim[0]: lists
-  msg.layout.dim[0].label = "lists";
-  msg.layout.dim[0].size = 2;                    // 2 lists
-  msg.layout.dim[0].stride = max_points * 2 * 2; // each list = max_points * (x,y)
-
-  // dim[1]: points
-  msg.layout.dim[1].label = "points";
-  msg.layout.dim[1].size = max_points; // max_points per list
-  msg.layout.dim[1].stride = 2;        // each point has 2 elements
-
-  // dim[2]: xy
-  msg.layout.dim[2].label = "xy";
-  msg.layout.dim[2].size = 2;
-  msg.layout.dim[2].stride = 1; // x and y are adjacent
-
-  msg.layout.data_offset = 0;
-
-  loopback_publisher_->publish(msg);
 }
 
 int main(int argc, char *argv[])

@@ -14,18 +14,18 @@ public:
     PathFinderNode();
 
 private:
-    void topic_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
-    void timer_callback_();
-    rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr loopback_publisher_;
+    void topic_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg);//to remove
+    void callbackLaneL(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
+    void callbackLaneR(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
+    void callbackPath(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr publisher_;
-    rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr subscription_;
-    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sub_laneL_;
+    rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sub_laneR_;
+    rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sub_path_;
+    std::vector<std::array<float, 2>> reshapeTo2D(const std_msgs::msg::Float32MultiArray::SharedPtr &msg);
     Estimator bayesFilter;
-    cv::Mat H;
     drivingCorridor drivCorr;
     const double proc_SD = 0.5;
     const double meas_SD = 0.5;
     const double epsilon = 0.05;
-    std::string yaml_fp;
-    std::string homo_fp;
 };
