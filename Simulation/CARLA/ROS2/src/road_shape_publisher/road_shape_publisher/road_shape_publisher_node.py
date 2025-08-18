@@ -5,19 +5,16 @@ import carla
 import math
 import numpy as np
 from builtin_interfaces.msg import Time 
-from sensor_msgs.msg import Image
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
 from std_msgs.msg import Float32MultiArray
-import cv2
-from cv_bridge import CvBridge
 
 LOOKAHEAD_DISTANCE = 60.0  # meters
 STEP_DISTANCE = 2.0        # distance between waypoints
 DEFAULT_SPEED = 2.0       # m/s constant assumed speed
 LANE_WIDTH = 3.5          # meters, typical lane width
 
-#TODO: check waypt timestamp (lagging) vs image timestamp, publish Float32MultiArray
+#TODO: publish Float32MultiArray
 
 def yaw_to_quaternion(yaw_deg):
     yaw = math.radians(yaw_deg)
@@ -47,16 +44,9 @@ class RoadShapePublisher(Node):
     def __init__(self):
         super().__init__('road_shape_publisher')
         
-        self.image_sub_ = self.create_subscription(
-            Image,
-            '/carla/hero/main_cam/image',
-            self.image_callback,
-            2
-        )
         self.egoPath_viz_pub_ = self.create_publisher(Path, '/viz/egoPath', 2)
         self.egoLaneL_viz_pub_ = self.create_publisher(Path, '/viz/egoLaneL', 2)
         self.egoLaneR_viz_pub_ = self.create_publisher(Path, '/viz/egoLaneR', 2)
-        self.image_viz_pub_ = self.create_publisher(Image, '/viz/autosteer', 2)
         
         self.egoLaneL_pub_ = self.create_publisher(Float32MultiArray, '/egoLaneL', 2)
         self.egoLaneR_pub_ = self.create_publisher(Float32MultiArray, '/egoLaneR', 2)
@@ -73,24 +63,10 @@ class RoadShapePublisher(Node):
             return
 
         timer_period = 0.1
-        # self.timer = self.create_timer(timer_period, self.timer_callback)
-        self.bridge = CvBridge()
+        self.timer = self.create_timer(timer_period, self.timer_callback)
         self.egopath_pts = []
         self.egolaneL_pts = []
         self.egolaneR_pts = []
-        
-        # Hardcoded intrinsics
-        self.K = np.array([[102841.44,     0.0, 640.0],
-                           [    0.0, 102841.44, 360.0],
-                           [    0.0,     0.0,    1.0]])
-        # Hardcoded extrinsics (rotation + translation)
-        R_base_to_cam = np.array([  [0, -1,  0],
-                                    [0,  0, -1],
-                                    [1,  0,  0]  ], dtype=np.float32)
-        #base frame pose in opencv camera frame
-        self.rvec, _ = cv2.Rodrigues(R_base_to_cam)
-        self.tvec = np.array([[0.0], [1.3], [-1.25]], dtype=np.float32)
-        self.dist_coeffs = np.zeros((5,1))
 
     def _find_ego_vehicle(self):
         for actor in self.world.get_actors().filter('vehicle.*'):
@@ -98,41 +74,6 @@ class RoadShapePublisher(Node):
                 return actor
         self.get_logger().error('Ego vehicle not found')
         return None
-    
-    def image_callback(self, msg : Image):
-        self.timer_callback()
-        if len(self.egopath_pts) == 0:
-            self.get_logger().warn('No ego path points available for visualization')
-            return
-        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        egopath_pix, _ = cv2.projectPoints(self.egopath_pts, self.rvec, self.tvec, self.K, self.dist_coeffs)
-        egolaneL_pix, _ = cv2.projectPoints(self.egolaneL_pts, self.rvec, self.tvec, self.K, self.dist_coeffs)
-        egolaneR_pix, _ = cv2.projectPoints(self.egolaneR_pts, self.rvec, self.tvec, self.K, self.dist_coeffs)
-        egopath_pix = egopath_pix.reshape(-1, 2)
-        egolaneL_pix = egolaneL_pix.reshape(-1, 2)
-        egolaneR_pix = egolaneR_pix.reshape(-1, 2)
-        
-        print(egopath_pix)
-        b,g,r = 255, 255, 255
-        for pt in egopath_pix:
-            u, v = int(pt[0]/1000 + 1280/2), int(pt[1]/1000 + 720/2)
-            if 0 <= u < frame.shape[1] and 0 <= v < frame.shape[0]:
-                cv2.circle(frame, (u, v), 3, (0, g, 0), -1)
-                g -= 10
-        for pt in egolaneL_pix:
-            u, v = int(pt[0]/1000 + 1280/2), int(pt[1]/1000 + 720/2)
-            if 0 <= u < frame.shape[1] and 0 <= v < frame.shape[0]:
-                cv2.circle(frame, (u, v), 3, (b, 0, 0), -1)
-                b -= 10
-        for pt in egolaneR_pix:
-            u, v = int(pt[0]/1000 + 1280/2), int(pt[1]/1000 + 720/2)
-            if 0 <= u < frame.shape[1] and 0 <= v < frame.shape[0]:
-                cv2.circle(frame, (u, v), 3, (0, 0, r), -1)
-                r -= 10
-        
-        annotated_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
-        annotated_msg.header = msg.header
-        self.image_viz_pub_.publish(annotated_msg)
 
     def timer_callback(self):
         if not self.ego:
