@@ -12,7 +12,7 @@ from Models.data_utils.load_data_auto_steer import LoadDataAutoSteer
 from Models.training.auto_steer_trainer import AutoSteerTrainer
 
 # Currently limiting to available datasets only. Will unlock eventually
-VALID_DATASET_LITERALS = Literal["TUSIMPLE", "CULANE"]
+VALID_DATASET_LITERALS = Literal["TUSIMPLE"] #Literal["TUSIMPLE", "CULANE"]
 VALID_DATASET_LIST = list(get_args(VALID_DATASET_LITERALS))
 
 BEV_JSON_PATH = "drivable_path_bev.json"
@@ -32,9 +32,13 @@ def main():
 
     # Model save root path
     MODEL_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/models/' #args.model_save_root_path
+    if (not os.path.exists(MODEL_SAVE_ROOT_PATH)):
+        os.makedirs(MODEL_SAVE_ROOT_PATH)
 
     # Visualizations save root path
     VIS_SAVE_ROOT_PATH = '/home/zain/Autoware/Privately_Owned_Vehicles/Models/saves/AutoSteer/figures/'
+    if (not os.path.exists(VIS_SAVE_ROOT_PATH)):
+        os.makedirs(VIS_SAVE_ROOT_PATH)
 
     # Init metadata for datasets
     msdict = {}
@@ -103,10 +107,10 @@ def main():
     trainer.zero_grad()
     
     # Training loop parameters
-    NUM_EPOCHS = 10
-    LOGSTEP_LOSS = 25
+    NUM_EPOCHS = 50
+    LOGSTEP_LOSS = 50
     LOGSTEP_VIS = 100
-    LOGSTEP_MODEL = 10000
+    LOGSTEP_MODEL = 5000
 
     # Val visualization param
     N_VALVIS = 25
@@ -211,7 +215,7 @@ def main():
             # Perspective image
             perspective_image = Image.open(
                 os.path.join(
-                    msdict[dataset]["path_perspective_image"],
+                    msdict[current_dataset]["path_perspective_image"],
                     f"{frame_id}.png"
                 )
             ).convert("RGB")
@@ -219,7 +223,7 @@ def main():
             # BEV visualization
             bev_vis = Image.open(
                 os.path.join(
-                    msdict[dataset]["path_bev_vis"],
+                    msdict[current_dataset]["path_bev_vis"],
                     f"{frame_id}.jpg"
                 )
             ).convert("RGB")
@@ -256,7 +260,7 @@ def main():
             # Save model and run Validation on entire validation dataset
             if ((msdict["sample_counter"] + 1) % LOGSTEP_MODEL == 0):
                 
-                print(f"\nIteration: {msdict['sample_counter'] + 1}")
+                print(f"\nIteration: {msdict['log_counter'] + 1}")
                 print("================ Saving Model ================")
 
                 # Save model
