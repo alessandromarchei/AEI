@@ -7,14 +7,11 @@ import numpy as np
 from builtin_interfaces.msg import Time 
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float32MultiArray, MultiArrayDimension
 
 LOOKAHEAD_DISTANCE = 60.0  # meters
 STEP_DISTANCE = 2.0        # distance between waypoints
-DEFAULT_SPEED = 2.0       # m/s constant assumed speed
 LANE_WIDTH = 3.5          # meters, typical lane width
-
-#TODO: publish Float32MultiArray
 
 def yaw_to_quaternion(yaw_deg):
     yaw = math.radians(yaw_deg)
@@ -74,7 +71,24 @@ class RoadShapePublisher(Node):
                 return actor
         self.get_logger().error('Ego vehicle not found')
         return None
+    
+    def publish_array(self, pub, pts: np.ndarray):
+        """
+        Publish Nx3 numpy array as Float32MultiArray
+        """
+        msg = Float32MultiArray()
+        msg.data = pts.astype(np.float32).flatten().tolist()
 
+        # layout metadata
+        msg.layout.dim.append(MultiArrayDimension(label="points",
+                                                  size=pts.shape[0],
+                                                  stride=pts.shape[0] * pts.shape[1]))
+        msg.layout.dim.append(MultiArrayDimension(label="xy",
+                                                  size=pts.shape[1],
+                                                  stride=pts.shape[1]))
+
+        pub.publish(msg)
+        
     def timer_callback(self):
         if not self.ego:
             return
@@ -164,9 +178,13 @@ class RoadShapePublisher(Node):
             self.egoPath_viz_pub_.publish(path_msg)
             self.egoLaneL_viz_pub_.publish(left_lane)
             self.egoLaneR_viz_pub_.publish(right_lane)  
-            self.egopath_pts = np.array([[pose.pose.position.x, pose.pose.position.y, pose.pose.position.z] for pose in path_msg.poses if pose.pose.position.x>1.25])
-            self.egolaneL_pts = np.array([[pose.pose.position.x, pose.pose.position.y, pose.pose.position.z] for pose in left_lane.poses if pose.pose.position.x>1.25])
-            self.egolaneR_pts = np.array([[pose.pose.position.x, pose.pose.position.y, pose.pose.position.z] for pose in right_lane.poses if pose.pose.position.x>1.25])
+            egopath_pts  = np.array([[pose.pose.position.x, pose.pose.position.y] for pose in path_msg.poses])
+            egolaneL_pts = np.array([[pose.pose.position.x, pose.pose.position.y] for pose in left_lane.poses])
+            egolaneR_pts = np.array([[pose.pose.position.x, pose.pose.position.y] for pose in right_lane.poses])
+            self.publish_array(self.egoPath_pub_,  egopath_pts)
+            self.publish_array(self.egoLaneR_pub_, egolaneR_pts)
+            self.publish_array(self.egoLaneL_pub_, egolaneL_pts)
+            self.get_logger().info("Published egoPath, egoLaneL, egoLaneR")
 
         
 def main(args=None):
