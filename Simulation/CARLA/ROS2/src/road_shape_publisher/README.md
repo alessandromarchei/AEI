@@ -1,2 +1,4 @@
-## AutoSteer Simulator
-Simulates AutoSteer detection from Image and publishes EgoLane and EgoPath data to be used by PathFinder, also publishes annotated Image for debugging.
+## Road Shape Publisher
+Simulates EgoLanes and EgoPath using ground truth data from CARLA Python API, publishes 
+-  ground truth points in BEV metric coordinate relative to vehicle `std_msgs/Float32MultiArray`
+-  same data as above in `nav_msgs/Path` for visualization
