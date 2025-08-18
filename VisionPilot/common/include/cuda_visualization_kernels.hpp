@@ -20,17 +20,6 @@ public:
         const std::vector<int64_t>& tensor_shape,
         cv::Mat& output_mask
     );
-    
-    /**
-     * Direct tensor-to-colored visualization (full pipeline)
-     * Combines inference output → argmax → colorization in one GPU kernel
-     */
-    static bool createColoredVisualizationCUDA(
-        const float* tensor_data,
-        const std::vector<int64_t>& tensor_shape,
-        const std::string& viz_type,
-        cv::Mat& colored_output
-    );
 };
 
 } // namespace autoware_pov::common
