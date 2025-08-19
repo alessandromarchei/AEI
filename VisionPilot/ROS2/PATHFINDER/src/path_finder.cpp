@@ -124,8 +124,8 @@ std::vector<LanePts> loadLanesFromYaml(const std::string &filename, cv::Mat &H)
         {
             // std::cout << "  [" << pt2d[0].as<double>() << ", " << pt2d[1].as<double>() << "]\n";
             auto noise = generatePixelNoise(5.0);
-            double u = pt2d[0].as<double>() ;//+ noise[0];
-            double v = pt2d[1].as<double>() ;//+ noise[1];
+            double u = pt2d[0].as<double>(); //+ noise[0];
+            double v = pt2d[1].as<double>(); //+ noise[1];
             lane_pixels.emplace_back(cv::Point2f(u, v));
         }
         std::vector<cv::Point2f> bev_pixels;

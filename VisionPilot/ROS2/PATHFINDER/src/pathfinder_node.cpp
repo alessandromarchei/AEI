@@ -1,7 +1,8 @@
 #include "pathfinder_node.hpp"
-
-PathFinderNode::PathFinderNode() : Node("pathfinder_node"), drivCorr(std::nullopt, std::nullopt, std::nullopt)
+//TODO: visualization in rviz
+PathFinderNode::PathFinderNode(const rclcpp::NodeOptions &options) : Node("pathfinder_node", options)
 {
+  this->set_parameter(rclcpp::Parameter("use_sim_time", true));
   bayesFilter = Estimator();
   bayesFilter.configureFusionGroups({
       // {start_idx,end_idx}
@@ -13,128 +14,60 @@ PathFinderNode::PathFinderNode() : Node("pathfinder_node"), drivCorr(std::nullop
   Gaussian default_state = {0.0, 1e6}; // states can be any value, variance is large
   std::array<Gaussian, STATE_DIM> init_state;
   init_state.fill(default_state);
+  init_state[12].mean = 3.5; // width assumed to be 3.5m
   bayesFilter.initialize(init_state);
 
   publisher_ = this->create_publisher<std_msgs::msg::Float32MultiArray>("tracked_states", 10);
 
-  sub_laneL_ = this->create_subscription<std_msgs::msg::Float32MultiArray>("/egoLaneL", 10,
-                                                                           std::bind(&PathFinderNode::callbackLaneL, this, std::placeholders::_1));
-  sub_laneR_ = this->create_subscription<std_msgs::msg::Float32MultiArray>("/egoLaneR", 10,
-                                                                           std::bind(&PathFinderNode::callbackLaneR, this, std::placeholders::_1));
-  sub_path_ = this->create_subscription<std_msgs::msg::Float32MultiArray>("/egoPath", 10,
-                                                                          std::bind(&PathFinderNode::callbackPath, this, std::placeholders::_1));
+  sub_laneL_ = this->create_subscription<nav_msgs::msg::Path>("/egoLaneL", 5,
+                                                              std::bind(&PathFinderNode::callbackLaneL, this, std::placeholders::_1));
+  sub_laneR_ = this->create_subscription<nav_msgs::msg::Path>("/egoLaneR", 5,
+                                                              std::bind(&PathFinderNode::callbackLaneR, this, std::placeholders::_1));
+  sub_path_ = this->create_subscription<nav_msgs::msg::Path>("/egoPath", 5,
+                                                             std::bind(&PathFinderNode::callbackPath, this, std::placeholders::_1));
+
+  timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&PathFinderNode::timer_callback, this));
 
   RCLCPP_INFO(this->get_logger(), "PathFinder Node started");
 }
 
-void PathFinderNode::callbackLaneL(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+void PathFinderNode::callbackLaneL(const nav_msgs::msg::Path::SharedPtr msg)
 {
-  auto points = reshapeTo2D(msg);
-  RCLCPP_INFO(this->get_logger(), "Received egoLaneL with %zu points", points.size());
+  left_coeff = pathMsg2Coeff(msg);
 }
 
-void PathFinderNode::callbackLaneR(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+void PathFinderNode::callbackLaneR(const nav_msgs::msg::Path::SharedPtr msg)
 {
-  auto points = reshapeTo2D(msg);
-  RCLCPP_INFO(this->get_logger(), "Received egoLaneR with %zu points", points.size());
+  right_coeff = pathMsg2Coeff(msg);
 }
 
-void PathFinderNode::callbackPath(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+void PathFinderNode::callbackPath(const nav_msgs::msg::Path::SharedPtr msg)
 {
-  auto points = reshapeTo2D(msg);
-  RCLCPP_INFO(this->get_logger(), "Received egoPath with %zu points", points.size());
+  path_coeff = pathMsg2Coeff(msg);
 }
 
-/// Convert Flat Float32MultiArray → vector of {x,y}
-std::vector<std::array<float, 2>> PathFinderNode::reshapeTo2D(const std_msgs::msg::Float32MultiArray::SharedPtr &msg)
+std::array<double, 3UL> PathFinderNode::pathMsg2Coeff(const nav_msgs::msg::Path::SharedPtr &msg)
 {
-  size_t N = 0;
-  size_t D = 0;
-  if (msg->layout.dim.size() >= 2)
+  auto now = this->get_clock()->now();
+  auto msg_time = rclcpp::Time(msg->header.stamp);
+  rclcpp::Duration threshold(0, 60000000); // (sec, nanosec)
+  if ((now - msg_time) > threshold)
   {
-    N = msg->layout.dim[0].size; // number of points
-    D = msg->layout.dim[1].size; // should be 2
+    RCLCPP_WARN(this->get_logger(), "Dropping stale message %ld nsec old", (now - msg_time).nanoseconds());
+    return {0.0, 0.0, 0.0};
   }
-
-  std::vector<std::array<float, 2>> pts;
-  if (D != 2 || N == 0)
+  std::vector<cv::Point2f> points;
+  
+  for (const auto &pose : msg->poses)
   {
-    RCLCPP_WARN(this->get_logger(), "Invalid dimensions (N=%zu, D=%zu)", N, D);
-    return pts;
+    points.emplace_back(pose.pose.position.y, pose.pose.position.x);
   }
-
-  pts.reserve(N);
-  for (size_t i = 0; i < N; i++)
-  {
-    std::array<float, 2> p;
-    p[0] = msg->data[i * D + 0]; // x
-    p[1] = msg->data[i * D + 1]; // y
-    pts.push_back(p);
-  }
-  return pts;
+  return fitQuadPoly(points);
 }
 
-//TODO: rewrite the following function to use the new callback functions
-void PathFinderNode::topic_callback(const std_msgs::msg::Float32MultiArray::SharedPtr msg)
+void PathFinderNode::timer_callback()
 {
-  std::vector<cv::Point2f> list1;
-  std::vector<cv::Point2f> list2;
-
-  // Check if layout has correct dimensions
-  if (msg->layout.dim.size() != 3)
-  {
-    RCLCPP_ERROR(rclcpp::get_logger("unpack"), "Invalid layout: expected 3 dimensions");
-    return;
-  }
-
-  size_t num_lists = msg->layout.dim[0].size;  // Should be 2
-  size_t max_points = msg->layout.dim[1].size; // max points per list
-  size_t xy_size = msg->layout.dim[2].size;    // Should be 2
-
-  if (num_lists != 2 || xy_size != 2)
-  {
-    RCLCPP_ERROR(rclcpp::get_logger("unpack"), "Unexpected layout sizes");
-    return;
-  }
-
-  const auto &data = msg->data;
-
-  if (data.size() < num_lists * max_points * xy_size)
-  {
-    RCLCPP_ERROR(rclcpp::get_logger("unpack"), "Data size does not match layout");
-    return;
-  }
-
-  // Reserve memory
-  list1.reserve(max_points);
-  list2.reserve(max_points);
-
-  // Parse first list
-  size_t offset_list1 = 0;
-  size_t offset_list2 = max_points * xy_size; // second list starts after first list block
-
-  for (size_t i = 0; i < max_points; ++i)
-  {
-    float x1 = data[offset_list1 + i * xy_size];
-    float y1 = data[offset_list1 + i * xy_size + 1];
-
-    if (!std::isnan(x1) && !std::isnan(y1))
-    {
-      list1.emplace_back(x1, y1);
-    }
-
-    float x2 = data[offset_list2 + i * xy_size];
-    float y2 = data[offset_list2 + i * xy_size + 1];
-
-    if (!std::isnan(x2) && !std::isnan(y2))
-    {
-      list2.emplace_back(x2, y2);
-    }
-  }
-  auto coeff1 = fitQuadPoly(list1);
-  auto coeff2 = fitQuadPoly(list2);
-
-  drivCorr = drivingCorridor(fittedCurve(coeff1), fittedCurve(coeff2), std::nullopt);
+  auto drivCorr = drivingCorridor(fittedCurve(left_coeff), fittedCurve(right_coeff), fittedCurve(path_coeff));
 
   std::array<Gaussian, STATE_DIM> measurement;
   std::array<Gaussian, STATE_DIM> process;
@@ -210,7 +143,7 @@ void PathFinderNode::topic_callback(const std_msgs::msg::Float32MultiArray::Shar
 int main(int argc, char *argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<PathFinderNode>());
+  rclcpp::spin(std::make_shared<PathFinderNode>(rclcpp::NodeOptions()));
   rclcpp::shutdown();
   return 0;
 }
