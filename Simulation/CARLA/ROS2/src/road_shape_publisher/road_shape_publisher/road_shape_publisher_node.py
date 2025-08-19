@@ -7,7 +7,6 @@ import numpy as np
 from builtin_interfaces.msg import Time 
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
-from std_msgs.msg import Float32MultiArray, MultiArrayDimension
 
 LOOKAHEAD_DISTANCE = 60.0  # meters
 STEP_DISTANCE = 2.0        # distance between waypoints
@@ -41,13 +40,9 @@ class RoadShapePublisher(Node):
     def __init__(self):
         super().__init__('road_shape_publisher')
         
-        self.egoPath_viz_pub_ = self.create_publisher(Path, '/viz/egoPath', 2)
-        self.egoLaneL_viz_pub_ = self.create_publisher(Path, '/viz/egoLaneL', 2)
-        self.egoLaneR_viz_pub_ = self.create_publisher(Path, '/viz/egoLaneR', 2)
-        
-        self.egoLaneL_pub_ = self.create_publisher(Float32MultiArray, '/egoLaneL', 2)
-        self.egoLaneR_pub_ = self.create_publisher(Float32MultiArray, '/egoLaneR', 2)
-        self.egoPath_pub_ = self.create_publisher(Float32MultiArray, '/egoPath', 2)
+        self.egoPath_viz_pub_ = self.create_publisher(Path, '/egoPath', 2)
+        self.egoLaneL_viz_pub_ = self.create_publisher(Path, '/egoLaneL', 2)
+        self.egoLaneR_viz_pub_ = self.create_publisher(Path, '/egoLaneR', 2)
         
         self.client = carla.Client("localhost", 2000)
         self.client.set_timeout(5.0)
@@ -71,23 +66,6 @@ class RoadShapePublisher(Node):
                 return actor
         self.get_logger().error('Ego vehicle not found')
         return None
-    
-    def publish_array(self, pub, pts: np.ndarray):
-        """
-        Publish Nx3 numpy array as Float32MultiArray
-        """
-        msg = Float32MultiArray()
-        msg.data = pts.astype(np.float32).flatten().tolist()
-
-        # layout metadata
-        msg.layout.dim.append(MultiArrayDimension(label="points",
-                                                  size=pts.shape[0],
-                                                  stride=pts.shape[0] * pts.shape[1]))
-        msg.layout.dim.append(MultiArrayDimension(label="xy",
-                                                  size=pts.shape[1],
-                                                  stride=pts.shape[1]))
-
-        pub.publish(msg)
         
     def timer_callback(self):
         if not self.ego:
@@ -174,18 +152,10 @@ class RoadShapePublisher(Node):
             right_lane.poses.append(right_ps)
             
         if path_msg.poses:
-            self.get_logger().info(f'Publishing path with {len(path_msg.poses)} waypoints')
             self.egoPath_viz_pub_.publish(path_msg)
             self.egoLaneL_viz_pub_.publish(left_lane)
             self.egoLaneR_viz_pub_.publish(right_lane)  
-            egopath_pts  = np.array([[pose.pose.position.x, pose.pose.position.y] for pose in path_msg.poses])
-            egolaneL_pts = np.array([[pose.pose.position.x, pose.pose.position.y] for pose in left_lane.poses])
-            egolaneR_pts = np.array([[pose.pose.position.x, pose.pose.position.y] for pose in right_lane.poses])
-            self.publish_array(self.egoPath_pub_,  egopath_pts)
-            self.publish_array(self.egoLaneR_pub_, egolaneR_pts)
-            self.publish_array(self.egoLaneL_pub_, egolaneL_pts)
-            self.get_logger().info("Published egoPath, egoLaneL, egoLaneR")
-
+            self.get_logger().info(f'Publishing egoPath and egoLanes with {len(path_msg.poses)} waypoints')
         
 def main(args=None):
     rclpy.init(args=args)
