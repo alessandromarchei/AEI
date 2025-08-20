@@ -321,7 +321,7 @@ def findSourcePointsBEV(
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
-    ego_height = max(egoleft[-1][1], egoright[-1][1]) * 1.05
+    ego_height = max(egoleft[-1][1], egoright[-1][1])
 
     # Both egos have Null anchors
     if (
