@@ -649,39 +649,29 @@ if __name__ == "__main__":
 
             # Egoleft
             (
-                _, 
                 bev_egoleft, 
                 orig_bev_egoleft, 
                 egoleft_flag_list, 
                 egoleft_validity_list, 
-                _, 
-                success_egoleft
-            ) = transformBEV(
-                img = img, 
-                line = this_frame_data["egoleft_lane"],
-                sps = sps_dict
+            ) = calEgoSide(
+                bev_egopath = bev_egopath,
+                anchor_offset = sps_dict["left_offset"],
+                homotrans_mat = mat
             )
 
             # Egoright
             (
-                _, 
                 bev_egoright, 
                 orig_bev_egoright, 
                 egoright_flag_list, 
                 egoright_validity_list, 
-                _, 
-                success_egoright
-            ) = transformBEV(
-                img = img, 
-                line = this_frame_data["egoright_lane"],
-                sps = sps_dict
+            ) = calEgoSide(
+                bev_egopath = bev_egopath,
+                anchor_offset = sps_dict["right_offset"],
+                homotrans_mat = mat
             )
 
-            if (
-                (not success_egopath) or 
-                (not success_egoleft) or 
-                (not success_egoright)
-            ):
+            if (not success_egopath):
                 success_flag = False
 
         except Exception as e:
@@ -693,7 +683,7 @@ if __name__ == "__main__":
         
         # Skip if invalid frame
         if (success_flag == False):
-            warning_msg = "Null EgoPath/EgoLeft/EgoRight from BEV transformation algorithm."
+            warning_msg = "Null EgoPath from BEV transformation algorithm."
             log_skipped(frame_id, warning_msg)
             continue
 
