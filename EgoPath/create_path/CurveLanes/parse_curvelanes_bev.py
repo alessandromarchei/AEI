@@ -321,6 +321,7 @@ def findSourcePointsBEV(
     # CALCULATING LE AND RE BASED ON LATEST ALGORITHM
 
     midanchor_start = [(sps["LS"][0] + sps["RS"][0]) / 2, h]
+    sps["midanchor_start"] = midanchor_start
     ego_height = max(egoleft[-1][1], egoright[-1][1])
 
     # Both egos have Null anchors
@@ -362,10 +363,8 @@ def findSourcePointsBEV(
     for i, pt in sps.items():
         sps[i] = imagePointTuplize(pt)
 
-    # Log the ego_height, and left/right offsets
+    # Log the ego_height
     sps["ego_h"] = ego_height
-    sps["left_offset"] = anchor_left[0] - midanchor_start[0]
-    sps["right_offset"] = anchor_right[0] - midanchor_start[0]
 
     return sps
 
@@ -455,9 +454,25 @@ def transformBEV(
     )
 
 
+def calTransformedDistance(
+        a: ImagePointCoords | PointCoords,
+        b: ImagePointCoords | PointCoords,
+        homotrans_mat: list[list[float]]
+) -> float:
+
+    pts = np.array([a, b], dtype = np.float32).reshape(-1, 1, 2)
+    pts_bev = cv2.perspectiveTransform(pts, homotrans_mat)
+    a_bev = pts_bev[0][0]
+    b_bev = pts_bev[1][0]
+
+    distance_bev = np.linalg.norm(a_bev - b_bev)
+
+    return distance_bev
+
+
 def calEgoSide(
         bev_egopath: list[ImagePointCoords],
-        anchor_offset: float | int,
+        anchor_offset: float,
         homotrans_mat: list[list[float]]
     ) -> list[tuple[
             int,    # x-coord, int
@@ -655,7 +670,11 @@ if __name__ == "__main__":
                 egoleft_validity_list, 
             ) = calEgoSide(
                 bev_egopath = bev_egopath,
-                anchor_offset = sps_dict["left_offset"],
+                anchor_offset = - calTransformedDistance(
+                    sps_dict["LS"],
+                    sps_dict["midanchor_start"],
+                    mat
+                ),
                 homotrans_mat = mat
             )
 
@@ -667,7 +686,11 @@ if __name__ == "__main__":
                 egoright_validity_list, 
             ) = calEgoSide(
                 bev_egopath = bev_egopath,
-                anchor_offset = sps_dict["right_offset"],
+                anchor_offset = calTransformedDistance(
+                    sps_dict["RS"],
+                    sps_dict["midanchor_start"],
+                    mat
+                ),
                 homotrans_mat = mat
             )
 
