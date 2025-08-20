@@ -362,8 +362,10 @@ def findSourcePointsBEV(
     for i, pt in sps.items():
         sps[i] = imagePointTuplize(pt)
 
-    # Log the ego_height too
+    # Log the ego_height, and left/right offsets
     sps["ego_h"] = ego_height
+    sps["left_offset"] = anchor_left[0] - midanchor_start[0]
+    sps["right_offset"] = anchor_right[0] - midanchor_start[0]
 
     return sps
 
