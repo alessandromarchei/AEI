@@ -1,6 +1,6 @@
 #include "pathfinder_node.hpp"
-//TODO: visualization in rviz
-PathFinderNode::PathFinderNode(const rclcpp::NodeOptions &options) : Node("pathfinder_node", options)
+
+PathFinderNode::PathFinderNode(const rclcpp::NodeOptions &options) : Node("pathfinder_node","/pathfinder", options)
 {
   this->set_parameter(rclcpp::Parameter("use_sim_time", true));
   bayesFilter = Estimator();
@@ -25,6 +25,10 @@ PathFinderNode::PathFinderNode(const rclcpp::NodeOptions &options) : Node("pathf
                                                               std::bind(&PathFinderNode::callbackLaneR, this, std::placeholders::_1));
   sub_path_ = this->create_subscription<nav_msgs::msg::Path>("/egoPath", 5,
                                                              std::bind(&PathFinderNode::callbackPath, this, std::placeholders::_1));
+
+  pub_laneL_ = this->create_publisher<nav_msgs::msg::Path>("egoLaneL", 5);
+  pub_laneR_ = this->create_publisher<nav_msgs::msg::Path>("egoLaneR", 5);
+  pub_path_ = this->create_publisher<nav_msgs::msg::Path>("egoPath", 5);
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&PathFinderNode::timer_callback, this));
 
@@ -138,6 +142,41 @@ void PathFinderNode::timer_callback()
     out_msg.data[STATE_DIM + i] = state[i].variance;
   }
   publisher_->publish(out_msg);
+  auto path = nav_msgs::msg::Path();
+  auto laneL = nav_msgs::msg::Path();
+  auto laneR = nav_msgs::msg::Path();
+  auto header = std_msgs::msg::Header();
+  header.stamp = this->get_clock()->now();
+  header.frame_id = "hero";
+  path.header = header;
+  laneL.header = header;
+  laneR.header = header;
+
+  double res = 0.1; // resolution in meters
+  for (double i=0;i < 30;i+=res)
+  {
+    auto p1 = geometry_msgs::msg::PoseStamped();
+    p1.header = header;
+    p1.pose.position.x = i;
+    p1.pose.position.y = i * i * path_coeff[0] + i * path_coeff[1] + path_coeff[2];
+    path.poses.push_back(p1);
+    
+    auto p2 = geometry_msgs::msg::PoseStamped();
+    p2.header = header;
+    p2.pose.position.x = i;
+    p2.pose.position.y = i * i * left_coeff[0] + i * left_coeff[1] + left_coeff[2];
+    laneL.poses.push_back(p2);
+
+    auto p3 = geometry_msgs::msg::PoseStamped();
+    p3.header = header;
+    p3.pose.position.x = i;
+    p3.pose.position.y = i * i * right_coeff[0] + i * right_coeff[1] + right_coeff[2];
+    laneR.poses.push_back(p3);
+  }
+  pub_path_->publish(path);
+  pub_laneL_->publish(laneL);
+  pub_laneR_->publish(laneR);
+
 }
 
 int main(int argc, char *argv[])

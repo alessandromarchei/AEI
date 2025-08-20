@@ -8,7 +8,7 @@ from builtin_interfaces.msg import Time
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
 
-LOOKAHEAD_DISTANCE = 60.0  # meters
+LOOKAHEAD_DISTANCE = 30.0  # meters
 STEP_DISTANCE = 2.0        # distance between waypoints
 LANE_WIDTH = 3.5          # meters, typical lane width
 
