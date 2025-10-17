@@ -30,7 +30,7 @@ endif()
 
 
 message("EXECUTABLE IS CALLED sceneseg")
-add_executable(sceneseg run_sceneseg.cpp)
+add_executable(sceneseg deploy.cpp)
 target_include_directories(sceneseg PRIVATE
     ${TENSORRT_INCLUDE_DIR}
     ${OpenCV_INCLUDE_DIRS}
