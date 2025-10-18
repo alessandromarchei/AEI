@@ -1,10 +1,17 @@
+import argparse
+import os
+import sys
 import tensorrt as trt
 
-engine_file_path = "/home/alessandro/work/autoware.privately-owned-vehicles/Models/SceneSeg_int8.trt"
+DEFAULT_ENGINE_PATH = "/home/alessandro/work/autoware.privately-owned-vehicles/Models/SceneSeg_int8.trt"
 
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 
 def main(engine_path):
+    if not os.path.isfile(engine_path):
+        print(f"❌ Engine file not found: {engine_path}", file=sys.stderr)
+        sys.exit(1)
+
     # Load engine
     with open(engine_path, "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
         engine = runtime.deserialize_cuda_engine(f.read())
@@ -35,4 +42,8 @@ def main(engine_path):
         print("-" * 60)
 
 if __name__ == "__main__":
-    main(engine_file_path)
+    parser = argparse.ArgumentParser(description="Inspect TensorRT engine bindings")
+    parser.add_argument("-e", "--engine", type=str, default=DEFAULT_ENGINE_PATH,
+                        help=f"path to the .trt engine file (default: {DEFAULT_ENGINE_PATH})")
+    args = parser.parse_args()
+    main(args.engine)
