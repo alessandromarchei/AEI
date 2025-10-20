@@ -1,9 +1,11 @@
 #! /usr/bin/env python3
+import torch
 import torch.nn as nn
 
-class EgoPathHead(nn.Module):
+class EgoLanesHead(nn.Module):
     def __init__(self):
-        super(EgoPathHead, self).__init__()
+        super(EgoLanesHead, self).__init__()
+
         # Standard
         self.GeLU = nn.GELU()
 
@@ -15,7 +17,9 @@ class EgoPathHead(nn.Module):
         self.upsample_layer_4 = nn.ConvTranspose2d(128, 128, 2, 2)
         self.decode_layer_8 = nn.Conv2d(128, 128, 3, 1, 1)
         self.decode_layer_9 = nn.Conv2d(128, 64, 3, 1, 1)
-        self.decode_layer_10 = nn.Conv2d(64, 1, 3, 1, 1)
+        self.decode_layer_10 = nn.Conv2d(64, 3, 3, 1, 1)
+
+ 
 
     def forward(self, neck, features):
 

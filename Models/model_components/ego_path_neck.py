@@ -1,16 +1,16 @@
 #! /usr/bin/env python3
 import torch.nn as nn
 
-class SceneNeck(nn.Module):
+class EgoPathNeck(nn.Module):
     def __init__(self):
-        super(SceneNeck, self).__init__()
+        super(EgoPathNeck, self).__init__()
         # Standard
         self.GeLU = nn.GELU()
 
         # Decoder - Neck Layers 
-        self.upsample_layer_0 = nn.ConvTranspose2d(1280, 1280, 2, 2)
-        self.skip_link_layer_0 = nn.Conv2d(80, 1280, 1)
-        self.decode_layer_0 = nn.Conv2d(1280, 768, 3, 1, 1)
+        self.upsample_layer_0 = nn.ConvTranspose2d(1456, 1456, 2, 2)
+        self.skip_link_layer_0 = nn.Conv2d(80, 1456, 1)
+        self.decode_layer_0 = nn.Conv2d(1456, 768, 3, 1, 1)
         self.decode_layer_1 = nn.Conv2d(768, 768, 3, 1, 1)
 
         self.upsample_layer_1 = nn.ConvTranspose2d(768, 768, 2, 2)
