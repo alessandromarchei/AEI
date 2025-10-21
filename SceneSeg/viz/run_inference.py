@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 from Models.inference.scene_seg_infer import SceneSegNetworkInfer, SceneSegOnnxInfer
 
 from utils.masks import add_mask_segmentation
+from utils.preprocessing import load_image
 
 # ONNX runtime
 import onnxruntime as ort
@@ -56,14 +57,8 @@ def main():
     alpha = 0.5  # blending factor
 
     for idx, image_file in enumerate(image_files):
-        image_path = os.path.join(args.input_folder, image_file)
-        frame = cv2.imread(image_path, cv2.IMREAD_COLOR)
-        if frame is None:
-            print(f"[WARNING] Skipping unreadable image: {image_file}")
-            continue
 
-        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image_pil = Image.fromarray(image_rgb).resize((640, 320))
+        image_pil, frame = load_image(args.input_folder, image_file)
 
         print(f"[INFO] Running inference on: {image_file}")
         prediction = infer_fn(image_pil)
