@@ -2,42 +2,15 @@ import cv2
 import sys
 import os
 import numpy as np
+import torch
 from PIL import Image
 from argparse import ArgumentParser
-from Models.inference.scene_seg_infer import SceneSegNetworkInfer
+from Models.inference.scene_seg_infer import SceneSegNetworkInfer, SceneSegOnnxInfer
 
 from utils.masks import add_mask_segmentation
 
 # ONNX runtime
 import onnxruntime as ort
-
-
-class ONNXInferenceWrapper:
-    def __init__(self, model_path):
-        # Providers: try GPU (CUDA), then fallback to CPU
-        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        self.session = ort.InferenceSession(model_path, providers=providers)
-
-        # Assume single input/output
-        self.input_name = self.session.get_inputs()[0].name
-        self.output_name = self.session.get_outputs()[0].name
-
-    def inference(self, pil_image):
-        # Convert PIL → numpy → CHW float32/uint8 depending on model
-        img = np.array(pil_image).astype(np.float32) / 255.0
-        img = np.transpose(img, (2, 0, 1))  # HWC → CHW
-        img = np.expand_dims(img, axis=0)   # NCHW
-
-        # Run inference
-        outputs = self.session.run([self.output_name], {self.input_name: img})
-        prediction = outputs[0]
-
-        # Handle quantized models (int8 outputs → argmax over classes)
-        if prediction.dtype != np.int64 and prediction.dtype != np.int32:
-            prediction = np.argmax(prediction, axis=1)
-
-        prediction = prediction.squeeze().astype(np.uint8)
-        return prediction
 
 
 def main():
@@ -57,7 +30,7 @@ def main():
         infer_fn = model.inference
     elif ext == ".onnx":
         print(f"[INFO] Loading ONNX model from: {model_path}")
-        model = ONNXInferenceWrapper(model_path)
+        model = SceneSegOnnxInfer(model_path)
         infer_fn = model.inference
     else:
         print("[ERROR] Unsupported model format. Use .pth or .onnx")
