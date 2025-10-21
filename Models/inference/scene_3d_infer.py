@@ -1,11 +1,16 @@
-#%%
-# Comment above is for Jupyter execution in VSCode
-#! /usr/bin/env python3
 import torch
 from torchvision import transforms
 import sys
 from Models.model_components.scene_seg_network import SceneSegNetwork
 from Models.model_components.scene_3d_network import Scene3DNetwork
+
+import onnxruntime as ort
+import numpy as np
+
+# TensorRT + PyCUDA
+import tensorrt as trt
+import pycuda.driver as cuda
+import pycuda.autoinit  # initializes CUDA context
 
 
 class Scene3DNetworkInfer():
@@ -57,4 +62,56 @@ class Scene3DNetworkInfer():
         return output
         
 
+
+class Scene3DOnnxInfer:
+    def __init__(self, model_path):
+        # Providers: try GPU (CUDA), then fallback to CPU
+        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        self.session = ort.InferenceSession(model_path, providers=providers)
+
+        # Assume single input/output
+        self.input_name = self.session.get_inputs()[0].name
+        self.output_name = self.session.get_outputs()[0].name
+    
+    def normalize_image(self, img):
+        #normalize image with (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) (image - mean) / std
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        img = (img - mean) / std
+        return img
+
+
+    def preprocess_image(self, pil_image):
+        # Convert PIL → numpy → CHW float32/uint8 depending on model
+        img = np.array(pil_image).astype(np.float32) / 255.0
+
+        #normalize image with (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) (image - mean) / std
+        img = self.normalize_image(img)
+
+
+        img = np.transpose(img, (2, 0, 1))  # HWC → CHW
+        img = np.expand_dims(img, axis=0)   # NCHW
+        return img
+    
+
+    def inference(self, pil_image):
+        # Convert PIL → numpy → CHW float32/uint8 depending on model. input is of shape N C H W
+
+        img = self.preprocess_image(pil_image).astype(np.float32)
+
+        # Run inference
+        outputs = self.session.run([self.output_name], {self.input_name: img})
+        #outpout shape is N C H W, with C = num_classes, here 3
+
+        #each pixel is now a vector of class probabilities
+        # [prob_class0, prob_class1, prob_class2]
+
+        # B C H W → C H W (C = num_classes)
+        prediction = outputs[0]              # numpy array, shape (1, C, H, W)
+        prediction = np.squeeze(prediction, 0)   # (C, H, W)
+
+        # Argmax over channels → segmentation mask (H, W), take the highest prob class for each pixel
+        output = np.argmax(prediction, axis=0).astype(np.uint8)
+
+        return output
     

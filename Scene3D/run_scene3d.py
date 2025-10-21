@@ -32,7 +32,7 @@ def main():
         infer_fn = model.inference
     elif ext == ".onnx":
         print(f"[INFO] Loading ONNX model from: {model_path}")
-        model = SceneSegOnnxInfer(model_path)
+        model = Scene3DOnnxInfer(model_path)
         infer_fn = model.inference
     elif ext == ".trt":
         print(f"[INFO] Loading TensorRT engine from: {model_path}")
