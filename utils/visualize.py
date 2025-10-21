@@ -3,6 +3,9 @@ import sys
 import os
 import numpy as np
 from PIL import Image
+import cmapy
+
+
 
 def mask_segmentation(prediction):
     """
@@ -37,3 +40,31 @@ def add_mask_segmentation(input_frame, prediction, alpha):
     output_frame = cv2.addWeighted(mask, alpha, input_frame, 1 - alpha, 0)
     return output_frame
 
+
+
+def visualize_scene3d(input_frame, prediction, alpha):
+    """
+    Create output image for scene 3d depth estimation
+    """
+
+    # Normalize prediction to [0, 255]
+    prediction_image = 255.0 * (
+        (prediction - np.min(prediction)) / (np.max(prediction) - np.min(prediction) + 1e-8)
+    )
+    prediction_image = prediction_image.astype(np.uint8)
+
+    # Apply colormap → (H, W, 3)
+    prediction_image = cv2.applyColorMap(prediction_image, cmapy.cmap('viridis'))
+
+    # Ensure input frame matches size
+    if input_frame.shape[:2] != prediction_image.shape[:2]:
+        prediction_image = cv2.resize(prediction_image, (input_frame.shape[1], input_frame.shape[0]))
+
+    # Ensure input is 3 channels
+    if len(input_frame.shape) == 2:
+        input_frame = cv2.cvtColor(input_frame, cv2.COLOR_GRAY2BGR)
+
+    # Blend
+    output_frame = cv2.addWeighted(prediction_image, alpha, input_frame, 1 - alpha, 0)
+    
+    return output_frame

@@ -5,21 +5,22 @@ import numpy as np
 import torch
 from PIL import Image
 from argparse import ArgumentParser
-from Models.inference.scene_seg_infer import SceneSegNetworkInfer, SceneSegOnnxInfer
 
-from utils.masks import add_mask_segmentation
+from Models.inference.scene_seg_infer import SceneSegNetworkInfer, SceneSegOnnxInfer, SceneSegTrtInfer
+from utils.visualize import add_mask_segmentation
 from utils.preprocessing import load_image
-
-# ONNX runtime
-import onnxruntime as ort
 
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("-p", "--model_checkpoint_path", required=True, help="Path to model (.pth or .onnx)")
-    parser.add_argument("-i", "--input_folder", required=True, help="Path to folder containing .png images")
-    parser.add_argument("-r", "--results_dir", default="results", help="Base results directory (default: results/)")
-    parser.add_argument("-s", "--suffix", default="", help="Optional suffix for output folder name")
+    parser.add_argument("-p", "--model_checkpoint_path", required=True,
+                        help="Path to model (.pth, .onnx, or .trt)")
+    parser.add_argument("-i", "--input_folder", required=True,
+                        help="Path to folder containing .png images")
+    parser.add_argument("-r", "--results_dir", default="results",
+                        help="Base results directory (default: results/)")
+    parser.add_argument("-s", "--suffix", default="",
+                        help="Optional suffix for output folder name")
     args = parser.parse_args()
 
     model_path = args.model_checkpoint_path
@@ -33,8 +34,12 @@ def main():
         print(f"[INFO] Loading ONNX model from: {model_path}")
         model = SceneSegOnnxInfer(model_path)
         infer_fn = model.inference
+    elif ext == ".trt":
+        print(f"[INFO] Loading TensorRT engine from: {model_path}")
+        model = SceneSegTrtInfer(model_path)
+        infer_fn = model.inference
     else:
-        print("[ERROR] Unsupported model format. Use .pth or .onnx")
+        print("[ERROR] Unsupported model format. Use .pth, .onnx or .trt")
         return
 
     print("[INFO] Model loaded successfully")
@@ -48,7 +53,11 @@ def main():
     scene_name = os.path.basename(os.path.normpath(args.input_folder))
     dataset_name = os.path.basename(os.path.dirname(os.path.normpath(args.input_folder)))
 
-    out_folder = os.path.join(args.results_dir, dataset_name, scene_name + (f"_{args.suffix}" if args.suffix else ""))
+    out_folder = os.path.join(
+        args.results_dir,
+        dataset_name,
+        scene_name + (f"_{args.suffix}" if args.suffix else "")
+    )
     os.makedirs(out_folder, exist_ok=True)
 
     print(f"[INFO] Found {len(image_files)} images to process.")
@@ -57,14 +66,13 @@ def main():
     alpha = 0.5  # blending factor
 
     for idx, image_file in enumerate(image_files):
-
         image_pil, frame = load_image(args.input_folder, image_file)
 
         print(f"[INFO] Running inference on: {image_file}")
         prediction = infer_fn(image_pil)
 
         # Create mask and overlay on original frame
-        masked_output = add_mask_segmentation(frame, prediction, alpha) 
+        masked_output = add_mask_segmentation(frame, prediction, alpha)
 
         # Save PNG
         save_path = os.path.join(out_folder, os.path.splitext(image_file)[0] + ".png")

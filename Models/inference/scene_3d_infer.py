@@ -4,9 +4,8 @@
 import torch
 from torchvision import transforms
 import sys
-sys.path.append('..')
-from model_components.scene_seg_network import SceneSegNetwork
-from model_components.scene_3d_network import Scene3DNetwork
+from Models.model_components.scene_seg_network import SceneSegNetwork
+from Models.model_components.scene_3d_network import Scene3DNetwork
 
 
 class Scene3DNetworkInfer():
