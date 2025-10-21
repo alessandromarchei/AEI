@@ -17,9 +17,13 @@ build
 *.avi
 *.mp4
 *.mkv   
+*.png
 
 videos/
 .vscode/
 
 trt_cache/
 tutorials/
+
+*.pdf
+results/

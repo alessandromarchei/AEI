@@ -40,6 +40,7 @@ class SceneSegNetworkInfer():
         if(width != 640 or height != 320):
             raise ValueError('Incorrect input size - input image must have height of 320px and width of 640px')
 
+        #normalize INPUT image and convert to tensor
         image_tensor = self.image_loader(image)
         image_tensor = image_tensor.unsqueeze(0)
         image_tensor = image_tensor.to(self.device)
