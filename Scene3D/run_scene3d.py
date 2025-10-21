@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from argparse import ArgumentParser
 
-from Models.inference.scene_3d_infer import Scene3DNetworkInfer
+from Models.inference.scene_3d_infer import Scene3DNetworkInfer,Scene3DOnnxInfer
 from utils.visualize import visualize_scene3d
 from utils.preprocessing import load_image
 
@@ -34,10 +34,10 @@ def main():
         print(f"[INFO] Loading ONNX model from: {model_path}")
         model = Scene3DOnnxInfer(model_path)
         infer_fn = model.inference
-    elif ext == ".trt":
-        print(f"[INFO] Loading TensorRT engine from: {model_path}")
-        model = SceneSegTrtInfer(model_path)
-        infer_fn = model.inference
+    # elif ext == ".trt":
+    #     print(f"[INFO] Loading TensorRT engine from: {model_path}")
+    #     model = SceneSegTrtInfer(model_path)
+    #     infer_fn = model.inference
     else:
         print("[ERROR] Unsupported model format. Use .pth, .onnx or .trt")
         return
