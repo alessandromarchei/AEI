@@ -24,7 +24,7 @@ class SceneSegNetworkInfer:
         if len(checkpoint_path) > 0:
             state = torch.load(checkpoint_path, map_location=self.device)
             # strict=False per ignorare i buffer mancanti
-            self.model.load_state_dict(state, strict=False)
+            self.model.load_state_dict(state) #no contol on missing keys, since mean and std were added later
         else:
             raise ValueError("No path to checkpoint file provided in class initialization")
 
@@ -56,15 +56,19 @@ class SceneSegOnnxInfer:
 
     def inference(self, pil_image: Image.Image):
         # Convert PIL → float32 tensor [0..1], NCHW
-        img = np.array(pil_image).astype(np.float32) / 255.0
-        img = np.transpose(img, (2, 0, 1))      # HWC → CHW
-        img = np.expand_dims(img, axis=0)       # NCHW
+        img = np.array(pil_image).astype(np.float32) / 255.0  # scale to [0,1]
+        img = np.transpose(img, (2, 0, 1))                   # HWC → CHW
+        img = np.expand_dims(img, axis=0)                    # NCHW
 
         # Run inference
         outputs = self.session.run([self.output_name], {self.input_name: img})
-        # ONNX already has normalize + argmax inside
-        mask = np.squeeze(outputs[0], 0).astype(np.uint8)  # [H,W]
+
+        # Output is already [N,H,W] with dtype uint8
+        mask = outputs[0]              # shape (1,H,W)
+        mask = np.squeeze(mask, 0)     # (H,W)
+        mask = mask.astype(np.uint8)
         return mask
+
 
 
 

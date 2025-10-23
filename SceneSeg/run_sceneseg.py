@@ -7,6 +7,7 @@ from PIL import Image
 from argparse import ArgumentParser
 
 from network.inference.scene_seg_infer import SceneSegNetworkInfer, SceneSegOnnxInfer, SceneSegTrtInfer
+from network.model_components.scene_seg_network import SceneSegNetwork
 from utils.visualize import add_mask_segmentation
 from utils.preprocessing import load_image
 
@@ -27,6 +28,28 @@ def main():
     ext = os.path.splitext(model_path)[1].lower()
 
     if ext == ".pth":
+        # base_model = SceneSegNetwork()
+        # state = torch.load(model_path, map_location="cpu")
+        # base_model.load_state_dict(state, strict=False)
+        # base_model.eval()
+
+        # dummy_input = torch.randn(1, 3, 320, 640, dtype=torch.float32)  # CPU
+
+        # onnx_out = os.path.splitext(model_path)[0] + ".onnx"
+        # torch.onnx.export(
+        #     base_model,
+        #     dummy_input,
+        #     onnx_out,
+        #     input_names=["input"],
+        #     output_names=["segmentation"],
+        #     opset_version=17,
+        #     dynamic_axes={"input": {0: "batch"}, "segmentation": {0: "batch"}}
+        # )
+
+        # print(f"[INFO] Loading PyTorch model from: {model_path}")
+
+        # print(f"[INFO] ONNX export completed: {onnx_out}")
+        # sys.exit(0)
         print(f"[INFO] Loading PyTorch model from: {model_path}")
         model = SceneSegNetworkInfer(checkpoint_path=model_path)
         infer_fn = model.inference

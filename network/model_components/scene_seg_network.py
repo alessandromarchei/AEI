@@ -14,7 +14,7 @@ class SceneSegNetwork(nn.Module):
         self.SceneNeck = SceneNeck()
         self.SceneSegHead = SceneSegHead()
 
-        # Buffers per normalizzazione
+        # Buffers for normalization. put inside the model to be saved/loaded with it, so everything is self-contained is inside the onnx
         mean = torch.tensor(mean).view(1,3,1,1)  # shape [1,C,1,1]
         std = torch.tensor(std).view(1,3,1,1)
         self.register_buffer("mean", mean)
