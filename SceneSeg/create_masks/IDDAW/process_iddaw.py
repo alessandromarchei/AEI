@@ -5,7 +5,7 @@ import json
 from PIL import Image, ImageDraw
 import sys
 sys.path.append('../../../')
-from Models.data_utils.check_data import CheckData
+from network.data_utils.check_data import CheckData
 
 
 # Create coarse semantic segmentation mask

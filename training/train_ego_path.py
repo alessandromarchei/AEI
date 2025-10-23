@@ -8,8 +8,8 @@ from argparse import ArgumentParser
 import matplotlib.pyplot as plt
 import sys
 sys.path.append('../..')
-from Models.data_utils.load_data_ego_path import LoadDataEgoPath
-from Models.training.ego_path_trainer import EgoPathTrainer
+from network.data_utils.load_data_ego_path import LoadDataEgoPath
+from network.training.ego_path_trainer import EgoPathTrainer
 
 def main():
 

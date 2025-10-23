@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from argparse import ArgumentParser
 
-from Models.inference.scene_seg_infer import SceneSegNetworkInfer, SceneSegOnnxInfer, SceneSegTrtInfer
+from network.inference.scene_seg_infer import SceneSegNetworkInfer, SceneSegOnnxInfer, SceneSegTrtInfer
 from utils.visualize import add_mask_segmentation
 from utils.preprocessing import load_image
 
@@ -17,7 +17,7 @@ def main():
                         help="Path to model (.pth, .onnx, or .trt)")
     parser.add_argument("-i", "--input_folder", required=True,
                         help="Path to folder containing .png images")
-    parser.add_argument("-r", "--results_dir", default="results",
+    parser.add_argument("-r", "--results_dir", default="results/SceneSeg",
                         help="Base results directory (default: results/)")
     parser.add_argument("-s", "--suffix", default="",
                         help="Optional suffix for output folder name")

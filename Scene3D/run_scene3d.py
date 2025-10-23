@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from argparse import ArgumentParser
 
-from Models.inference.scene_3d_infer import Scene3DNetworkInfer,Scene3DOnnxInfer
+from network.inference.scene_3d_infer import Scene3DNetworkInfer,Scene3DOnnxInfer
 from utils.visualize import visualize_scene3d
 from utils.preprocessing import load_image
 

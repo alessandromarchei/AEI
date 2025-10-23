@@ -6,7 +6,7 @@ from PIL import Image
 from argparse import ArgumentParser
 import sys
 sys.path.append('../../../')
-from Models.data_utils.check_data import CheckData
+from network.data_utils.check_data import CheckData
 from Scene3D.create_metric_depth.common.lidar_depth_fill import LidarDepthFill
 
 def removeExtraSamples(image_folders):

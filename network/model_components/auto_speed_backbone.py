@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from Models.model_components.auto_speed_layers import (
+from network.model_components.auto_speed_layers import (
     Conv, C3K2, SPPF, C2PSA, PSA, CSP, SPP, ASC
 )
 

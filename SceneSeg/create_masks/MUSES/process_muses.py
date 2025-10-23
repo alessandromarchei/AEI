@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from PIL import Image
 import sys
 sys.path.append('../../../')
-from Models.data_utils.check_data import CheckData
+from network.data_utils.check_data import CheckData
 
 # Create coarse semantic segmentation mask
 # of combined classes

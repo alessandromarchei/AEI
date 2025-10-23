@@ -1,5 +1,5 @@
 import torch
-from Models.model_components.auto_speed_layers import (
+from network.model_components.auto_speed_layers import (
     Conv, C3K2, CSP
 )
 

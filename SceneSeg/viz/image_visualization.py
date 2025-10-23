@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 from argparse import ArgumentParser
 
-from Models.inference.scene_seg_infer import SceneSegNetworkInfer
+from network.inference.scene_seg_infer import SceneSegNetworkInfer
 from utils.masks import add_mask_segmentation
 
 def main(): 

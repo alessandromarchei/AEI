@@ -9,7 +9,7 @@ from argparse import ArgumentParser
 #! /usr/bin/env python3
 import sys, os
 # sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from Models.model_components.scene_seg_network import SceneSegNetwork
+from network.model_components.scene_seg_network import SceneSegNetwork
 
 from torchinfo import summary
 
