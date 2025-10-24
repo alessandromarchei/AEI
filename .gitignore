@@ -21,7 +21,6 @@ build
 *.png
 
 videos/
-.vscode/
 
 trt_cache/
 tutorials/

@@ -1,3 +1,7 @@
+#pragma once
+
+#include "visualization.hpp"
+
 
 class Runner {
 public:
@@ -135,19 +139,23 @@ public:
 
     // Preprocess a BGR frame into the pinned input host buffer
     // resizing the input ONLY IF IT IS NEEDED 
+    // save the resized image in input_.hbuf data structure
     void preprocess(const cv::Mat& bgr, int Ht, int Wt) {
         cv::Mat rgb, resized;
         cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
-        cv::resize(rgb, resized, cv::Size(Wt, Ht), 0, 0, cv::INTER_LINEAR);
+        cv::resize(rgb, resized, cv::Size(Wt, Ht));
 
         cv::Mat f32;
+        // Normalize to [0,1] (alfa 1.0/255.0, beta 0)
         resized.convertTo(f32, CV_32F, 1.0 / 255.0);
         
 
-        //  
+        // perform LAYOUT SEPARATION
         if (inputLayout_ == Layout::NCHW) {
             std::vector<cv::Mat> ch;
-            cv::split(f32, ch); // 3xHxW
+            cv::split(f32, ch); // separate the input in 3 channels
+
+            //now copy each channel in the correct position of the input buffer (member of Runner)
             float* dst = reinterpret_cast<float*>(input_.hbuf.get());
             const int H = f32.rows, W = f32.cols;
             for (int c = 0; c < 3; ++c) {
@@ -162,14 +170,21 @@ public:
 
     // Copy H->D, enqueue, D->H, return elapsed ms
     double inferOnce() {
+
+        //input host -> device
         cudaMemcpyAsync(input_.dbuf.get(), input_.hbuf.get(), input_.nbytes, cudaMemcpyHostToDevice, stream_);
+        
+        //inference
         auto t0 = std::chrono::high_resolution_clock::now();
         if (!context_->enqueueV3(stream_)) {
             throw std::runtime_error("enqueueV3 failed");
         }
+
+        //output device -> host
         for (auto& ob : outputs_) {
             cudaMemcpyAsync(ob.hbuf.get(), ob.dbuf.get(), ob.nbytes, cudaMemcpyDeviceToHost, stream_);
         }
+        //wait for all to complete. (NO DOUBLE BUFFERING HERE --> TODO)
         cudaStreamSynchronize(stream_);
         auto t1 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> ms = t1 - t0;

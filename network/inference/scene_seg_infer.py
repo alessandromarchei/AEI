@@ -106,7 +106,6 @@ class SceneSegTrtInfer:
         # Input: PIL → [0..1] float32, NCHW
         img = np.array(pil_image).astype(np.float32) / 255.0
         img = np.transpose(img, (2, 0, 1))  # HWC → CHW
-        img = np.expand_dims(img, axis=0)   # NCHW
 
         # Transfer to device
         cuda.memcpy_htod_async(self.device_inputs[0], img.ravel(), self.stream)
