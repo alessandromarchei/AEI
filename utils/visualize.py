@@ -34,19 +34,23 @@ def mask_segmentation(prediction):
 def add_mask_segmentation(input_frame, prediction, alpha):
     """
     Overlay segmentation mask on input frame with given alpha transparency.
+    Target size = prediction size
     """
     mask = mask_segmentation(prediction)
-    mask = cv2.resize(mask, (input_frame.shape[1], input_frame.shape[0]))
-    output_frame = cv2.addWeighted(mask, alpha, input_frame, 1 - alpha, 0)
-    return output_frame
 
+    # Resize input frame to prediction shape
+    input_frame_resized = cv2.resize(input_frame, (mask.shape[1], mask.shape[0]))
+
+    # Blend
+    output_frame = cv2.addWeighted(mask, alpha, input_frame_resized, 1 - alpha, 0)
+    return output_frame
 
 
 def visualize_scene3d(input_frame, prediction, alpha):
     """
     Create output image for scene 3d depth estimation
+    Target size = prediction size
     """
-
     # Normalize prediction to [0, 255]
     prediction_image = 255.0 * (
         (prediction - np.min(prediction)) / (np.max(prediction) - np.min(prediction) + 1e-8)
@@ -56,9 +60,9 @@ def visualize_scene3d(input_frame, prediction, alpha):
     # Apply colormap → (H, W, 3)
     prediction_image = cv2.applyColorMap(prediction_image, cmapy.cmap('viridis'))
 
-    # Ensure input frame matches size
+    # Resize input frame to match prediction
     if input_frame.shape[:2] != prediction_image.shape[:2]:
-        prediction_image = cv2.resize(prediction_image, (input_frame.shape[1], input_frame.shape[0]))
+        input_frame = cv2.resize(input_frame, (prediction_image.shape[1], prediction_image.shape[0]))
 
     # Ensure input is 3 channels
     if len(input_frame.shape) == 2:
@@ -66,5 +70,4 @@ def visualize_scene3d(input_frame, prediction, alpha):
 
     # Blend
     output_frame = cv2.addWeighted(prediction_image, alpha, input_frame, 1 - alpha, 0)
-    
     return output_frame

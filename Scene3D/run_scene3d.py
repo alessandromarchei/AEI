@@ -6,7 +6,10 @@ import torch
 from PIL import Image
 from argparse import ArgumentParser
 
-from network.inference.scene_3d_infer import Scene3DNetworkInfer,Scene3DOnnxInfer
+from network.inference.scene_3d_infer import Scene3DNetworkInfer,Scene3DOnnxInfer, SceneSegTrtInfer
+from network.model_components.scene_3d_network import Scene3DNetwork
+from network.model_components.scene_seg_network import SceneSegNetwork
+
 from utils.visualize import visualize_scene3d
 from utils.preprocessing import load_image
 
@@ -26,6 +29,44 @@ def main():
     model_path = args.model_checkpoint_path
     ext = os.path.splitext(model_path)[1].lower()
 
+    #used to convert the original pth from autoware to onnx with including the preprocessing nodes inside the model
+    # if ext == ".pth":
+    #     print(f"[INFO] Loading PyTorch model from: {model_path}")
+
+    #     # Build + load weights exactly like your working FP32 path
+    #     sceneSegNetwork = SceneSegNetwork()
+    #     model = Scene3DNetwork(sceneSegNetwork)
+    #     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    #     model.to(device)
+
+    #     # Load Scene3D weights (these should include the backbone weights too)
+    #     state = torch.load(model_path, map_location=device)
+    #     if isinstance(state, dict) and "state_dict" in state:
+    #         state = state["state_dict"]
+    #     missing, unexpected = model.load_state_dict(state, strict=False)
+    #     if missing:   print("[WARN] missing:", missing)
+    #     if unexpected:print("[WARN] unexpected:", unexpected)
+
+    #     model.eval()  # IMPORTANT
+
+    #     # Dummy input in [0,1] because your forward expects [0,1] then normalizes
+    #     dummy_input = torch.rand(1, 3, 320, 640, dtype=torch.float32, device=device)
+
+    #     onnx_out = os.path.splitext(model_path)[0] + ".onnx"
+    #     torch.onnx.export(
+    #         model,
+    #         dummy_input,
+    #         onnx_out,
+    #         input_names=["input"],
+    #         output_names=["depth"],
+    #         opset_version=17,
+    #         do_constant_folding=True,
+    #         dynamic_axes={"input": {0: "batch"}, "depth": {0: "batch"}}
+    #     )
+
+    #     print(f"[INFO] ONNX export completed: {onnx_out}")
+    #     sys.exit(0)
+
     if ext == ".pth":
         print(f"[INFO] Loading PyTorch model from: {model_path}")
         model = Scene3DNetworkInfer(checkpoint_path=model_path)
@@ -34,10 +75,10 @@ def main():
         print(f"[INFO] Loading ONNX model from: {model_path}")
         model = Scene3DOnnxInfer(model_path)
         infer_fn = model.inference
-    # elif ext == ".trt":
-    #     print(f"[INFO] Loading TensorRT engine from: {model_path}")
-    #     model = SceneSegTrtInfer(model_path)
-    #     infer_fn = model.inference
+    elif ext == ".trt":
+        print(f"[INFO] Loading TensorRT engine from: {model_path}")
+        model = SceneSegTrtInfer(model_path)
+        infer_fn = model.inference
     else:
         print("[ERROR] Unsupported model format. Use .pth, .onnx or .trt")
         return

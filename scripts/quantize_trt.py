@@ -7,26 +7,39 @@ import os
 import cv2
 import glob
 import argparse
+import random
+
+seed = 42
+random.seed(seed)
+np.random.seed(seed)
+
+
 
 # -------------------------------
 # Utility: collect images
 # -------------------------------
-def collect_calibration_images(data_dirs):
+def collect_calibration_images(data_dirs, max_images=None, shuffle=True):
     all_images = []
     for root in [os.path.expanduser(d) for d in data_dirs]:
-        # Caso 1: la cartella contiene già immagini
+        # Case 1: folder contains images directly
         imgs = glob.glob(os.path.join(root, "*.png")) + glob.glob(os.path.join(root, "*.jpg"))
         if imgs:
             all_images.extend(imgs)
             continue
 
-        # Caso 2: cerca ricorsivamente cartelle che iniziano con "test" o "test_ref"
+        # Case 2: search recursively for folders starting with "test" or "test_ref"
         for dirpath, dirnames, filenames in os.walk(root):
             base = os.path.basename(dirpath)
             if base.startswith("test"):
                 imgs = glob.glob(os.path.join(dirpath, "**", "*.png"), recursive=True)
                 imgs += glob.glob(os.path.join(dirpath, "**", "*.jpg"), recursive=True)
                 all_images.extend(imgs)
+
+    if shuffle:
+        random.shuffle(all_images)
+
+    if max_images is not None and max_images > 0:
+        all_images = all_images[:max_images]
 
     return all_images
 
@@ -35,7 +48,7 @@ def collect_calibration_images(data_dirs):
 # Custom INT8 Calibrator
 # -------------------------------
 class ImageCalibrator(trt.IInt8EntropyCalibrator2):
-    def __init__(self, data_dirs, cache_file, input_shape):
+    def __init__(self, data_dirs, cache_file, input_shape, max_images=None):
         super(ImageCalibrator, self).__init__()
         self.cache_file = cache_file
         self.input_shape = input_shape  # (C, H, W)
@@ -43,10 +56,10 @@ class ImageCalibrator(trt.IInt8EntropyCalibrator2):
         self.use_cache_only = (data_dirs is None or len(data_dirs) == 0)
 
         if not self.use_cache_only:
-            self.image_files = collect_calibration_images(data_dirs)
+            self.image_files = collect_calibration_images(data_dirs, max_images=max_images, shuffle=True)
             if len(self.image_files) == 0:
                 raise RuntimeError(f"No images found in calibration folders (searched {data_dirs})")
-            print(f"[Calibrator] Found {len(self.image_files)} images from {len(data_dirs)} root(s).")
+            print(f"[Calibrator] Using {len(self.image_files)} images from {len(data_dirs)} root(s).")
         else:
             self.image_files = []
             print("[Calibrator] No folders provided, will rely only on existing cache file.")
@@ -99,7 +112,7 @@ class ImageCalibrator(trt.IInt8EntropyCalibrator2):
 # -------------------------------
 # Build Engine with INT8
 # -------------------------------
-def build_int8_engine(onnx_path, engine_path, calib_dirs, cache_file, input_shape):
+def build_int8_engine(onnx_path, engine_path, calib_dirs, cache_file, input_shape, max_images=None):
     TRT_LOGGER = trt.Logger(trt.Logger.VERBOSE)
     builder = trt.Builder(TRT_LOGGER)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
@@ -115,7 +128,6 @@ def build_int8_engine(onnx_path, engine_path, calib_dirs, cache_file, input_shap
     config = builder.create_builder_config()
     config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 4096 * (1 << 20))
 
-    # Optimization profile for dynamic input
     profile = builder.create_optimization_profile()
     profile.set_shape("input",
                       min=(1, 3, 320, 640),
@@ -123,9 +135,8 @@ def build_int8_engine(onnx_path, engine_path, calib_dirs, cache_file, input_shap
                       max=(1, 3, 320, 640))
     config.add_optimization_profile(profile)
 
-    # Force INT8 mode
     config.set_flag(trt.BuilderFlag.INT8)
-    calibrator = ImageCalibrator(calib_dirs, cache_file, input_shape)
+    calibrator = ImageCalibrator(calib_dirs, cache_file, input_shape, max_images=max_images)
     config.int8_calibrator = calibrator
 
     print("[Builder] Building INT8 engine... this may take a while.")
@@ -147,9 +158,10 @@ if __name__ == "__main__":
     parser.add_argument("--engine", required=True, help="Output path for TensorRT engine")
     parser.add_argument("--calib-cache", default="calib.cache", help="Path for calibration cache file")
     parser.add_argument("--folders", nargs="*", help="List of folders with calibration images (optional)")
+    parser.add_argument("-N", "--max-images", type=int, default=None,
+                        help="Maximum number of calibration images (default: use all)")
     args = parser.parse_args()
 
-    # Fixed input shape from your ONNX model: (3,320,640)
     input_shape = (3, 320, 640)
 
-    build_int8_engine(args.onnx, args.engine, args.folders, args.calib_cache, input_shape)
+    build_int8_engine(args.onnx, args.engine, args.folders, args.calib_cache, input_shape, max_images=args.max_images)
