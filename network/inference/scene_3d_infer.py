@@ -145,7 +145,6 @@ class Scene3DOnnxInfer:
         # keep float32; visualization will scale
         return out.astype(np.float32)
 
-
 class Scene3DTrtInfer:
     def __init__(self, engine_path):
         logger = trt.Logger(trt.Logger.WARNING)
@@ -153,49 +152,69 @@ class Scene3DTrtInfer:
             self.engine = runtime.deserialize_cuda_engine(f.read())
         self.context = self.engine.create_execution_context()
 
-        # assume one input, one output
-        self.input_name = self.engine.get_tensor_name(0)
-        self.output_name = self.engine.get_tensor_name(1)
+        # Names
+        assert self.engine.num_io_tensors == 2, "Expect exactly 1 input and 1 output"
+        self.input_name  = [n for n in self.engine if self.engine.get_tensor_mode(n) == trt.TensorIOMode.INPUT][0]
+        self.output_name = [n for n in self.engine if self.engine.get_tensor_mode(n) == trt.TensorIOMode.OUTPUT][0]
 
         self.stream = cuda.Stream()
-        self.bindings = []
-        self.host_inputs, self.device_inputs = [], []
-        self.host_outputs, self.device_outputs = [], []
+        self.input_dptr  = None
+        self.output_dptr = None
+        self.output_host = None
 
-        for binding in self.engine:
-            shape = self.engine.get_tensor_shape(binding)
-            dtype = trt.nptype(self.engine.get_tensor_dtype(binding))
-            size = int(np.prod(shape))
-            host_mem = cuda.pagelocked_empty(size, dtype)
-            device_mem = cuda.mem_alloc(host_mem.nbytes)
-            self.bindings.append(int(device_mem))
-            if self.engine.get_tensor_mode(binding) == trt.TensorIOMode.INPUT:
-                self.host_inputs.append(host_mem)
-                self.device_inputs.append(device_mem)
-            else:
-                self.host_outputs.append(host_mem)
-                self.device_outputs.append(device_mem)
+    def _alloc_if_needed(self, inp_shape):
+        # Set runtime input shape (NCHW)
+        self.context.set_input_shape(self.input_name, inp_shape)
+
+        # Query runtime shapes
+        out_shape = tuple(self.context.get_tensor_shape(self.output_name))
+
+        # Allocate (once) with correct sizes/dtypes
+        in_dtype  = trt.nptype(self.engine.get_tensor_dtype(self.input_name))
+        out_dtype = trt.nptype(self.engine.get_tensor_dtype(self.output_name))
+
+        in_size  = int(np.prod(inp_shape))
+        out_size = int(np.prod(out_shape))
+
+        if (self.input_dptr is None) or (self.output_dptr is None):
+            self.input_dptr  = cuda.mem_alloc(in_size  * np.dtype(in_dtype).itemsize)
+            self.output_dptr = cuda.mem_alloc(out_size * np.dtype(out_dtype).itemsize)
+            self.output_host = cuda.pagelocked_empty(out_size, dtype=out_dtype)
+
+        # Bind addresses
+        self.context.set_tensor_address(self.input_name,  int(self.input_dptr))
+        self.context.set_tensor_address(self.output_name, int(self.output_dptr))
+
+        return out_shape, out_dtype
 
     def inference(self, pil_image: Image.Image):
-        # Input: PIL → [0..1] float32, NCHW
+        # Input: PIL RGB -> float32 [0,1] -> NCHW
         img = np.array(pil_image).astype(np.float32) / 255.0
-        img = np.transpose(img, (2, 0, 1))  # HWC → CHW
-        img = np.expand_dims(img, axis=0)   # NCHW
+        img = np.transpose(img, (2, 0, 1))            # HWC -> CHW
+        img = np.expand_dims(img, axis=0)             # -> NCHW
+        img = np.ascontiguousarray(img)               # ensure contiguous
 
-        # Transfer to device
-        cuda.memcpy_htod_async(self.device_inputs[0], img.ravel(), self.stream)
+        # Configure context and allocate
+        out_shape, out_dtype = self._alloc_if_needed(tuple(img.shape))
 
-        # Bind
-        self.context.set_tensor_address(self.input_name, int(self.device_inputs[0]))
-        self.context.set_tensor_address(self.output_name, int(self.device_outputs[0]))
+        # H2D
+        cuda.memcpy_htod_async(self.input_dptr, img, self.stream)
 
-        # Execute
+        # Run
         self.context.execute_async_v3(stream_handle=self.stream.handle)
 
-        # Copy back
-        cuda.memcpy_dtoh_async(self.host_outputs[0], self.device_outputs[0], self.stream)
+        # D2H
+        cuda.memcpy_dtoh_async(self.output_host, self.output_dptr, self.stream)
         self.stream.synchronize()
 
-        # Output = 1 CHANNEL [1,H,W]
-        mask = np.reshape(self.host_outputs[0], self.engine.get_tensor_shape(self.output_name))
-        return np.squeeze(mask, 0).astype(np.uint8)
+        # Reshape to runtime output shape
+        out = np.asarray(self.output_host, dtype=out_dtype).reshape(out_shape)
+
+        # Squeeze batch/channel if needed and return float32 for proper visualization
+        out = np.squeeze(out)  # (H,W) or (C,H,W)
+        if out.ndim == 3:      # C,H,W -> H,W,C
+            out = np.transpose(out, (1, 2, 0))
+        elif out.ndim == 2:    # H,W -> H,W,1
+            out = out[..., None]
+
+        return out.astype(np.float32)
